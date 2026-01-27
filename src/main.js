@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Game } from "./game.js";
+import { version } from "../package.json";
 
 // Global game instance
 let game;
@@ -73,6 +74,12 @@ function setupEventListeners() {
 
   // Load saved settings
   loadSettings();
+
+  // Set version display
+  const versionDisplay = document.getElementById("version-display");
+  if (versionDisplay) {
+    versionDisplay.textContent = `v${version}`;
+  }
 
   // Keyboard events
   document.addEventListener("keydown", (e) => {

@@ -1,6 +1,6 @@
 {
   "name": "zombie-survivor",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Zomebie Survivor - Arena Survival Game",
   "type": "module",
   "scripts": {
@@ -15,9 +15,9 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "three": "^0.160.0"
+    "three": "^0.182.0"
   },
   "devDependencies": {
-    "vite": "^5.4.2"
+    "vite": "^7.3.1"
   }
 }

@@ -254,6 +254,15 @@ button.secondary:hover {
     align-items: center;
 }
 
+#version-display {
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    color: #555;
+    font-size: 12px;
+    font-family: monospace;
+}
+
 /* Settings Section */
 .settings-section {
     background: rgba(0, 0, 0, 0.5);
