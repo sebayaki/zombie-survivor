@@ -120,28 +120,12 @@ export class UpgradeUI {
         overflow: hidden;
       }
 
-      .upgrade-choice:hover {
-        transform: translateY(-5px);
-        border-color: #ffcc00;
-        box-shadow: 0 10px 30px rgba(255, 204, 0, 0.3);
-      }
-
       .upgrade-choice.weapon {
         border-color: #0088ff;
       }
 
-      .upgrade-choice.weapon:hover {
-        border-color: #00aaff;
-        box-shadow: 0 10px 30px rgba(0, 136, 255, 0.3);
-      }
-
       .upgrade-choice.passive {
         border-color: #00ff88;
-      }
-
-      .upgrade-choice.passive:hover {
-        border-color: #00ffaa;
-        box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
       }
 
       .upgrade-choice.evolution {
@@ -150,10 +134,34 @@ export class UpgradeUI {
         animation: evolutionGlow 1s ease-in-out infinite alternate;
       }
 
-      .upgrade-choice.evolution:hover {
-        border-color: #ff66ff;
-        box-shadow: 0 10px 40px rgba(255, 0, 255, 0.5);
-        transform: translateY(-8px) scale(1.02);
+      /* Hover effects ONLY for devices with hover capability (not touch) */
+      @media (hover: hover) and (pointer: fine) {
+        .upgrade-choice:hover {
+          transform: translateY(-5px);
+          border-color: #ffcc00;
+          box-shadow: 0 10px 30px rgba(255, 204, 0, 0.3);
+        }
+
+        .upgrade-choice.weapon:hover {
+          border-color: #00aaff;
+          box-shadow: 0 10px 30px rgba(0, 136, 255, 0.3);
+        }
+
+        .upgrade-choice.passive:hover {
+          border-color: #00ffaa;
+          box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .upgrade-choice.evolution:hover {
+          border-color: #ff66ff;
+          box-shadow: 0 10px 40px rgba(255, 0, 255, 0.5);
+          transform: translateY(-8px) scale(1.02);
+        }
+
+        .upgrade-choice.new:hover {
+          border-color: #ffaa00;
+          box-shadow: 0 10px 30px rgba(255, 136, 0, 0.3);
+        }
       }
 
       @keyframes evolutionGlow {
@@ -287,7 +295,18 @@ export class UpgradeUI {
 
         .upgrade-choice:active {
           transform: scale(0.95);
-          opacity: 0.8;
+          opacity: 0.9;
+          transition: transform 0.1s ease;
+        }
+
+        /* Reset any stuck hover states on touch */
+        .upgrade-choice {
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .upgrade-choice:hover {
+          transform: none;
+          box-shadow: none;
         }
 
         .upgrade-icon {

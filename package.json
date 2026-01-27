@@ -1,6 +1,6 @@
 {
   "name": "zombie-survivor",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "description": "Zomebie Survivor - Arena Survival Game",
   "type": "module",
   "scripts": {
