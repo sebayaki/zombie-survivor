@@ -43,33 +43,115 @@
     </div>
 
     <!-- Start Screen -->
-    <div id="start-screen" class="overlay">
-      <div class="overlay-content">
-        <h1>ZOMBIE</h1>
-        <p class="subtitle">Survivor</p>
-        <div id="gold-display" class="gold-display">
-          💰 <span id="total-gold">0</span>
+    <div id="start-screen" class="overlay start-overlay">
+      <!-- Animated background elements -->
+      <div class="bg-effects">
+        <div class="blood-drip drip-1"></div>
+        <div class="blood-drip drip-2"></div>
+        <div class="blood-drip drip-3"></div>
+        <div class="blood-drip drip-4"></div>
+        <div class="blood-drip drip-5"></div>
+        <div class="fog fog-1"></div>
+        <div class="fog fog-2"></div>
+        <div class="zombie-silhouette sil-1"></div>
+        <div class="zombie-silhouette sil-2"></div>
+        <div class="zombie-silhouette sil-3"></div>
+        <div class="blood-splatter splat-1"></div>
+        <div class="blood-splatter splat-2"></div>
+        <div class="blood-splatter splat-3"></div>
+      </div>
+
+      <!-- Vignette overlay -->
+      <div class="vignette"></div>
+
+      <!-- Scanlines effect -->
+      <div class="scanlines"></div>
+
+      <!-- Gold display - positioned in corner -->
+      <div id="gold-display" class="gold-display corner-gold">
+        <span class="gold-icon">🪙</span> <span id="total-gold">0</span>
+      </div>
+
+      <div class="overlay-content start-content">
+        <div class="title-container">
+          <div class="blood-scratch scratch-1"></div>
+          <div class="blood-scratch scratch-2"></div>
+          <h1 class="game-title">
+            <span class="title-letter" style="--delay: 0">Z</span>
+            <span class="title-letter" style="--delay: 1">O</span>
+            <span class="title-letter" style="--delay: 2">M</span>
+            <span class="title-letter" style="--delay: 3">B</span>
+            <span class="title-letter" style="--delay: 4">I</span>
+            <span class="title-letter" style="--delay: 5">E</span>
+          </h1>
+          <p class="subtitle">
+            <span class="skull">💀</span> SURVIVOR <span class="skull">💀</span>
+          </p>
         </div>
-        <div class="instructions">
-          <p><strong>WASD / Arrow Keys</strong> - Move</p>
-          <p><strong>Mouse</strong> - Move toward cursor</p>
+
+        <div class="instructions gore-box">
+          <div class="gore-corner tl"></div>
+          <div class="gore-corner tr"></div>
+          <div class="gore-corner bl"></div>
+          <div class="gore-corner br"></div>
+          <p><span class="key-highlight">WASD / Arrow Keys</span> - Move</p>
+          <p><span class="key-highlight">Mouse</span> - Move toward cursor</p>
         </div>
-        <p class="hint">Collect XP, level up, choose upgrades!</p>
-        <button id="start-button">START GAME</button>
-        <button id="shop-button" class="shop-button">💰 POWER UP SHOP</button>
+
+        <p class="hint">
+          <span class="hint-icon">⚠️</span> Collect XP, level up, choose
+          upgrades!
+        </p>
+
+        <div class="button-container">
+          <button id="start-button" class="action-btn primary-btn">
+            <span class="btn-icon">☠️</span>
+            <span class="btn-text">START GAME</span>
+            <span class="btn-glow"></span>
+          </button>
+          <button id="shop-button" class="action-btn shop-button">
+            <span class="btn-icon">💰</span>
+            <span class="btn-text">POWER UP SHOP</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Game Over Screen -->
-    <div id="game-over-screen" class="overlay hidden">
-      <div class="overlay-content">
-        <h1>GAME OVER</h1>
-        <div class="final-stats">
-          <p>Wave Reached: <span id="final-wave">1</span></p>
-          <p>Final Score: <span id="final-score">0</span></p>
-          <p>Zombies Killed: <span id="final-kills">0</span></p>
+    <div id="game-over-screen" class="overlay game-over-overlay hidden">
+      <div class="vignette"></div>
+      <div class="blood-splatter splat-go-1"></div>
+      <div class="blood-splatter splat-go-2"></div>
+      <div class="overlay-content game-over-content">
+        <div class="death-icon">💀</div>
+        <h1 class="game-over-title">GAME OVER</h1>
+        <p class="death-message">You have been overwhelmed...</p>
+        <div class="final-stats gore-box">
+          <div class="gore-corner tl"></div>
+          <div class="gore-corner tr"></div>
+          <div class="gore-corner bl"></div>
+          <div class="gore-corner br"></div>
+          <div class="stat-row">
+            <span class="stat-icon">🌊</span>
+            <span class="stat-label">Wave Reached</span>
+            <span class="stat-value" id="final-wave">1</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">⭐</span>
+            <span class="stat-label">Final Score</span>
+            <span class="stat-value" id="final-score">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">☠️</span>
+            <span class="stat-label">Zombies Killed</span>
+            <span class="stat-value" id="final-kills">0</span>
+          </div>
         </div>
-        <button id="restart-button">PLAY AGAIN</button>
+        <button id="restart-button" class="action-btn primary-btn">
+          <span class="btn-icon">🔄</span>
+          <span class="btn-text">PLAY AGAIN</span>
+          <span class="btn-glow"></span>
+        </button>
       </div>
     </div>
 

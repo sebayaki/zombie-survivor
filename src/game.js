@@ -103,9 +103,23 @@ export class Game {
     this.viewSize = viewSize;
 
     // Create renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    // Detect mobile devices
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      );
+
+    // Cap pixel ratio for performance (mobile: 1.5, desktop: 2.0)
+    // iPhone Pro has devicePixelRatio of 3.0 which is way too expensive
+    const maxPixelRatio = isMobile ? 1.5 : 2.0;
+    const pixelRatio = Math.min(window.devicePixelRatio, maxPixelRatio);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
+    this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+    // Store for later use
+    this.isMobile = isMobile;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
