@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { MD2Character } from "three/addons/misc/MD2Character.js";
+import { MD2Character } from "three/examples/jsm/misc/MD2Character.js";
 
 export class Player {
   constructor(game) {
@@ -458,7 +458,15 @@ export class Player {
     }
 
     // Follow mouse position only if not using keyboard or touch
-    if (!usingKeyboard && !usingTouch && this.game.useMouseMovement) {
+    // Don't use mouse movement on touch devices (causes random movement when no input)
+    const isTouchDevice =
+      this.game.touchControls && this.game.touchControls.isTouch;
+    if (
+      !usingKeyboard &&
+      !usingTouch &&
+      this.game.useMouseMovement &&
+      !isTouchDevice
+    ) {
       const mouseTarget = this.game.mouseWorldPos;
       const dx = mouseTarget.x - this.mesh.position.x;
       const dz = mouseTarget.z - this.mesh.position.z;

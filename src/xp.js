@@ -106,19 +106,19 @@ export class XPSystem {
     let size, scale, material;
     if (xpValue >= 25) {
       size = "huge";
-      scale = 0.4;
+      scale = 0.6;
       material = this.gemMaterials.huge;
     } else if (xpValue >= 10) {
       size = "large";
-      scale = 0.3;
+      scale = 0.45;
       material = this.gemMaterials.large;
     } else if (xpValue >= 5) {
       size = "medium";
-      scale = 0.25;
+      scale = 0.38;
       material = this.gemMaterials.medium;
     } else {
       size = "small";
-      scale = 0.2;
+      scale = 0.3;
       material = this.gemMaterials.small;
     }
 
