@@ -1,0 +1,605 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    background: #000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    cursor: crosshair !important;
+}
+
+#game-container {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    cursor: crosshair !important;
+}
+
+#game-container canvas {
+    display: block;
+    cursor: crosshair !important;
+}
+
+/* HUD Styles - Vampire Survivors inspired */
+#hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+}
+
+#health-container {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+}
+
+#health-bar {
+    width: 100%;
+    height: 16px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #ff3333;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#health-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff0000, #ff3333);
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.5) inset;
+}
+
+#stats {
+    position: absolute;
+    bottom: 50px;
+    right: 20px;
+    text-align: right;
+}
+
+#wave, #score, #kills {
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    margin-bottom: 5px;
+}
+
+#wave {
+    font-size: 20px;
+    color: #ff6600;
+}
+
+#wave-number, #score-value, #kills-value {
+    color: #ffcc00;
+}
+
+#weapon-info {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    text-align: right;
+}
+
+#weapon-name {
+    color: #00ff88;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+#ammo {
+    color: #fff;
+    font-size: 16px;
+    margin-top: 5px;
+}
+
+#ammo-value {
+    color: #ffcc00;
+}
+
+/* Overlay Screens */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(20, 10, 30, 0.95) 0%, rgba(40, 10, 10, 0.95) 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    cursor: default;
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+.overlay-content {
+    text-align: center;
+    color: #fff;
+    padding: 40px;
+}
+
+.overlay-content h1 {
+    font-size: 72px;
+    color: #ff3333;
+    text-shadow: 0 0 20px rgba(255, 51, 51, 0.8),
+                 0 0 40px rgba(255, 51, 51, 0.5),
+                 4px 4px 0 #000;
+    letter-spacing: 10px;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 28px;
+    color: #ffcc00;
+    letter-spacing: 8px;
+    margin-bottom: 40px;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.instructions {
+    margin-bottom: 30px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px 40px;
+    border-radius: 10px;
+    border: 1px solid #333;
+}
+
+.instructions p {
+    font-size: 18px;
+    color: #ccc;
+    margin: 12px 0;
+}
+
+.instructions strong {
+    color: #ffcc00;
+    font-weight: bold;
+}
+
+.hint {
+    font-size: 16px;
+    color: #888;
+    margin-bottom: 30px;
+    font-style: italic;
+}
+
+.final-stats {
+    margin: 30px 0;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px 40px;
+    border-radius: 10px;
+}
+
+.final-stats p {
+    font-size: 24px;
+    color: #aaa;
+    margin: 15px 0;
+}
+
+.final-stats span {
+    color: #ffcc00;
+    font-weight: bold;
+}
+
+button {
+    background: linear-gradient(180deg, #ff4444, #cc0000);
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+    padding: 15px 60px;
+    cursor: pointer;
+    letter-spacing: 3px;
+    border-radius: 8px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 5px 20px rgba(255, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+    pointer-events: auto;
+}
+
+button:hover {
+    background: linear-gradient(180deg, #ff6666, #ff0000);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(255, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button.secondary {
+    background: linear-gradient(180deg, #555, #333);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    margin-top: 15px;
+    font-size: 18px;
+    padding: 12px 40px;
+}
+
+button.secondary:hover {
+    background: linear-gradient(180deg, #666, #444);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Pause Screen */
+.pause-hint {
+    font-size: 18px;
+    color: #888;
+    margin-bottom: 20px;
+}
+
+#pause-screen .overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Settings Section */
+.settings-section {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 20px 40px;
+    margin-bottom: 25px;
+    min-width: 280px;
+}
+
+.settings-section h3 {
+    color: #888;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+}
+
+.setting-label {
+    color: #ccc;
+    font-size: 16px;
+}
+
+.toggle-btn {
+    background: linear-gradient(180deg, #444, #333);
+    border: 2px solid #555;
+    color: #888;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    min-width: 70px;
+    transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+    border-color: #777;
+}
+
+.toggle-btn.on {
+    background: linear-gradient(180deg, #228822, #116611);
+    border-color: #33aa33;
+    color: #fff;
+}
+
+.toggle-btn.on:hover {
+    background: linear-gradient(180deg, #33aa33, #228822);
+}
+
+/* Wave Announcement */
+#wave-announcement {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    font-weight: bold;
+    color: #ff6600;
+    text-shadow: 0 0 30px rgba(255, 102, 0, 0.8),
+                 0 0 60px rgba(255, 102, 0, 0.5),
+                 4px 4px 0 #000;
+    letter-spacing: 10px;
+    z-index: 150;
+    animation: waveAnnounce 2s ease-out forwards;
+    pointer-events: none;
+}
+
+#wave-announcement.hidden {
+    display: none;
+}
+
+@keyframes waveAnnounce {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.5);
+    }
+}
+
+/* Crosshair */
+#crosshair {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 150;
+    pointer-events: none;
+}
+
+#crosshair.hidden {
+    display: none;
+}
+
+.crosshair-line {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.crosshair-line.horizontal {
+    width: 20px;
+    height: 2px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.crosshair-line.vertical {
+    width: 2px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.crosshair-dot {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #ff3333;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Damage Flash */
+#damage-flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0.3) 0%, rgba(255, 0, 0, 0.5) 100%);
+    pointer-events: none;
+    z-index: 90;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
+#damage-flash.active {
+    opacity: 1;
+}
+
+/* Screen Shake */
+.shake {
+    animation: shake 0.2s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(-5px, 5px); }
+    50% { transform: translate(5px, -5px); }
+    75% { transform: translate(-5px, -5px); }
+}
+
+/* Settings Button (for mobile) - bottom left */
+.settings-btn {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.settings-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.settings-btn.hidden {
+    display: none;
+}
+
+/* Mobile Touch Joystick - appears where user touches */
+#touch-joystick {
+    position: fixed;
+    z-index: 200;
+    pointer-events: none;
+    display: none;
+}
+
+#touch-joystick.active {
+    display: block;
+}
+
+#joystick-base {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    touch-action: none;
+}
+
+#joystick-handle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    position: absolute;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Gold Display */
+.gold-display {
+    font-size: 24px;
+    color: #ffdd00;
+    text-shadow: 0 0 10px rgba(255, 221, 0, 0.5);
+    margin-bottom: 20px;
+}
+
+/* Shop Button */
+.shop-button {
+    background: linear-gradient(180deg, #ffaa00, #cc8800) !important;
+    margin-top: 15px;
+    font-size: 18px !important;
+    padding: 12px 40px !important;
+    box-shadow: 0 5px 20px rgba(255, 170, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+.shop-button:hover {
+    background: linear-gradient(180deg, #ffbb33, #ff9900) !important;
+    box-shadow: 0 8px 30px rgba(255, 170, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .overlay-content h1 {
+        font-size: 48px;
+        letter-spacing: 5px;
+    }
+
+    .subtitle {
+        font-size: 20px;
+        letter-spacing: 4px;
+    }
+
+    .instructions p {
+        font-size: 14px;
+    }
+
+    button {
+        font-size: 18px;
+        padding: 12px 40px;
+    }
+
+    #health-container {
+        width: 200px;
+    }
+
+    .gold-display {
+        font-size: 18px;
+    }
+
+    .shop-button {
+        font-size: 14px !important;
+        padding: 10px 30px !important;
+    }
+}
+
+/* Touch device specific styles */
+@media (pointer: coarse) {
+    body {
+        cursor: default !important;
+    }
+
+    #game-container {
+        cursor: default !important;
+    }
+
+    #game-container canvas {
+        cursor: default !important;
+    }
+
+    /* Larger touch targets */
+    .settings-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+    }
+}
+
+/* Small mobile screens */
+@media (max-width: 480px) {
+    #joystick-base {
+        width: 100px;
+        height: 100px;
+    }
+
+    #joystick-handle {
+        width: 40px;
+        height: 40px;
+    }
+
+    .settings-btn {
+        bottom: 20px;
+        left: 20px;
+    }
+
+    .upgrade-choices {
+        flex-direction: column;
+    }
+
+    .upgrade-choice {
+        width: 90% !important;
+        margin: 0 auto;
+    }
+}

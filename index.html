@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zombie Survivor</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="game-container">
+      <!-- Three.js canvas will be inserted here -->
+    </div>
+
+    <!-- HUD Overlay -->
+    <div id="hud">
+      <div id="health-container">
+        <div id="health-bar">
+          <div id="health-fill"></div>
+        </div>
+      </div>
+
+      <div id="stats">
+        <div id="wave">WAVE <span id="wave-number">1</span></div>
+        <div id="score">SCORE: <span id="score-value">0</span></div>
+        <div id="kills">KILLS: <span id="kills-value">0</span></div>
+      </div>
+
+      <!-- Settings button for mobile (visible during gameplay) -->
+      <button id="settings-button" class="settings-btn hidden">⚙️</button>
+
+      <!-- Legacy weapon info (hidden by default) -->
+      <div id="weapon-info" style="display: none">
+        <div id="weapon-name">BLASTER</div>
+        <div id="ammo">AMMO: <span id="ammo-value">∞</span></div>
+      </div>
+    </div>
+
+    <!-- Mobile Touch Joystick (appears where user touches) -->
+    <div id="touch-joystick">
+      <div id="joystick-base">
+        <div id="joystick-handle"></div>
+      </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay">
+      <div class="overlay-content">
+        <h1>ZOMBIE</h1>
+        <p class="subtitle">Survivor</p>
+        <div id="gold-display" class="gold-display">
+          💰 <span id="total-gold">0</span>
+        </div>
+        <div class="instructions">
+          <p><strong>WASD / Arrow Keys</strong> - Move</p>
+          <p><strong>Mouse</strong> - Move toward cursor</p>
+        </div>
+        <p class="hint">Collect XP, level up, choose upgrades!</p>
+        <button id="start-button">START GAME</button>
+        <button id="shop-button" class="shop-button">💰 POWER UP SHOP</button>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="overlay hidden">
+      <div class="overlay-content">
+        <h1>GAME OVER</h1>
+        <div class="final-stats">
+          <p>Wave Reached: <span id="final-wave">1</span></p>
+          <p>Final Score: <span id="final-score">0</span></p>
+          <p>Zombies Killed: <span id="final-kills">0</span></p>
+        </div>
+        <button id="restart-button">PLAY AGAIN</button>
+      </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" class="overlay hidden">
+      <div class="overlay-content">
+        <h1>PAUSED</h1>
+        <p class="pause-hint">Press ESC to resume</p>
+
+        <!-- Settings Section -->
+        <div class="settings-section">
+          <h3>Settings</h3>
+          <div class="setting-row">
+            <span class="setting-label">Sound</span>
+            <button id="sound-toggle" class="toggle-btn on">ON</button>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Music</span>
+            <button id="music-toggle" class="toggle-btn on">ON</button>
+          </div>
+        </div>
+
+        <button id="resume-button">RESUME</button>
+        <button id="quit-button" class="secondary">QUIT TO MENU</button>
+      </div>
+    </div>
+
+    <!-- Wave Announcement -->
+    <div id="wave-announcement" class="hidden">
+      <span>WAVE </span><span id="announce-wave-number">1</span>
+    </div>
+
+    <!-- Crosshair (hidden in VS mode) -->
+    <div id="crosshair" class="hidden">
+      <div class="crosshair-line horizontal"></div>
+      <div class="crosshair-line vertical"></div>
+      <div class="crosshair-dot"></div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <!-- Preload MD2 assets -->
+    <link rel="preconnect" href="https://threejs.org" />
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
