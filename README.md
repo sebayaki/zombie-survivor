@@ -1,59 +1,82 @@
-# Zombi Survival
+# Zombie Survivor
 
-A 3D arena survival shooter game built with Three.js where you fight waves of zombies.
+A Vampire Survivors-style 3D arena survival game built with Three.js. Fight endless waves of zombies, collect XP, level up, and choose powerful upgrades to survive!
 
 ## How to Play
 
 ### Controls
 
-- **WASD** - Move your character
-- **Mouse** - Aim
-- **Left Click** - Shoot
-- **1-6** - Switch weapons
+**Desktop:**
 
-### Objective
+- **WASD / Arrow Keys** - Move your character
+- **Mouse** - Move toward cursor
+- **ESC** - Pause game
 
-Survive as long as possible against increasingly difficult waves of zombies. Kill zombies to earn points and pick up weapons and health packs to stay alive.
+**Mobile:**
 
-### Weapons
+- **Touch & Drag** - Virtual joystick appears where you touch
 
-1. **Blaster** - Starting weapon, unlimited ammo, moderate damage
-2. **Shotgun** - Spread shot, high close-range damage
-3. **Machine Gun** - Rapid fire, low damage per shot
-4. **Rocket Launcher** - Explosive area damage
-5. **Railgun** - High damage, slow fire rate
-6. **BFG** - Ultimate weapon, massive damage
+### Gameplay
 
-## Running the Game
+- Weapons fire automatically at nearby enemies
+- Kill zombies to drop XP gems - collect them to level up
+- Each level up lets you choose from 3 random upgrades
+- Earn gold to buy permanent power-ups in the shop
+- Survive as long as possible against increasingly difficult waves
 
-### Option 1: Local Server (Recommended)
+### Upgrades
 
-Using Python:
+Level up to unlock and upgrade:
+
+- **Weapons** - Magic Wand, Fire Wand, Lightning Ring, and more
+- **Passive Items** - Spinach (damage), Armor, Wings (speed), etc.
+- **Evolutions** - Combine weapons with items for ultimate power
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+
+### Setup
 
 ```bash
-cd zombierun
-python -m http.server 8080
+npm install
 ```
 
-Using Node.js:
+### Run Development Server
 
 ```bash
-npx serve .
+npm run dev
 ```
 
-Then open http://localhost:8080 in your browser.
+Open http://localhost:5173 in your browser.
 
-### Option 2: VS Code Live Server
+### Build for Production
 
-If you have the Live Server extension, right-click `index.html` and select "Open with Live Server".
+```bash
+npm run build
+```
 
-## Technical Details
+Output is in the `dist/` folder, ready for deployment.
 
-- Built with Three.js (ES Modules)
-- Uses MD2 character models from the Three.js examples
-- No build tools required - runs directly in modern browsers
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+## Deployment
+
+This project is configured for automatic deployment to Vercel. Just push to your repository and Vercel will build and deploy automatically.
+
+## Tech Stack
+
+- **Three.js** - 3D rendering
+- **Vite** - Build tool and dev server
+- **Vanilla JS** - No framework dependencies
 
 ## Credits
 
-- Three.js: https://threejs.org
-- MD2 Models: Quake II assets from Three.js examples
+- [Three.js](https://threejs.org)
+- MD2 Models from Three.js examples (Quake II assets)
