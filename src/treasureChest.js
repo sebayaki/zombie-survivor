@@ -177,6 +177,12 @@ export class TreasureChestSystem {
   collectChest(index) {
     const chest = this.chests[index];
 
+    // Dramatic slow-mo + bloom to signal "something special happened"
+    if (this.game.postProcessing) {
+      this.game.postProcessing.slowTime(0.15, 0.6);
+      this.game.postProcessing.pulseBloom(0.5, 2.5);
+    }
+
     // Play animation
     this.playOpenAnimation(chest);
 

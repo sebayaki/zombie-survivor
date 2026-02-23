@@ -1204,6 +1204,24 @@ export class AutoWeaponSystem {
       case "laBorra":
         this.fireLaBorra(stats, playerPos, zombies);
         break;
+      case "skullOManiac":
+        this.fireSkullOManiac(stats, playerPos, zombies);
+        break;
+      case "guidedMeteor":
+        this.fireGuidedMeteor(stats, playerPos, zombies);
+        break;
+      case "vandalier":
+        this.fireVandalier(stats, playerPos);
+        break;
+      case "gorgeousMoon":
+        this.fireGorgeousMoon(stats, playerPos);
+        break;
+      case "infiniteCorridor":
+        this.fireInfiniteCorridor(stats, playerPos, zombies);
+        break;
+      case "crimsonShroud":
+        this.fireCrimsonShroud(stats, playerPos);
+        break;
     }
   }
 
@@ -1992,6 +2010,578 @@ export class AutoWeaponSystem {
     this.game.audioManager.playSound("splash");
   }
 
+  // Skull O'Maniac - homing bone storm (bone + wings)
+  fireSkullOManiac(stats, playerPos, zombies) {
+    if (zombies.length === 0) return;
+
+    for (let i = 0; i < stats.projectileCount; i++) {
+      const angle = (i / stats.projectileCount) * Math.PI * 2;
+      const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
+
+      const group = new THREE.Group();
+
+      // Skull core
+      const skull = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffffe0 }),
+      );
+      skull.scale.set(1, 1.1, 0.9);
+      group.add(skull);
+
+      // Eye sockets
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff4400 });
+      const leftEye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 4, 4),
+        eyeMat,
+      );
+      leftEye.position.set(-0.08, 0.05, 0.18);
+      group.add(leftEye);
+      const rightEye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 4, 4),
+        eyeMat,
+      );
+      rightEye.position.set(0.08, 0.05, 0.18);
+      group.add(rightEye);
+
+      // Ghostly trail
+      const trail = new THREE.Mesh(
+        new THREE.ConeGeometry(0.2, 0.6, 6),
+        new THREE.MeshBasicMaterial({
+          color: 0x88ff88,
+          transparent: true,
+          opacity: 0.4,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      trail.position.z = -0.3;
+      trail.rotation.x = -Math.PI / 2;
+      group.add(trail);
+
+      group.position.copy(playerPos);
+      group.position.y = 1;
+      this.game.scene.add(group);
+
+      this.projectiles.push({
+        type: "skullOManiac",
+        mesh: group,
+        direction: direction,
+        speed: stats.projectileSpeed,
+        damage: stats.damage,
+        bounceCount: stats.bounceCount || 8,
+        homing: true,
+        homingStrength: stats.homingStrength || 4,
+        area: stats.area,
+        duration: stats.duration,
+        elapsed: 0,
+        hitEnemies: new Set(),
+      });
+    }
+
+    this.game.audioManager.playSound("throw");
+  }
+
+  // Guided Meteor - giant homing explosions (magicMissile + spellbinder)
+  fireGuidedMeteor(stats, playerPos, zombies) {
+    for (let i = 0; i < stats.projectileCount; i++) {
+      const angle = (i / stats.projectileCount) * Math.PI * 2 + Math.random() * 0.5;
+      const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
+
+      const group = new THREE.Group();
+
+      // Fiery meteor core
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xff6600 }),
+      );
+      group.add(core);
+
+      // Inner glow
+      const innerGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 10, 10),
+        new THREE.MeshBasicMaterial({
+          color: 0xffaa00,
+          transparent: true,
+          opacity: 0.6,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      group.add(innerGlow);
+
+      // Outer corona
+      const corona = new THREE.Mesh(
+        new THREE.SphereGeometry(0.7, 10, 10),
+        new THREE.MeshBasicMaterial({
+          color: 0xff2200,
+          transparent: true,
+          opacity: 0.25,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      group.add(corona);
+
+      // Flame trail
+      const flameTrail = new THREE.Mesh(
+        new THREE.ConeGeometry(0.35, 1.2, 8),
+        new THREE.MeshBasicMaterial({
+          color: 0xff4400,
+          transparent: true,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      flameTrail.position.z = -0.6;
+      flameTrail.rotation.x = -Math.PI / 2;
+      group.add(flameTrail);
+
+      group.position.copy(playerPos);
+      group.position.y = 1;
+      this.game.scene.add(group);
+
+      this.projectiles.push({
+        type: "guidedMeteor",
+        mesh: group,
+        direction: direction,
+        speed: stats.projectileSpeed,
+        damage: stats.damage,
+        pierce: 0,
+        duration: stats.duration,
+        elapsed: 0,
+        homing: true,
+        homingStrength: stats.homingStrength || 5,
+        explosionRadius: stats.explosionRadius || 4,
+        area: stats.area,
+        hitEnemies: new Set(),
+      });
+    }
+
+    this.game.audioManager.playSound("shoot");
+  }
+
+  // Vandalier - merged orbiting bird (peachone + ebonyWings)
+  fireVandalier(stats, playerPos) {
+    const existingBirds = this.projectiles.filter((p) => p.type === "vandalier");
+    if (existingBirds.length >= stats.projectileCount) return;
+
+    const needed = stats.projectileCount - existingBirds.length;
+
+    for (let i = 0; i < needed; i++) {
+      const angle =
+        ((existingBirds.length + i) / stats.projectileCount) * Math.PI * 2;
+
+      const group = new THREE.Group();
+
+      // Merged body - half white half dark
+      const lightBody = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 8, 8, 0, Math.PI),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      );
+      lightBody.scale.set(1, 0.8, 1.5);
+      group.add(lightBody);
+
+      const darkBody = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 8, 8, Math.PI, Math.PI),
+        new THREE.MeshBasicMaterial({ color: 0x220044 }),
+      );
+      darkBody.scale.set(1, 0.8, 1.5);
+      group.add(darkBody);
+
+      // Head
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xccccdd }),
+      );
+      head.position.set(0, 0.12, 0.35);
+      group.add(head);
+
+      // Wings - light left, dark right
+      const leftWing = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.05, 0.35),
+        new THREE.MeshBasicMaterial({
+          color: 0xddddff,
+          transparent: true,
+          opacity: 0.9,
+        }),
+      );
+      leftWing.position.set(-0.35, 0, 0);
+      leftWing.rotation.z = -0.3;
+      group.add(leftWing);
+
+      const rightWing = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.05, 0.35),
+        new THREE.MeshBasicMaterial({
+          color: 0x330055,
+          transparent: true,
+          opacity: 0.9,
+        }),
+      );
+      rightWing.position.set(0.35, 0, 0);
+      rightWing.rotation.z = 0.3;
+      group.add(rightWing);
+
+      // Dual-color eyes
+      const lightEye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.04, 4, 4),
+        new THREE.MeshBasicMaterial({ color: 0x000000 }),
+      );
+      lightEye.position.set(-0.07, 0.17, 0.46);
+      group.add(lightEye);
+      const darkEye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.04, 4, 4),
+        new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+      );
+      darkEye.position.set(0.07, 0.17, 0.46);
+      group.add(darkEye);
+
+      // Powerful merged aura
+      const glow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.7, 8, 8),
+        new THREE.MeshBasicMaterial({
+          color: 0xaa88ff,
+          transparent: true,
+          opacity: 0.35,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      group.add(glow);
+
+      const orbitRadius = stats.orbitRadius || 4.5;
+      group.position.copy(playerPos);
+      group.position.x += Math.cos(angle) * orbitRadius;
+      group.position.z += Math.sin(angle) * orbitRadius;
+      group.position.y = 1.5;
+
+      this.game.scene.add(group);
+
+      this.projectiles.push({
+        type: "vandalier",
+        mesh: group,
+        angle: angle,
+        orbitRadius: orbitRadius,
+        orbitSpeed: stats.orbitSpeed || 4,
+        damage: stats.damage,
+        area: stats.area,
+        duration: Infinity,
+        elapsed: 0,
+        hitCooldowns: {},
+        wingAngle: 0,
+        leftWing: leftWing,
+        rightWing: rightWing,
+      });
+    }
+  }
+
+  // Gorgeous Moon - screen clear + bonus XP (pentagram + crown)
+  fireGorgeousMoon(stats, playerPos) {
+    const group = new THREE.Group();
+
+    // Crescent moon shape using ring geometry
+    const moonOuter = new THREE.Mesh(
+      new THREE.RingGeometry(stats.area * 0.85, stats.area, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xffdd44,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    moonOuter.rotation.x = -Math.PI / 2;
+    group.add(moonOuter);
+
+    // Inner golden fill
+    const moonGlow = new THREE.Mesh(
+      new THREE.CircleGeometry(stats.area, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xffcc00,
+        transparent: true,
+        opacity: 0.35,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    moonGlow.rotation.x = -Math.PI / 2;
+    group.add(moonGlow);
+
+    // Star sparkle pattern
+    for (let i = 0; i < 8; i++) {
+      const starAngle = (i / 8) * Math.PI * 2;
+      const starDist = stats.area * (0.4 + Math.random() * 0.4);
+      const star = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 4, 4),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffaa,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      star.position.set(
+        Math.cos(starAngle) * starDist,
+        0.1,
+        Math.sin(starAngle) * starDist,
+      );
+      group.add(star);
+    }
+
+    group.position.copy(playerPos);
+    group.position.y = 0.1;
+    group.scale.setScalar(0.1);
+
+    this.game.scene.add(group);
+
+    // Kill all enemies and grant bonus XP
+    const zombies = [...this.game.zombieManager.getZombies()];
+    let killCount = 0;
+    for (const zombie of zombies) {
+      const dist = zombie.mesh.position.distanceTo(playerPos);
+      if (dist < stats.area) {
+        this.game.zombieManager.damageZombie(zombie, stats.damage, null, true);
+        killCount++;
+      }
+    }
+
+    // Bonus XP per kill
+    if (killCount > 0 && stats.bonusXp && this.game.xpSystem) {
+      const bonusTotal = killCount * stats.bonusXp;
+      this.game.xpSystem.addXP(bonusTotal);
+      this.game.ui.showMessage(`+${bonusTotal} Bonus XP!`);
+    }
+
+    if (this.game.screenShake) this.game.screenShake(1.5, 0.6);
+    if (this.game.pulseBloom) this.game.pulseBloom(0.6, 4);
+
+    // Animate expansion and fade
+    let groupScale = 0.1;
+    let opacity = 1.0;
+    const animate = () => {
+      groupScale += 0.1;
+      opacity -= 0.02;
+
+      if (opacity <= 0) {
+        this.game.scene.remove(group);
+        this.disposeObject(group);
+      } else {
+        group.scale.setScalar(groupScale);
+        moonOuter.material.opacity = opacity * 0.8;
+        moonGlow.material.opacity = opacity * 0.35;
+        group.rotation.y += 0.03;
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
+
+    this.game.audioManager.playSound("explosion");
+  }
+
+  // Infinite Corridor - freeze + damage zone (clockLancet + stoneMask)
+  fireInfiniteCorridor(stats, playerPos, zombies) {
+    const group = new THREE.Group();
+
+    // Temporal rift - outer swirl
+    const riftOuter = new THREE.Mesh(
+      new THREE.RingGeometry(stats.area * 0.9, stats.area, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0x66ddff,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    riftOuter.rotation.x = -Math.PI / 2;
+    group.add(riftOuter);
+
+    // Inner time distortion fill
+    const riftInner = new THREE.Mesh(
+      new THREE.CircleGeometry(stats.area * 0.9, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0x2288cc,
+        transparent: true,
+        opacity: 0.2,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    riftInner.rotation.x = -Math.PI / 2;
+    group.add(riftInner);
+
+    // Concentric time rings
+    for (let r = 1; r <= 3; r++) {
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(
+          stats.area * (r * 0.25) - 0.1,
+          stats.area * (r * 0.25),
+          32,
+        ),
+        new THREE.MeshBasicMaterial({
+          color: 0xaaeeff,
+          transparent: true,
+          opacity: 0.3,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.01 * r;
+      group.add(ring);
+    }
+
+    // Clock hands (thin, subtle)
+    const handMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const hourLen = stats.area * 0.5;
+    const hourGeo = new THREE.BoxGeometry(0.1, 0.02, hourLen);
+    hourGeo.translate(0, 0, hourLen / 2);
+    const hourHand = new THREE.Mesh(hourGeo, handMat);
+    hourHand.position.y = 0.06;
+    group.add(hourHand);
+
+    const minLen = stats.area * 0.7;
+    const minGeo = new THREE.BoxGeometry(0.06, 0.02, minLen);
+    minGeo.translate(0, 0, minLen / 2);
+    const minuteHand = new THREE.Mesh(minGeo, handMat);
+    minuteHand.position.y = 0.07;
+    group.add(minuteHand);
+
+    group.position.copy(playerPos);
+    group.position.y = 0.1;
+
+    this.game.scene.add(group);
+
+    // Freeze enemies in range
+    const freezeDuration = stats.freezeDuration || 2.5;
+    for (const zombie of zombies) {
+      const dist = zombie.mesh.position.distanceTo(playerPos);
+      if (dist < stats.area) {
+        if (!zombie.originalSpeed) {
+          zombie.originalSpeed = zombie.speed;
+        }
+        zombie.speed = 0;
+        zombie.isFrozen = true;
+
+        zombie.mesh.traverse((child) => {
+          if (child.material && child.material.color) {
+            child.userData.originalColor = child.material.color.getHex();
+            child.material.color.setHex(0x88ccff);
+          }
+        });
+
+        setTimeout(() => {
+          if (zombie.originalSpeed) {
+            zombie.speed = zombie.originalSpeed;
+            zombie.isFrozen = false;
+            zombie.mesh.traverse((child) => {
+              if (child.material && child.userData.originalColor) {
+                child.material.color.setHex(child.userData.originalColor);
+              }
+            });
+          }
+        }, freezeDuration * 1000);
+      }
+    }
+
+    this.effects.push({
+      type: "infiniteCorridor",
+      mesh: group,
+      position: playerPos.clone(),
+      damage: stats.damage,
+      area: stats.area,
+      tickRate: stats.tickRate || 0.4,
+      duration: stats.duration,
+      elapsed: 0,
+      lastTick: 0,
+      hourHand: hourHand,
+      minuteHand: minuteHand,
+    });
+
+    this.game.audioManager.playSound("lightning");
+  }
+
+  // Crimson Shroud - auto-shield + reflect (laurel + tiragisu)
+  fireCrimsonShroud(stats, playerPos) {
+    const group = new THREE.Group();
+
+    // Shield dome
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: 0xff2244,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    group.add(dome);
+
+    // Shield ring at base
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.4, 1.55, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xff4466,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    group.add(ring);
+
+    // Inner glow pillar
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.8, 0.8, 2.5, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xff0033,
+        transparent: true,
+        opacity: 0.15,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    pillar.position.y = 1.25;
+    group.add(pillar);
+
+    group.position.copy(playerPos);
+    group.position.y = 0;
+
+    this.game.scene.add(group);
+
+    // Grant invulnerability for the shield duration
+    if (this.game.player) {
+      this.game.player.invulnerable = true;
+      this.game.player.invulnerableTime = stats.shieldDuration || 3.0;
+    }
+
+    this.effects.push({
+      type: "crimsonShroud",
+      mesh: group,
+      duration: stats.shieldDuration || 3.0,
+      elapsed: 0,
+      reflectDamage: stats.reflectDamage || 30,
+      reflectRadius: stats.reflectRadius || 5,
+      lastReflectTick: 0,
+    });
+
+    this.game.audioManager.playSound("levelUp");
+  }
+
   // Magic Wand - fires at nearest enemy
   fireMagicWand(stats, playerPos, zombies, scale = 1) {
     if (zombies.length === 0) return;
@@ -2573,7 +3163,8 @@ export class AutoWeaponSystem {
 
       // Check duration
       if (proj.elapsed >= proj.duration) {
-        this.removeProjectile(i, proj.type === "fireWand");
+        const explodeOnExpire = proj.type === "fireWand" || proj.type === "guidedMeteor";
+        this.removeProjectile(i, explodeOnExpire);
         continue;
       }
 
@@ -2891,10 +3482,124 @@ export class AutoWeaponSystem {
             }
           }
           break;
+
+        case "skullOManiac": {
+          // Homing bone that bounces between enemies
+          const skullZombies = this.game.zombieManager.getZombies();
+          if (proj.homing && skullZombies.length > 0) {
+            let nearestZ = null;
+            let nearestD = Infinity;
+            for (const z of skullZombies) {
+              if (proj.hitEnemies.has(z)) continue;
+              const d = z.mesh.position.distanceTo(proj.mesh.position);
+              if (d < nearestD) {
+                nearestD = d;
+                nearestZ = z;
+              }
+            }
+            if (nearestZ) {
+              const targetDir = new THREE.Vector3();
+              targetDir.subVectors(nearestZ.mesh.position, proj.mesh.position);
+              targetDir.y = 0;
+              targetDir.normalize();
+              proj.direction.lerp(targetDir, proj.homingStrength * delta);
+              proj.direction.normalize();
+            }
+          }
+
+          proj.mesh.position.add(
+            proj.direction.clone().multiplyScalar(proj.speed * delta),
+          );
+          proj.mesh.rotation.z += delta * 18;
+
+          // Bounce on enemy hit
+          for (const zombie of skullZombies) {
+            if (proj.hitEnemies.has(zombie)) continue;
+            const dist = zombie.mesh.position.distanceTo(proj.mesh.position);
+            if (dist < proj.area + 0.8) {
+              this.game.zombieManager.damageZombie(zombie, proj.damage);
+              proj.hitEnemies.add(zombie);
+
+              if (proj.bounceCount > 0) {
+                proj.bounceCount--;
+                proj.hitEnemies.clear();
+                proj.hitEnemies.add(zombie);
+              }
+              break;
+            }
+          }
+          break;
+        }
+
+        case "guidedMeteor": {
+          // Homing meteor that explodes on impact
+          const meteorZombies = this.game.zombieManager.getZombies();
+          if (meteorZombies.length > 0) {
+            let nearestZ = null;
+            let nearestD = Infinity;
+            for (const z of meteorZombies) {
+              const d = z.mesh.position.distanceTo(proj.mesh.position);
+              if (d < nearestD) {
+                nearestD = d;
+                nearestZ = z;
+              }
+            }
+            if (nearestZ) {
+              const targetDir = new THREE.Vector3();
+              targetDir.subVectors(nearestZ.mesh.position, proj.mesh.position);
+              targetDir.y = 0;
+              targetDir.normalize();
+              proj.direction.lerp(targetDir, proj.homingStrength * delta);
+              proj.direction.normalize();
+            }
+          }
+
+          proj.mesh.position.add(
+            proj.direction.clone().multiplyScalar(proj.speed * delta),
+          );
+          proj.mesh.rotation.y = Math.atan2(proj.direction.x, proj.direction.z);
+          proj.mesh.rotation.x = Math.sin(proj.elapsed * 4) * 0.1;
+          break;
+        }
+
+        case "vandalier": {
+          // Faster, stronger orbiting like peachone/ebonyWings
+          const vanPlayerPos = this.game.player.getPosition();
+          proj.angle += proj.orbitSpeed * delta;
+          proj.mesh.position.x =
+            vanPlayerPos.x + Math.cos(proj.angle) * proj.orbitRadius;
+          proj.mesh.position.z =
+            vanPlayerPos.z + Math.sin(proj.angle) * proj.orbitRadius;
+          proj.mesh.position.y = 1.5 + Math.sin(proj.elapsed * 4) * 0.2;
+
+          proj.mesh.rotation.y = proj.angle + Math.PI / 2;
+
+          proj.wingAngle += delta * 14;
+          if (proj.leftWing) {
+            proj.leftWing.rotation.z = -0.3 + Math.sin(proj.wingAngle) * 0.5;
+          }
+          if (proj.rightWing) {
+            proj.rightWing.rotation.z = 0.3 - Math.sin(proj.wingAngle) * 0.5;
+          }
+
+          const vanZombies = this.game.zombieManager.getZombies();
+          for (const zombie of vanZombies) {
+            const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
+            if (proj.elapsed - lastHit < 0.3) continue;
+
+            const dist = zombie.mesh.position.distanceTo(proj.mesh.position);
+            if (dist < proj.area) {
+              this.game.zombieManager.damageZombie(zombie, proj.damage);
+              proj.hitCooldowns[zombie.mesh.uuid] = proj.elapsed;
+            }
+          }
+          break;
+        }
       }
 
-      // Check collisions (except for holy water in flight)
-      if (proj.type !== "holyWater") {
+      // Check collisions (skip types that handle their own damage)
+      const selfDamageTypes = ["holyWater", "skullOManiac", "vandalier"];
+      if (!selfDamageTypes.includes(proj.type)) {
         this.checkProjectileCollisions(proj, i);
       }
 
@@ -2953,15 +3658,15 @@ export class AutoWeaponSystem {
         }
 
         // Check pierce
+        const shouldExplode = proj.type === "fireWand" || proj.type === "guidedMeteor";
         if (proj.pierce !== undefined && proj.pierce !== Infinity) {
           proj.pierce--;
           if (proj.pierce < 0) {
-            this.removeProjectile(index, proj.type === "fireWand");
+            this.removeProjectile(index, shouldExplode);
             return;
           }
         } else if (!proj.pierce && proj.type !== "runetracer") {
-          // No pierce, destroy on hit
-          this.removeProjectile(index, proj.type === "fireWand");
+          this.removeProjectile(index, shouldExplode);
           return;
         }
       }
@@ -3384,6 +4089,81 @@ export class AutoWeaponSystem {
               }
             });
           }
+          break;
+
+        case "infiniteCorridor":
+          // Spinning clock hands
+          if (effect.hourHand)
+            effect.hourHand.rotation.y += delta * 0.5;
+          if (effect.minuteHand)
+            effect.minuteHand.rotation.y -= delta * 2.0;
+
+          // Tick damage to enemies in zone
+          if (effect.elapsed - effect.lastTick >= effect.tickRate) {
+            effect.lastTick = effect.elapsed;
+
+            const corridorZombies = this.game.zombieManager
+              .getZombies()
+              .filter((z) => {
+                const dx = z.mesh.position.x - effect.position.x;
+                const dz = z.mesh.position.z - effect.position.z;
+                return Math.sqrt(dx * dx + dz * dz) < effect.area;
+              });
+
+            for (const zombie of corridorZombies) {
+              this.game.zombieManager.damageZombie(zombie, effect.damage);
+            }
+          }
+
+          // Fade out towards end
+          {
+            const corridorFade = 1 - effect.elapsed / effect.duration;
+            effect.mesh.traverse((child) => {
+              if (child.isMesh && child.material && child.material.transparent) {
+                child.material.opacity = Math.max(0, child.material.opacity * corridorFade + 0.01);
+              }
+            });
+            effect.mesh.rotation.y += delta * 0.2;
+          }
+          break;
+
+        case "crimsonShroud":
+          // Follow player
+          {
+            const shroudPlayerPos = this.game.player.getPosition();
+            effect.mesh.position.copy(shroudPlayerPos);
+            effect.mesh.position.y = 0;
+
+            // Pulsing shield visual
+            const shroudPulse = 0.8 + Math.sin(effect.elapsed * 6) * 0.2;
+            effect.mesh.traverse((child) => {
+              if (child.isMesh && child.material && child.material.transparent) {
+                child.material.opacity *= shroudPulse;
+              }
+            });
+            effect.mesh.rotation.y += delta * 1.5;
+
+            // Reflect damage to nearby enemies periodically
+            if (effect.elapsed - effect.lastReflectTick >= 0.5) {
+              effect.lastReflectTick = effect.elapsed;
+              const reflectZombies = this.game.zombieManager
+                .getZombies()
+                .filter((z) => {
+                  return (
+                    z.mesh.position.distanceTo(shroudPlayerPos) <
+                    effect.reflectRadius
+                  );
+                });
+
+              for (const zombie of reflectZombies) {
+                this.game.zombieManager.damageZombie(
+                  zombie,
+                  effect.reflectDamage,
+                );
+              }
+            }
+          }
+
           break;
       }
     }

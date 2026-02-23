@@ -19,6 +19,11 @@ import { PowerUpSystem } from "./powerUps.js";
 import { PowerUpShopUI } from "./powerUpShopUI.js";
 import { TouchControls } from "./touchControls.js";
 import { findSpawnPosition } from "./utils.js";
+import {
+  setupEnhancedLighting,
+  createEnhancedArena,
+  updateAmbientParticles,
+} from "./environment.js";
 
 export class Game {
   constructor() {
@@ -76,16 +81,16 @@ export class Game {
 
     // Continuous spawning settings
     this.spawnTimer = 0;
-    this.baseSpawnInterval = 1.4; // Slightly faster early spawns
-    this.minSpawnInterval = 0.3; // Cap late-game spawn rate
+    this.baseSpawnInterval = 1.08; // Slightly faster early spawns
+    this.minSpawnInterval = 0.23; // Cap late-game spawn rate
     this.zombiesPerSpawn = 1; // Start with 1 zombie per spawn
   }
 
   async init() {
     // Create scene - NYC night atmosphere
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a15); // Dark blue night sky
-    this.scene.fog = new THREE.Fog(0x0a0a15, 40, 100); // Lighter fog, further distance
+    this.scene.background = new THREE.Color(0x06080f);
+    this.scene.fog = new THREE.Fog(0x06080f, 30, 80);
 
     // Create camera - top-down orthographic for VS-style view
     const viewSize = 20; // How much of the world to show
@@ -163,242 +168,13 @@ export class Game {
   }
 
   setupLighting() {
-    // Strong ambient light for good visibility (NYC street lighting)
-    const ambient = new THREE.AmbientLight(0x8888aa, 2.5);
-    this.scene.add(ambient);
-
-    // Main directional light (moonlight/street light effect)
-    const mainLight = new THREE.DirectionalLight(0xaaccff, 2.0);
-    mainLight.position.set(0, 50, 10);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
-    mainLight.shadow.camera.near = 1;
-    mainLight.shadow.camera.far = 100;
-    mainLight.shadow.camera.left = -60;
-    mainLight.shadow.camera.right = 60;
-    mainLight.shadow.camera.top = 60;
-    mainLight.shadow.camera.bottom = -60;
-    this.scene.add(mainLight);
-
-    // Secondary warm light (city glow)
-    const warmLight = new THREE.DirectionalLight(0xffcc88, 1.0);
-    warmLight.position.set(-20, 40, -20);
-    this.scene.add(warmLight);
-
-    // Player follow light (reduced intensity for less glare)
-    this.playerLight = new THREE.PointLight(0xffffff, 25, 15);
-    this.playerLight.position.set(0, 10, 0);
-    this.scene.add(this.playerLight);
+    setupEnhancedLighting(this);
   }
 
   createArena() {
-    // Ground - NYC asphalt street
-    const groundGeometry = new THREE.PlaneGeometry(
-      this.arenaSize * 2,
-      this.arenaSize * 2,
-      32,
-      32,
-    );
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a, // Dark asphalt gray
-      roughness: 0.95,
-      metalness: 0.0,
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-
-    // Street lines (yellow center line)
-    this.createStreetMarkings();
-
-    // Sidewalk borders
-    this.createSidewalks();
-
-    // Initialize obstacles array BEFORE creating decorations
-    this.obstacles = [];
-
-    // Create NYC decorative elements
-    this.createNYCDecorations();
+    createEnhancedArena(this);
   }
 
-  createStreetMarkings() {
-    // Simplified street markings using fewer meshes
-    const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
-    const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-    // Center yellow line (single long line instead of dashed)
-    const centerLine = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.2, this.arenaSize * 1.8),
-      lineMaterial,
-    );
-    centerLine.rotation.x = -Math.PI / 2;
-    centerLine.position.set(0, 0.02, 0);
-    this.scene.add(centerLine);
-
-    // Side lines
-    for (const offset of [-10, 10]) {
-      const sideLine = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.15, this.arenaSize * 1.8),
-        whiteMaterial,
-      );
-      sideLine.rotation.x = -Math.PI / 2;
-      sideLine.position.set(offset, 0.02, 0);
-      this.scene.add(sideLine);
-    }
-
-    // Simplified crosswalks (just 2)
-    for (const z of [-25, 25]) {
-      const crosswalk = new THREE.Mesh(
-        new THREE.PlaneGeometry(15, 3),
-        whiteMaterial,
-      );
-      crosswalk.rotation.x = -Math.PI / 2;
-      crosswalk.position.set(0, 0.02, z);
-      this.scene.add(crosswalk);
-    }
-  }
-
-  createSidewalks() {
-    const sidewalkMaterial = new THREE.MeshStandardMaterial({
-      color: 0x555555,
-      roughness: 0.8,
-    });
-
-    // Create sidewalks along edges
-    const sidewalkWidth = 5;
-    const positions = [
-      {
-        x: -this.arenaSize + sidewalkWidth / 2,
-        z: 0,
-        width: sidewalkWidth,
-        length: this.arenaSize * 2,
-      },
-      {
-        x: this.arenaSize - sidewalkWidth / 2,
-        z: 0,
-        width: sidewalkWidth,
-        length: this.arenaSize * 2,
-      },
-      {
-        x: 0,
-        z: -this.arenaSize + sidewalkWidth / 2,
-        width: this.arenaSize * 2 - sidewalkWidth * 2,
-        length: sidewalkWidth,
-      },
-      {
-        x: 0,
-        z: this.arenaSize - sidewalkWidth / 2,
-        width: this.arenaSize * 2 - sidewalkWidth * 2,
-        length: sidewalkWidth,
-      },
-    ];
-
-    for (const pos of positions) {
-      const sidewalk = new THREE.Mesh(
-        new THREE.BoxGeometry(pos.width, 0.15, pos.length),
-        sidewalkMaterial,
-      );
-      sidewalk.position.set(pos.x, 0.075, pos.z);
-      sidewalk.receiveShadow = true;
-      this.scene.add(sidewalk);
-    }
-  }
-
-  createNYCDecorations() {
-    // Shared materials for performance
-    this.buildingMaterials = [
-      new THREE.MeshLambertMaterial({ color: 0x4a4a5a }),
-      new THREE.MeshLambertMaterial({ color: 0x5a5a6a }),
-      new THREE.MeshLambertMaterial({ color: 0x3a3a4a }),
-    ];
-    this.windowMaterial = new THREE.MeshBasicMaterial({ color: 0xffffaa });
-    this.windowOffMaterial = new THREE.MeshBasicMaterial({ color: 0x222233 });
-
-    // Create buildings around the edges (reduced count)
-    for (let i = 0; i < 25; i++) {
-      const side = Math.floor(Math.random() * 4);
-      let x, z;
-      const edgeOffset = this.arenaSize - 2;
-
-      switch (side) {
-        case 0:
-          x = -edgeOffset;
-          z = (Math.random() - 0.5) * this.arenaSize * 1.5;
-          break;
-        case 1:
-          x = edgeOffset;
-          z = (Math.random() - 0.5) * this.arenaSize * 1.5;
-          break;
-        case 2:
-          x = (Math.random() - 0.5) * this.arenaSize * 1.5;
-          z = -edgeOffset;
-          break;
-        case 3:
-          x = (Math.random() - 0.5) * this.arenaSize * 1.5;
-          z = edgeOffset;
-          break;
-      }
-
-      const building = this.createBuilding();
-      building.position.set(x, 0, z);
-      this.scene.add(building);
-    }
-
-    // Cars (with overlap prevention)
-    for (let i = 0; i < 8; i++) {
-      const pos = this.findValidObstaclePosition(12, 37, 5);
-      if (!pos) continue;
-
-      const car = this.createCar();
-      car.position.set(pos.x, 0, pos.z);
-      car.rotation.y = Math.random() * Math.PI * 2;
-      this.scene.add(car);
-
-      this.obstacles.push({
-        mesh: car,
-        position: new THREE.Vector3(pos.x, 0, pos.z),
-        size: new THREE.Vector3(2, 1.5, 4),
-        radius: 3, // Used for collision checking when placing
-      });
-    }
-
-    // Street lamps (with overlap prevention)
-    for (let i = 0; i < 10; i++) {
-      const pos = this.findValidObstaclePosition(15, 45, 3);
-      if (!pos) continue;
-
-      const lamp = this.createStreetLamp();
-      lamp.position.set(pos.x, 0, pos.z);
-      this.scene.add(lamp);
-
-      this.obstacles.push({
-        mesh: lamp,
-        position: new THREE.Vector3(pos.x, 0, pos.z),
-        size: new THREE.Vector3(0.5, 4, 0.5),
-        radius: 1.5,
-      });
-    }
-
-    // Small obstacles (with overlap prevention)
-    for (let i = 0; i < 8; i++) {
-      const pos = this.findValidObstaclePosition(10, 40, 2);
-      if (!pos) continue;
-
-      const obstacle =
-        Math.random() > 0.5 ? this.createTrashCan() : this.createFireHydrant();
-      obstacle.position.set(pos.x, 0, pos.z);
-      this.scene.add(obstacle);
-
-      this.obstacles.push({
-        mesh: obstacle,
-        position: new THREE.Vector3(pos.x, 0, pos.z),
-        size: new THREE.Vector3(0.6, 1, 0.6),
-        radius: 1,
-      });
-    }
-  }
 
   findValidObstaclePosition(minDist, maxDist, minSeparation, maxAttempts = 20) {
     const pos = findSpawnPosition({
@@ -413,145 +189,6 @@ export class Game {
     return pos ? { x: pos.x, z: pos.z } : null;
   }
 
-  createBuilding() {
-    const group = new THREE.Group();
-    const width = 4 + Math.random() * 4;
-    const depth = 4 + Math.random() * 4;
-    const height = 8 + Math.random() * 15;
-
-    // Main building - simple box with Lambert material (faster than Standard)
-    const material =
-      this.buildingMaterials[
-        Math.floor(Math.random() * this.buildingMaterials.length)
-      ];
-    const building = new THREE.Mesh(
-      new THREE.BoxGeometry(width, height, depth),
-      material,
-    );
-    building.position.y = height / 2;
-    group.add(building);
-
-    // Simplified windows - just a few per building face
-    const windowRows = Math.min(5, Math.floor(height / 3));
-    for (let y = 0; y < windowRows; y++) {
-      const yPos = 2 + y * 3;
-      // Just 2-3 windows per row
-      for (let wx = -1; wx <= 1; wx++) {
-        const isLit = Math.random() > 0.3;
-        const win = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.8, 1.5),
-          isLit ? this.windowMaterial : this.windowOffMaterial,
-        );
-        win.position.set(wx * 1.5, yPos, depth / 2 + 0.01);
-        group.add(win);
-      }
-    }
-
-    return group;
-  }
-
-  createCar() {
-    const group = new THREE.Group();
-    const carColors = [
-      0xcc2222, 0x2222cc, 0x22cc22, 0xcccc22, 0x222222, 0xffffff,
-    ];
-    const color = carColors[Math.floor(Math.random() * carColors.length)];
-
-    // Simplified car - just two boxes
-    const bodyMaterial = new THREE.MeshLambertMaterial({ color: color });
-
-    // Lower body
-    const lowerBody = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 0.5, 4),
-      bodyMaterial,
-    );
-    lowerBody.position.y = 0.4;
-    group.add(lowerBody);
-
-    // Upper body (cabin)
-    const upperBody = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 0.6, 2),
-      bodyMaterial,
-    );
-    upperBody.position.set(0, 0.9, -0.3);
-    group.add(upperBody);
-
-    // Simplified wheels - just 4 small boxes
-    const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x111111 });
-    const wheelGeometry = new THREE.BoxGeometry(0.2, 0.5, 0.5);
-    for (const [x, z] of [
-      [-0.9, 1.2],
-      [0.9, 1.2],
-      [-0.9, -1.2],
-      [0.9, -1.2],
-    ]) {
-      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-      wheel.position.set(x, 0.25, z);
-      group.add(wheel);
-    }
-
-    // Headlights
-    const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffffcc });
-    const headlight = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.15, 0.05),
-      lightMaterial,
-    );
-    headlight.position.set(0, 0.45, 2);
-    group.add(headlight);
-
-    return group;
-  }
-
-  createStreetLamp() {
-    const group = new THREE.Group();
-
-    // Simplified lamp - pole + glowing bulb (no point light for performance)
-    const poleMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
-    const pole = new THREE.Mesh(
-      new THREE.BoxGeometry(0.15, 4, 0.15),
-      poleMaterial,
-    );
-    pole.position.y = 2;
-    group.add(pole);
-
-    // Arm
-    const arm = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.1, 1.2),
-      poleMaterial,
-    );
-    arm.position.set(0, 3.9, 0.5);
-    group.add(arm);
-
-    // Glowing bulb (no actual light - just emissive material)
-    const bulb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.2, 6, 6),
-      new THREE.MeshBasicMaterial({ color: 0xffeeaa }),
-    );
-    bulb.position.set(0, 3.7, 1.0);
-    group.add(bulb);
-
-    return group;
-  }
-
-  createTrashCan() {
-    const canMaterial = new THREE.MeshLambertMaterial({ color: 0x228822 });
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.35, 0.3, 1, 8),
-      canMaterial,
-    );
-    body.position.y = 0.5;
-    return body;
-  }
-
-  createFireHydrant() {
-    const hydrantMaterial = new THREE.MeshLambertMaterial({ color: 0xcc2222 });
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.2, 0.7, 8),
-      hydrantMaterial,
-    );
-    body.position.y = 0.35;
-    return body;
-  }
 
   start() {
     document.getElementById("start-screen").classList.add("hidden");
@@ -672,10 +309,10 @@ export class Game {
     );
 
     // Number of zombies per spawn increases gradually
-    this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.7);
+    this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.9);
 
     // Zombie stats scale with time
-    const zombieHealth = 25 + timeMinutes * 8;
+    const zombieHealth = 33 + timeMinutes * 10;
     const zombieSpeed = 1.5 + timeMinutes * 0.08;
 
     if (this.spawnTimer >= spawnInterval) {
@@ -695,7 +332,7 @@ export class Game {
         this.ui.announceWave(this.wave);
 
         // Spawn wave burst
-        const waveBurst = 3 + this.wave * 2;
+        const waveBurst = 4 + Math.floor(this.wave * 2.6);
         for (let i = 0; i < waveBurst; i++) {
           setTimeout(() => {
             if (this.isPlaying) {
@@ -827,6 +464,9 @@ export class Game {
 
       // Update particle system
       this.particleSystem.update(delta);
+
+      // Update ambient environment particles
+      updateAmbientParticles(this.ambientParticles, delta);
 
       // Update legacy weapons/projectiles (for compatibility)
       this.weaponSystem.update(delta);

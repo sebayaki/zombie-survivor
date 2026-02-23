@@ -10,7 +10,12 @@ export class ChestUI {
   createElements() {
     this.overlay = document.createElement("div");
     this.overlay.id = "chest-overlay";
-    this.overlay.className = "chest-overlay hidden";
+    this.overlay.className = "chest-overlay";
+
+    // Golden flash layer that fires on open
+    this.flash = document.createElement("div");
+    this.flash.className = "chest-flash";
+    this.overlay.appendChild(this.flash);
 
     this.container = document.createElement("div");
     this.container.className = "chest-container";
@@ -20,14 +25,12 @@ export class ChestUI {
     this.title.textContent = "TREASURE FOUND!";
     this.container.appendChild(this.title);
 
-    // Inner container for items
     this.itemsContainer = document.createElement("div");
     this.itemsContainer.className = "chest-items";
     this.container.appendChild(this.itemsContainer);
 
-    // Button to close (initially hidden)
     this.doneBtn = document.createElement("button");
-    this.doneBtn.className = "chest-done-btn hidden";
+    this.doneBtn.className = "chest-done-btn btn-hidden";
     this.doneBtn.textContent = "DONE";
     this.doneBtn.addEventListener("click", () => this.close());
     this.container.appendChild(this.doneBtn);
@@ -46,7 +49,7 @@ export class ChestUI {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.9);
+        background: rgba(0, 0, 0, 0);
         display: flex;
         justify-content: center;
         align-items: flex-start;
@@ -54,8 +57,41 @@ export class ChestUI {
         box-sizing: border-box;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        pointer-events: none;
+        opacity: 0;
+        transition: background 0.5s ease, opacity 0.1s ease;
       }
-      .chest-overlay.hidden { display: none; }
+      .chest-overlay.active {
+        pointer-events: auto;
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.85);
+      }
+      .chest-overlay.closing {
+        pointer-events: none;
+        opacity: 0;
+        background: rgba(0, 0, 0, 0);
+        transition: background 0.35s ease, opacity 0.35s ease;
+      }
+
+      .chest-flash {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at center, rgba(255, 215, 0, 0.7) 0%, rgba(255, 170, 0, 0) 70%);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+      .chest-flash.fire {
+        animation: chestFlashAnim 0.7s ease-out forwards;
+      }
+      @keyframes chestFlashAnim {
+        0% { opacity: 1; transform: scale(0.5); }
+        30% { opacity: 0.9; transform: scale(1.2); }
+        100% { opacity: 0; transform: scale(2); }
+      }
 
       .chest-container {
         text-align: center;
@@ -66,6 +102,8 @@ export class ChestUI {
         width: 100%;
         max-width: 800px;
         margin: auto 0;
+        position: relative;
+        z-index: 2;
       }
 
       .chest-title {
@@ -75,13 +113,13 @@ export class ChestUI {
         margin-bottom: 40px;
         letter-spacing: 5px;
         opacity: 0;
-        transform: translateY(-20px);
-        transition: opacity 0.5s, transform 0.5s;
+        transform: scale(0.6);
+        transition: opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
       .chest-title.visible {
         opacity: 1;
-        transform: translateY(0);
-        animation: chestTitlePulse 1s ease-in-out infinite alternate;
+        transform: scale(1);
+        animation: chestTitlePulse 1s 0.4s ease-in-out infinite alternate;
       }
 
       @keyframes chestTitlePulse {
@@ -160,6 +198,13 @@ export class ChestUI {
         cursor: pointer;
         transition: all 0.2s;
         box-shadow: 0 5px 15px rgba(0,136,255,0.4);
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      .chest-done-btn.btn-visible {
+        opacity: 1;
+        transform: translateY(0);
+        transition: all 0.3s ease-out;
       }
       .chest-done-btn:hover {
         background: #00aaff;
@@ -169,7 +214,7 @@ export class ChestUI {
       .chest-done-btn:active {
         transform: translateY(2px);
       }
-      .chest-done-btn.hidden { display: none; }
+      .chest-done-btn.btn-hidden { opacity: 0; pointer-events: none; transform: translateY(15px); }
 
       @media (max-width: 768px), (pointer: coarse) {
         .chest-container {
@@ -199,29 +244,39 @@ export class ChestUI {
   }
 
   show(items, rarity, goldAmount) {
-    this.game.isPaused = true;
     this.isOpen = true;
-    this.overlay.classList.remove("hidden");
-    
+
+    // Reset state
     this.title.classList.remove("visible");
     this.title.textContent = rarity === "legendary" ? "LEGENDARY TREASURE!" : "TREASURE FOUND!";
     this.title.style.color = rarity === "legendary" ? "#ff00ff" : "#ffcc00";
-
     this.itemsContainer.innerHTML = "";
-    this.doneBtn.classList.add("hidden");
+    this.doneBtn.className = "chest-done-btn btn-hidden";
+    this.flash.classList.remove("fire");
 
-    // Start reveal sequence
+    // Phase 1: golden flash fires while overlay fades in
+    this.overlay.classList.remove("closing");
+    void this.overlay.offsetWidth; // force reflow so transition restarts
+    this.overlay.classList.add("active");
+    this.flash.classList.add("fire");
+
+    // Pause the game slightly after the overlay starts fading in
+    // so the player sees the transition instead of an instant freeze
+    setTimeout(() => {
+      this.game.isPaused = true;
+    }, 150);
+
+    // Phase 2: reveal title and items after overlay has settled
     setTimeout(() => {
       this.title.classList.add("visible");
-      this.game.audioManager.playSound("levelUp"); // Or a special chest sound if available
+      this.game.audioManager.playSound("levelUp");
       this.revealItems(items, goldAmount);
-    }, 500);
+    }, 450);
   }
 
   revealItems(items, goldAmount) {
     let delay = 0;
     
-    // Add gold as the first item visually
     const allItems = [...items];
     if (goldAmount > 0) {
       allItems.unshift({
@@ -234,7 +289,7 @@ export class ChestUI {
       });
     }
 
-    allItems.forEach((item, index) => {
+    allItems.forEach((item) => {
       const el = document.createElement("div");
       const rarityClass = item.type === "evolution" ? "evolution" : (item.rarity || "common");
       el.className = `chest-item ${rarityClass}`;
@@ -250,40 +305,46 @@ export class ChestUI {
 
       setTimeout(() => {
         el.classList.add("revealed");
-        this.game.audioManager.playSound("xpPickup"); // Small pop sound for each item
+        this.game.audioManager.playSound("xpPickup");
         
-        // Bloom effect for epic items
         if (rarityClass === "legendary" || rarityClass === "evolution") {
           this.game.pulseBloom(0.4, 2.0);
         }
       }, delay);
 
-      delay += 600; // Time between each item reveal
+      delay += 500;
     });
 
-    // Show done button after all items are revealed
     setTimeout(() => {
-      this.doneBtn.classList.remove("hidden");
+      this.doneBtn.className = "chest-done-btn btn-visible";
       this.game.audioManager.playSound("chestOpen");
     }, delay + 200);
   }
 
   close() {
-    this.overlay.classList.add("hidden");
+    if (!this.isOpen) return;
     this.isOpen = false;
-    
-    // Update UI for the new items
+
+    // Start fade-out
+    this.overlay.classList.remove("active");
+    this.overlay.classList.add("closing");
+
     this.game.ui.updateWeaponIcons();
     this.game.ui.updatePassiveItems();
     this.game.ui.updateScore();
 
-    // Check if there are queued upgrades
-    if (this.game.upgradeQueue && this.game.upgradeQueue.length > 0) {
-      setTimeout(() => {
-        this.game.triggerNextUpgrade();
-      }, 500);
-    } else {
-      this.game.isPaused = false;
-    }
+    // Resume after the fade-out transition completes
+    const fadeDuration = 350;
+    setTimeout(() => {
+      this.overlay.classList.remove("closing");
+
+      if (this.game.upgradeQueue && this.game.upgradeQueue.length > 0) {
+        setTimeout(() => {
+          this.game.triggerNextUpgrade();
+        }, 200);
+      } else {
+        this.game.isPaused = false;
+      }
+    }, fadeDuration);
   }
 }

@@ -193,7 +193,119 @@ export const EVOLUTION_RECIPES = {
       area: 5.0,
       duration: 6.0,
       tickRate: 0.2,
-      slowAmount: 0.5, // 50% slow
+      slowAmount: 0.5,
+    },
+  },
+
+  // Bone + Wings = Skull O'Maniac (homing bone storm)
+  skullOManiac: {
+    id: "skullOManiac",
+    name: "Skull O'Maniac",
+    description: "A relentless swarm of homing bones",
+    icon: "💀",
+    baseWeapon: "bone",
+    requiredPassive: "wings",
+    stats: {
+      damage: 25,
+      cooldown: 0.4,
+      projectileCount: 6,
+      projectileSpeed: 22,
+      bounceCount: 8,
+      area: 1.2,
+      duration: 5.0,
+      homing: true,
+      homingStrength: 4,
+    },
+  },
+
+  // Magic Missile + Spellbinder = Guided Meteor (giant homing explosions)
+  guidedMeteor: {
+    id: "guidedMeteor",
+    name: "Guided Meteor",
+    description: "Massive homing missiles that explode on impact",
+    icon: "☄️",
+    baseWeapon: "magicMissile",
+    requiredPassive: "spellbinder",
+    stats: {
+      damage: 60,
+      cooldown: 1.2,
+      projectileCount: 4,
+      projectileSpeed: 10,
+      pierce: 0,
+      area: 2.0,
+      duration: 6.0,
+      homing: true,
+      homingStrength: 5,
+      explosionRadius: 4,
+    },
+  },
+
+  // Peachone + Ebony Wings = Vandalier (dual-weapon evolution)
+  vandalier: {
+    id: "vandalier",
+    name: "Vandalier",
+    description: "Light and dark birds merge into an unstoppable force",
+    icon: "🦅",
+    baseWeapon: "peachone",
+    requiredWeapon: "ebonyWings",
+    stats: {
+      damage: 30,
+      cooldown: 0,
+      projectileCount: 8,
+      orbitRadius: 4.5,
+      orbitSpeed: 4,
+      area: 2.0,
+    },
+  },
+
+  // Pentagram + Crown = Gorgeous Moon (efficient screen clear)
+  gorgeousMoon: {
+    id: "gorgeousMoon",
+    name: "Gorgeous Moon",
+    description: "Erases enemies and showers you in experience",
+    icon: "🌙",
+    baseWeapon: "pentagram",
+    requiredPassive: "crown",
+    stats: {
+      damage: 999,
+      cooldown: 25,
+      area: 50,
+      duration: 0.8,
+      bonusXp: 20,
+    },
+  },
+
+  // Clock Lancet + Stone Mask = Infinite Corridor (freeze + damage zone)
+  infiniteCorridor: {
+    id: "infiniteCorridor",
+    name: "Infinite Corridor",
+    description: "A temporal rift that freezes and shatters enemies",
+    icon: "⏳",
+    baseWeapon: "clockLancet",
+    requiredPassive: "stoneMask",
+    stats: {
+      damage: 15,
+      cooldown: 1.5,
+      area: 8.0,
+      freezeDuration: 2.5,
+      duration: 3.0,
+      tickRate: 0.4,
+    },
+  },
+
+  // Laurel + Tiragisu = Crimson Shroud (auto-shield + reflect)
+  crimsonShroud: {
+    id: "crimsonShroud",
+    name: "Crimson Shroud",
+    description: "An ever-present barrier that reflects damage",
+    icon: "🛡️",
+    baseWeapon: "laurel",
+    requiredPassive: "tiragisu",
+    stats: {
+      cooldown: 12,
+      shieldDuration: 3.0,
+      reflectDamage: 30,
+      reflectRadius: 5,
     },
   },
 };
@@ -216,17 +328,19 @@ export class EvolutionSystem {
     const passiveSystem = this.game.passiveItemSystem;
 
     for (const [evolvedId, recipe] of Object.entries(EVOLUTION_RECIPES)) {
-      // Skip if already evolved
       if (this.evolvedWeapons.includes(evolvedId)) continue;
 
-      // Check if base weapon is max level (8)
       const weaponLevel = weaponSystem.getWeaponLevel(recipe.baseWeapon);
       if (weaponLevel < 8) continue;
 
-      // Check if required passive is owned
-      if (!passiveSystem.hasItem(recipe.requiredPassive)) continue;
+      // Dual-weapon evolution (e.g. Vandalier = peachone + ebonyWings)
+      if (recipe.requiredWeapon) {
+        const secondLevel = weaponSystem.getWeaponLevel(recipe.requiredWeapon);
+        if (secondLevel < 8) continue;
+      } else {
+        if (!passiveSystem.hasItem(recipe.requiredPassive)) continue;
+      }
 
-      // Evolution is possible!
       if (!this.pendingEvolutions.includes(evolvedId)) {
         this.pendingEvolutions.push(evolvedId);
         console.log(`Evolution available: ${recipe.name}!`);
@@ -249,13 +363,13 @@ export class EvolutionSystem {
     const recipe = EVOLUTION_RECIPES[evolvedId];
     if (!recipe) return false;
 
-    // Remove from pending
     const pendingIndex = this.pendingEvolutions.indexOf(evolvedId);
     if (pendingIndex === -1) return false;
     this.pendingEvolutions.splice(pendingIndex, 1);
 
-    // Remove base weapon from equipped weapons
     const weaponSystem = this.game.autoWeaponSystem;
+
+    // Remove base weapon
     const weaponIndex = weaponSystem.equippedWeapons.findIndex(
       (w) => w.id === recipe.baseWeapon
     );
@@ -263,16 +377,24 @@ export class EvolutionSystem {
       weaponSystem.equippedWeapons.splice(weaponIndex, 1);
     }
 
-    // Add evolved weapon
+    // For dual-weapon evolutions, also remove the second weapon
+    if (recipe.requiredWeapon) {
+      const secondIndex = weaponSystem.equippedWeapons.findIndex(
+        (w) => w.id === recipe.requiredWeapon
+      );
+      if (secondIndex !== -1) {
+        weaponSystem.equippedWeapons.splice(secondIndex, 1);
+      }
+    }
+
     weaponSystem.equippedWeapons.push({
       id: evolvedId,
-      level: 1, // Evolved weapons start at level 1 but are already powerful
+      level: 1,
       isEvolved: true,
     });
 
     this.evolvedWeapons.push(evolvedId);
 
-    // Play evolution sound and effect
     this.game.audioManager.playSound("evolution");
     this.createEvolutionEffect();
 

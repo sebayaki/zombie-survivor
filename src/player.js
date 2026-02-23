@@ -679,11 +679,26 @@ export class Player {
     this.invulnerableTime = 0.5;
 
     if (this.health <= 0) {
+      // Crimson Shroud (evolved laurel): stronger death prevention
+      const ws = this.game.autoWeaponSystem;
+      if (ws?.hasWeapon("crimsonShroud") && !this._laurelOnCooldown) {
+        const stats = this.game.evolutionSystem?.getEvolvedStats("crimsonShroud") || {};
+        this.health = 1;
+        this.invulnerable = true;
+        this.invulnerableTime = stats.shieldDuration || 3.0;
+        this._laurelOnCooldown = true;
+        setTimeout(() => { this._laurelOnCooldown = false; }, (stats.cooldown || 12) * 1000);
+        this.game.ui.showMessage("Crimson Shroud!");
+        this.game.pulseBloom?.(0.5, 2.5);
+        this.game.audioManager.playSound("levelUp");
+        this.game.ui.updateHealth();
+        return;
+      }
       // Laurel shield: grants invincibility instead of dying
-      if (this.game.autoWeaponSystem?.hasWeapon("laurel") && !this._laurelOnCooldown) {
-        const stats = this.game.autoWeaponSystem.getWeaponStats(
+      if (ws?.hasWeapon("laurel") && !this._laurelOnCooldown) {
+        const stats = ws.getWeaponStats(
           "laurel",
-          this.game.autoWeaponSystem.getWeaponLevel("laurel")
+          ws.getWeaponLevel("laurel")
         );
         this.health = 1;
         this.invulnerable = true;

@@ -35,6 +35,69 @@ const VignetteShader = {
   `,
 };
 
+// Color grading — cool shadows, warm highlights
+const ColorGradingShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    contrast: { value: 1.08 },
+    saturation: { value: 1.05 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float contrast;
+    uniform float saturation;
+    varying vec2 vUv;
+    void main() {
+      vec4 color = texture2D(tDiffuse, vUv);
+      color.rgb = (color.rgb - 0.5) * contrast + 0.5;
+      float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+      color.rgb = mix(vec3(gray), color.rgb, saturation);
+      vec3 coolTint = vec3(0.88, 0.92, 1.08);
+      vec3 warmTint = vec3(1.06, 1.01, 0.93);
+      color.rgb *= mix(coolTint, warmTint, gray);
+      gl_FragColor = color;
+    }
+  `,
+};
+
+// Film grain for atmosphere
+const FilmGrainShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    time: { value: 0.0 },
+    intensity: { value: 0.035 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float time;
+    uniform float intensity;
+    varying vec2 vUv;
+    float rand(vec2 co) {
+      return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+    void main() {
+      vec4 color = texture2D(tDiffuse, vUv);
+      float grain = (rand(vUv + vec2(time * 0.01, 0.0)) - 0.5) * 2.0;
+      color.rgb += vec3(grain) * intensity;
+      gl_FragColor = color;
+    }
+  `,
+};
+
 // Chromatic aberration for damage effect
 const ChromaticAberrationShader = {
   uniforms: {
@@ -96,27 +159,29 @@ export class PostProcessingManager {
     const renderPass = new RenderPass(scene, camera);
     this.composer.addPass(renderPass);
 
-    // Bloom pass - makes bright things glow (reduced intensity)
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.4, // strength (reduced from 0.8)
-      0.3, // radius (reduced from 0.4)
-      0.92, // threshold (increased from 0.85 - only very bright things glow)
+      0.5,
+      0.35,
+      0.88,
     );
     this.composer.addPass(this.bloomPass);
 
-    // Vignette pass
+    this.colorGradingPass = new ShaderPass(ColorGradingShader);
+    this.composer.addPass(this.colorGradingPass);
+
     this.vignettePass = new ShaderPass(VignetteShader);
     this.vignettePass.uniforms.offset.value = 1.0;
-    this.vignettePass.uniforms.darkness.value = 0.5;
+    this.vignettePass.uniforms.darkness.value = 0.55;
     this.composer.addPass(this.vignettePass);
 
-    // Chromatic aberration (for damage)
     this.chromaticPass = new ShaderPass(ChromaticAberrationShader);
     this.chromaticPass.uniforms.amount.value = 0;
     this.composer.addPass(this.chromaticPass);
 
-    // Output pass
+    this.filmGrainPass = new ShaderPass(FilmGrainShader);
+    this.composer.addPass(this.filmGrainPass);
+
     const outputPass = new OutputPass();
     this.composer.addPass(outputPass);
   }
@@ -189,6 +254,11 @@ export class PostProcessingManager {
       this.chromaticPass.uniforms.amount.value = this.damageFlashIntensity * 2;
       this.vignettePass.uniforms.darkness.value =
         0.5 + this.damageFlashIntensity * 0.3;
+    }
+
+    // Update film grain
+    if (this.filmGrainPass) {
+      this.filmGrainPass.uniforms.time.value += delta;
     }
 
     // Update time slow
