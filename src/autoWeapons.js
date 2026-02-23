@@ -1093,6 +1093,7 @@ export class AutoWeaponSystem {
     // Add upgrades for owned weapons that aren't max level
     for (const weapon of this.equippedWeapons) {
       const def = AUTO_WEAPONS[weapon.id];
+      if (!def) continue; // evolved weapon — not upgradeable via normal path
       if (weapon.level < def.maxLevel) {
         upgrades.push({
           type: "weapon",
