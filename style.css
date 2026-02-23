@@ -837,7 +837,8 @@ button.secondary:hover {
     align-items: center;
 }
 
-#version-display {
+#version-display,
+.version-display {
     position: absolute;
     bottom: 15px;
     right: 20px;

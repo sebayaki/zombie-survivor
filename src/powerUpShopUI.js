@@ -310,6 +310,11 @@ export class PowerUpShopUI {
   hide() {
     this.overlay.classList.add("hidden");
     this.isOpen = false;
+
+    const goldElement = document.getElementById("total-gold");
+    if (goldElement) {
+      goldElement.textContent = this.game.powerUpSystem.currentGold.toLocaleString();
+    }
   }
 
   updateDisplay() {

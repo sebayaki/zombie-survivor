@@ -303,31 +303,31 @@ export class Game {
   updateSpawning(delta) {
     this.spawnTimer += delta;
 
-    // Calculate current spawn rate based on game time
     const timeMinutes = this.gameTime / 60;
 
-    // Spawn rate increases over time (gradual ramp)
     const spawnInterval = Math.max(
       this.minSpawnInterval,
       this.baseSpawnInterval - timeMinutes * 0.1,
     );
 
-    // Number of zombies per spawn increases gradually
-    this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.9);
+    this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.5);
 
-    // Zombie stats scale with time (3x HP)
-    const zombieHealth = 99 + timeMinutes * 30;
+    // HP scales aggressively to maintain difficulty with fewer zombies
+    const zombieHealth = 99 + timeMinutes * 60 + timeMinutes * timeMinutes * 4;
     const zombieSpeed = 1.5 + timeMinutes * 0.08;
+
+    const maxZombies = 150;
+    const currentCount = this.zombieManager.getZombies().length;
 
     if (this.spawnTimer >= spawnInterval) {
       this.spawnTimer = 0;
 
-      // Spawn zombies
-      for (let i = 0; i < this.zombiesPerSpawn; i++) {
+      const canSpawn = Math.max(0, maxZombies - currentCount);
+      const toSpawn = Math.min(this.zombiesPerSpawn, canSpawn);
+      for (let i = 0; i < toSpawn; i++) {
         this.zombieManager.spawnZombie(zombieSpeed, zombieHealth);
       }
 
-      // Every minute, spawn a "wave" of extra zombies
       if (
         Math.floor(this.gameTime) % 60 === 0 &&
         Math.floor(this.gameTime) !== 0
@@ -335,11 +335,13 @@ export class Game {
         this.wave = Math.floor(this.gameTime / 60) + 1;
         this.ui.announceWave(this.wave);
 
-        // Spawn wave burst
-        const waveBurst = 4 + Math.floor(this.wave * 2.6);
+        const waveBurst = Math.min(
+          4 + Math.floor(this.wave * 2),
+          maxZombies - currentCount,
+        );
         for (let i = 0; i < waveBurst; i++) {
           setTimeout(() => {
-            if (this.isPlaying) {
+            if (this.isPlaying && this.zombieManager.getZombies().length < maxZombies) {
               this.zombieManager.spawnZombie(
                 zombieSpeed * 1.2,
                 zombieHealth * 1.8,

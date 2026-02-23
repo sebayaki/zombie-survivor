@@ -75,10 +75,14 @@ function setupEventListeners() {
   // Load saved settings
   loadSettings();
 
-  // Set version display
+  // Set version display on pause screen and start screen
   const versionDisplay = document.getElementById("version-display");
   if (versionDisplay) {
     versionDisplay.textContent = `v${version}`;
+  }
+  const startVersionDisplay = document.getElementById("start-version-display");
+  if (startVersionDisplay) {
+    startVersionDisplay.textContent = `v${version}`;
   }
 
   // Keyboard events
