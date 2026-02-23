@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { findSpawnPosition } from "./utils.js";
 
 // Pickup types
 const PICKUP_TYPES = {
@@ -194,50 +195,16 @@ export class PickupManager {
   }
 
   findSpawnPosition() {
-    const bounds = this.game.arenaSize - 3;
-    let position;
-    let valid = false;
-    let attempts = 0;
-
-    while (!valid && attempts < 50) {
-      position = new THREE.Vector3(
-        (Math.random() - 0.5) * bounds * 2,
-        0,
-        (Math.random() - 0.5) * bounds * 2,
-      );
-
-      valid = true;
-
-      // Check distance from player
-      const playerPos = this.game.player.getPosition();
-      if (position.distanceTo(playerPos) < 5) {
-        valid = false;
-      }
-
-      // Check distance from obstacles
-      for (const obstacle of this.game.obstacles) {
-        const halfSize = Math.max(obstacle.size.x, obstacle.size.z) / 2 + 1;
-        if (
-          Math.abs(position.x - obstacle.position.x) < halfSize &&
-          Math.abs(position.z - obstacle.position.z) < halfSize
-        ) {
-          valid = false;
-          break;
-        }
-      }
-
-      // Check distance from other pickups
-      for (const pickup of this.pickups) {
-        if (position.distanceTo(pickup.mesh.position) < 2) {
-          valid = false;
-          break;
-        }
-      }
-
-      attempts++;
-    }
-
-    return position || new THREE.Vector3(0, 0, 5);
+    return findSpawnPosition({
+      minDist: 5,
+      maxDist: this.game.arenaSize - 3,
+      arenaSize: this.game.arenaSize,
+      obstacles: this.game.obstacles,
+      avoid: this.pickups,
+      avoidDist: 2,
+      origin: this.game.player.getPosition(),
+      maxAttempts: 50,
+    }) || new THREE.Vector3(0, 0, 5);
   }
 
   update(delta) {
@@ -272,45 +239,8 @@ export class PickupManager {
   }
 
   createCollectEffect(position, color) {
-    // Rising particles
-    const particleCount = 10;
-
-    for (let i = 0; i < particleCount; i++) {
-      const geometry = new THREE.SphereGeometry(0.1, 4, 4);
-      const material = new THREE.MeshBasicMaterial({
-        color: color,
-        transparent: true,
-        opacity: 1,
-      });
-
-      const particle = new THREE.Mesh(geometry, material);
-      particle.position.copy(position);
-      particle.position.x += (Math.random() - 0.5) * 0.5;
-      particle.position.z += (Math.random() - 0.5) * 0.5;
-
-      this.game.scene.add(particle);
-
-      // Animate upward and fade
-      const startY = particle.position.y;
-      let progress = 0;
-
-      const animate = () => {
-        progress += 0.02;
-
-        if (progress >= 1) {
-          this.game.scene.remove(particle);
-          return;
-        }
-
-        particle.position.y = startY + progress * 2;
-        particle.material.opacity = 1 - progress;
-        particle.scale.setScalar(1 - progress * 0.5);
-
-        requestAnimationFrame(animate);
-      };
-
-      // Stagger animation start
-      setTimeout(animate, i * 50);
+    if (this.game.particleSystem) {
+      this.game.particleSystem.spawn(position, "heal", { count: 10 });
     }
   }
 

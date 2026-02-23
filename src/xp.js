@@ -220,48 +220,17 @@ export class XPSystem {
     this.game.audioManager.playSound("xpPickup");
 
     // Create collect effect
-    this.createCollectEffect(gem.mesh.position, gem.mesh.material.color);
+    this.createCollectEffect(gem.mesh.position);
 
     // Remove gem
     this.game.scene.remove(gem.mesh);
     this.gems.splice(index, 1);
   }
 
-  createCollectEffect(position, color) {
-    // Simplified collect effect - just one rising particle
-    const geometry = new THREE.SphereGeometry(0.1, 4, 4);
-    const material = new THREE.MeshBasicMaterial({
-      color: color,
-      transparent: true,
-      opacity: 1,
-    });
-
-    const particle = new THREE.Mesh(geometry, material);
-    particle.position.copy(position);
-
-    this.game.scene.add(particle);
-
-    // Quick fade out
-    const startY = particle.position.y;
-    let progress = 0;
-
-    const animate = () => {
-      progress += 0.1;
-
-      if (progress >= 1) {
-        this.game.scene.remove(particle);
-        geometry.dispose();
-        material.dispose();
-        return;
-      }
-
-      particle.position.y = startY + progress * 1;
-      particle.material.opacity = 1 - progress;
-
-      requestAnimationFrame(animate);
-    };
-
-    animate();
+  createCollectEffect(position) {
+    if (this.game.particleSystem) {
+      this.game.particleSystem.spawn(position, "xpCollect", { count: 5 });
+    }
   }
 
   // Collect all gems on screen (vacuum effect)

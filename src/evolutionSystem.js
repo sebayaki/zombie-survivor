@@ -1,8 +1,6 @@
 // Evolution System - Vampire Survivors style weapon evolution
 // Combines max-level weapons with specific passive items to create powerful evolved weapons
 
-import * as THREE from "three";
-
 // Evolution recipes: weapon + passive = evolved weapon
 export const EVOLUTION_RECIPES = {
   // Magic Wand + Empty Tome = Holy Wand (rapid fire divine projectiles)
@@ -313,83 +311,11 @@ export class EvolutionSystem {
   createEvolutionEffect() {
     const playerPos = this.game.player.getPosition();
 
-    // Create spectacular evolution visual
-    const group = new THREE.Group();
-    group.position.copy(playerPos);
-    group.position.y = 1;
-
-    // Golden burst rings
-    for (let r = 0; r < 3; r++) {
-      const ringGeometry = new THREE.RingGeometry(0.5 + r * 0.5, 1 + r * 0.5, 32);
-      const ringMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffdd00,
-        transparent: true,
-        opacity: 0.8,
-        side: THREE.DoubleSide,
-      });
-      const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-      ring.rotation.x = -Math.PI / 2;
-      ring.userData.delay = r * 0.1;
-      ring.userData.material = ringMaterial;
-      group.add(ring);
+    if (this.game.particleSystem) {
+      this.game.particleSystem.spawn(playerPos, "evolution");
+      this.game.particleSystem.createShockwave(playerPos, 5, 0xffdd00, 1.0);
     }
 
-    // Rising particles
-    const particleCount = 30;
-    const particles = [];
-    for (let i = 0; i < particleCount; i++) {
-      const geometry = new THREE.SphereGeometry(0.1, 6, 6);
-      const material = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0xffdd00 : 0xffffff,
-        transparent: true,
-        opacity: 1,
-      });
-      const particle = new THREE.Mesh(geometry, material);
-      const angle = (i / particleCount) * Math.PI * 2;
-      const radius = 1 + Math.random() * 2;
-      particle.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-      particle.userData.velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 2,
-        5 + Math.random() * 3,
-        (Math.random() - 0.5) * 2
-      );
-      group.add(particle);
-      particles.push(particle);
-    }
-
-    this.game.scene.add(group);
-
-    // Animate
-    let elapsed = 0;
-    const animate = () => {
-      elapsed += 0.016;
-
-      // Expand rings
-      group.children.forEach((child, i) => {
-        if (child.userData.material) {
-          const delay = child.userData.delay || 0;
-          const t = Math.max(0, elapsed - delay);
-          child.scale.setScalar(1 + t * 5);
-          child.userData.material.opacity = Math.max(0, 0.8 - t * 1.5);
-        }
-      });
-
-      // Animate particles
-      particles.forEach((p) => {
-        p.position.add(p.userData.velocity.clone().multiplyScalar(0.016));
-        p.userData.velocity.y -= 10 * 0.016;
-        p.material.opacity = Math.max(0, 1 - elapsed);
-      });
-
-      if (elapsed < 2) {
-        requestAnimationFrame(animate);
-      } else {
-        this.game.scene.remove(group);
-      }
-    };
-    requestAnimationFrame(animate);
-
-    // Screen shake
     if (this.game.screenShake) {
       this.game.screenShake(0.5, 0.3);
     }

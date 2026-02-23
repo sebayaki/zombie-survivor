@@ -17,6 +17,7 @@ import { ParticleSystem } from "./particleSystem.js";
 import { PowerUpSystem } from "./powerUps.js";
 import { PowerUpShopUI } from "./powerUpShopUI.js";
 import { TouchControls } from "./touchControls.js";
+import { findSpawnPosition } from "./utils.js";
 
 export class Game {
   constructor() {
@@ -39,7 +40,7 @@ export class Game {
     this.renderer = null;
     this.clock = new THREE.Clock();
 
-    // Game systems
+    // All game systems (initialized in init())
     this.player = null;
     this.zombieManager = null;
     this.weaponSystem = null;
@@ -47,8 +48,6 @@ export class Game {
     this.collisionSystem = null;
     this.audioManager = null;
     this.ui = null;
-
-    // New VS-style systems
     this.xpSystem = null;
     this.autoWeaponSystem = null;
     this.passiveItemSystem = null;
@@ -399,39 +398,17 @@ export class Game {
     }
   }
 
-  // Find a valid position for an obstacle that doesn't overlap with existing ones
   findValidObstaclePosition(minDist, maxDist, minSeparation, maxAttempts = 20) {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = minDist + Math.random() * (maxDist - minDist);
-      const x = Math.cos(angle) * dist;
-      const z = Math.sin(angle) * dist;
-
-      // Check if position is valid (not too close to other obstacles)
-      let valid = true;
-      for (const obstacle of this.obstacles) {
-        const dx = x - obstacle.position.x;
-        const dz = z - obstacle.position.z;
-        const distance = Math.sqrt(dx * dx + dz * dz);
-        const requiredDist = minSeparation + (obstacle.radius || 1);
-
-        if (distance < requiredDist) {
-          valid = false;
-          break;
-        }
-      }
-
-      // Also check not too close to center (player spawn)
-      if (valid && Math.sqrt(x * x + z * z) < 5) {
-        valid = false;
-      }
-
-      if (valid) {
-        return { x, z };
-      }
-    }
-
-    return null; // Couldn't find valid position
+    const pos = findSpawnPosition({
+      minDist,
+      maxDist,
+      arenaSize: this.arenaSize,
+      obstacles: this.obstacles,
+      minSeparation,
+      clearCenter: 5,
+      maxAttempts,
+    });
+    return pos ? { x: pos.x, z: pos.z } : null;
   }
 
   createBuilding() {
@@ -575,9 +552,6 @@ export class Game {
   }
 
   start() {
-    console.log("Game starting...");
-
-    // Hide start screen
     document.getElementById("start-screen").classList.add("hidden");
 
     // Reset game state
@@ -589,36 +563,20 @@ export class Game {
     this.spawnTimer = 0;
     this.playerStats = {};
 
-    // Reset systems
-    this.player.reset();
-    this.zombieManager.reset();
-    this.pickupManager.reset();
-    this.weaponSystem.reset();
-    this.xpSystem.reset();
-    this.autoWeaponSystem.reset();
-    this.passiveItemSystem.reset();
-    this.treasureChestSystem.reset();
-    this.evolutionSystem.reset();
-    this.particleSystem.reset();
+    // Reset all resettable systems
+    const resettableSystems = [
+      this.player, this.zombieManager, this.pickupManager, this.weaponSystem,
+      this.xpSystem, this.autoWeaponSystem, this.passiveItemSystem,
+      this.treasureChestSystem, this.evolutionSystem, this.particleSystem,
+    ];
+    for (const system of resettableSystems) system.reset();
 
-    // Apply permanent power-up bonuses
     this.powerUpSystem.applyBonuses();
-
-    // Give starting weapon
     this.autoWeaponSystem.addWeapon("magicWand");
-
-    // Update UI
     this.ui.updateAll();
 
-    // Start playing
     this.isPlaying = true;
-
-    // Show touch controls on mobile
     this.touchControls.show();
-
-    // No pointer lock needed - mouse controls movement directly
-
-    // Play background music
     this.audioManager.playMusic();
   }
 
@@ -631,23 +589,15 @@ export class Game {
   }
 
   gameOver() {
-    console.log("Game Over!");
-
     this.isPlaying = false;
     this.isPaused = false;
-
-    // Hide touch controls
     this.touchControls.hide();
 
-    // Update final stats
     document.getElementById("final-wave").textContent = this.wave;
     document.getElementById("final-score").textContent = this.score;
     document.getElementById("final-kills").textContent = this.kills;
-
-    // Show game over screen
     document.getElementById("game-over-screen").classList.remove("hidden");
 
-    // Stop music
     this.audioManager.stopMusic();
     this.audioManager.playSound("gameOver");
   }
@@ -870,63 +820,39 @@ export class Game {
     }
   }
 
-  // Find nearest zombie and aim at it
-  updateAutoAim() {
+  findNearestZombie() {
     const playerPos = this.player.getPosition();
     const zombies = this.zombieManager.getZombies();
+    let nearest = null;
+    let nearestDist = Infinity;
 
-    if (zombies.length === 0) return;
-
-    let nearestZombie = null;
-    let nearestDistance = Infinity;
-
-    // Find nearest zombie
     for (const zombie of zombies) {
-      const zombiePos = zombie.mesh.position;
-      const dx = zombiePos.x - playerPos.x;
-      const dz = zombiePos.z - playerPos.z;
-      const distance = Math.sqrt(dx * dx + dz * dz);
-
-      if (distance < nearestDistance && distance <= this.autoAimRange) {
-        nearestDistance = distance;
-        nearestZombie = zombie;
+      const pos = zombie.mesh.position;
+      const dx = pos.x - playerPos.x;
+      const dz = pos.z - playerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < nearestDist && dist <= this.autoAimRange) {
+        nearestDist = dist;
+        nearest = zombie;
       }
     }
+    return nearest;
+  }
 
-    // Aim at nearest zombie
-    if (nearestZombie) {
-      const zombiePos = nearestZombie.mesh.position;
-      const dx = zombiePos.x - playerPos.x;
-      const dz = zombiePos.z - playerPos.z;
-
-      // Calculate angle to zombie
-      const targetAngle = Math.atan2(dx, dz);
-
-      // Set player's aim direction (smooth rotation)
-      this.player.setAimTarget(targetAngle);
+  updateAutoAim() {
+    const nearest = this.findNearestZombie();
+    if (nearest) {
+      const playerPos = this.player.getPosition();
+      const dx = nearest.mesh.position.x - playerPos.x;
+      const dz = nearest.mesh.position.z - playerPos.z;
+      this.player.setAimTarget(Math.atan2(dx, dz));
     } else {
-      // No enemies in range, clear aim target
       this.player.clearAimTarget();
     }
   }
 
-  // Check if there are enemies within auto-fire range
   hasEnemiesInRange() {
-    const playerPos = this.player.getPosition();
-    const zombies = this.zombieManager.getZombies();
-
-    for (const zombie of zombies) {
-      const zombiePos = zombie.mesh.position;
-      const dx = zombiePos.x - playerPos.x;
-      const dz = zombiePos.z - playerPos.z;
-      const distance = Math.sqrt(dx * dx + dz * dz);
-
-      if (distance <= this.autoAimRange) {
-        return true;
-      }
-    }
-
-    return false;
+    return this.findNearestZombie() !== null;
   }
 
   updateCamera() {

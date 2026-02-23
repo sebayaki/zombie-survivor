@@ -1,42 +1,117 @@
+// Sound definition types: 'sweep', 'noise', 'multi'
+// sweep: oscillator with frequency sweep
+// noise: white noise burst with optional filter
+// multi: multiple notes played in sequence
+
+const SOUND_DEFS = {
+  shoot:     { type: "sweep", wave: "square",   startFreq: 400,  endFreq: 100,  duration: 0.1,  volume: 0.3 },
+  machinegun:{ type: "sweep", wave: "sawtooth", startFreq: 200,  endFreq: 80,   duration: 0.05, volume: 0.2 },
+  rocket:    { type: "sweep", wave: "sawtooth", startFreq: 100,  endFreq: 50,   duration: 0.3,  volume: 0.4 },
+  railgun:   { type: "sweep", wave: "sine",     startFreq: 2000, endFreq: 100,  duration: 0.3,  volume: 0.3 },
+  zombieDeath:{ type: "sweep", wave: "sawtooth", startFreq: 200,  endFreq: 50,   duration: 0.2,  volume: 0.2 },
+  zombieAttack:{ type: "sweep", wave: "sawtooth", startFreq: 150, endFreq: 100,  duration: 0.1,  volume: 0.15 },
+  playerHit: { type: "sweep", wave: "square",   startFreq: 100,  endFreq: 50,   duration: 0.15, volume: 0.3 },
+  pickup:    { type: "sweep", wave: "sine",     startFreq: 400,  endFreq: 800,  duration: 0.15, volume: 0.2 },
+  xpPickup:  { type: "sweep", wave: "sine",     startFreq: 600,  endFreq: 1200, duration: 0.08, volume: 0.1 },
+  upgrade:   { type: "sweep", wave: "sine",     startFreq: 300,  endFreq: 600,  duration: 0.2,  volume: 0.25 },
+  knife:     { type: "sweep", wave: "sawtooth", startFreq: 800,  endFreq: 200,  duration: 0.05, volume: 0.15 },
+  axe:       { type: "sweep", wave: "sawtooth", startFreq: 300,  endFreq: 100,  duration: 0.15, volume: 0.25 },
+  cross:     { type: "sweep", wave: "triangle", startFreq: 500,  endFreq: 500,  duration: 0.1,  volume: 0.2 },
+  fireball:  { type: "sweep", wave: "sawtooth", startFreq: 200,  endFreq: 100,  duration: 0.2,  volume: 0.25 },
+  runetracer:{ type: "sweep", wave: "sine",     startFreq: 800,  endFreq: 400,  duration: 0.15, volume: 0.15 },
+  throw:     { type: "sweep", wave: "sine",     startFreq: 400,  endFreq: 200,  duration: 0.1,  volume: 0.15 },
+
+  weaponSwitch: {
+    type: "sweep", wave: "sine", startFreq: 600, endFreq: 400,
+    duration: 0.1, volume: 0.15, freqStepAt: 0.05,
+  },
+
+  shotgun:   { type: "noise", duration: 0.15, volume: 0.5, decay: 0.1 },
+  whip:      { type: "noise", duration: 0.1,  volume: 0.4, decay: 20, filter: "highpass", filterFreq: 1000, envelopeFn: "whip" },
+  lightning: { type: "noise", duration: 0.15, volume: 0.35, decay: 15, filter: "highpass", filterFreq: 2000 },
+  splash:    { type: "noise", duration: 0.2,  volume: 0.3, decay: 10, filter: "lowpass", filterFreq: 1500, modulate: 100 },
+  explosion: { type: "noise", duration: 0.5,  volume: 0.7, decay: 4, filter: "lowpass", filterFreq: 500, modulate: 50 },
+
+  gameOver: { type: "sweep", wave: "sawtooth", startFreq: 400, endFreq: 50, duration: 1.0, volume: 0.3 },
+
+  levelUp: {
+    type: "multi",
+    notes: [
+      { freq: 400, delay: 0,   duration: 0.2, wave: "sine", volume: 0.2 },
+      { freq: 500, delay: 80,  duration: 0.2, wave: "sine", volume: 0.2 },
+      { freq: 600, delay: 160, duration: 0.2, wave: "sine", volume: 0.2 },
+      { freq: 800, delay: 240, duration: 0.2, wave: "sine", volume: 0.2 },
+    ],
+  },
+
+  chestSpawn: {
+    type: "multi",
+    notes: [
+      { freq: 523, delay: 0,   duration: 0.3, wave: "sine", volume: 0.15 },
+      { freq: 659, delay: 100, duration: 0.3, wave: "sine", volume: 0.15 },
+      { freq: 784, delay: 200, duration: 0.3, wave: "sine", volume: 0.15 },
+    ],
+  },
+
+  chestOpen: { type: "chord", frequencies: [523, 659], wave: "sine", duration: 0.4, volume: 0.2 },
+
+  bfg: { type: "chord", frequencies: [50, 1500], wave: "sine", duration: 0.5, volume: 0.4, sweepEnd: [50, 200] },
+
+  evolution: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      const notes = [440, 554, 659, 880, 1108, 1318];
+      for (let i = 0; i < notes.length; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(notes[i], now + i * 0.08);
+        gain.gain.setValueAtTime(0, now + i * 0.08);
+        gain.gain.linearRampToValueAtTime(0.3, now + i * 0.08 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.4);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now + i * 0.08);
+        osc.stop(now + i * 0.08 + 0.5);
+      }
+      const shimmerOsc = ctx.createOscillator();
+      const shimmerGain = ctx.createGain();
+      shimmerOsc.type = "triangle";
+      shimmerOsc.frequency.setValueAtTime(1760, now + 0.5);
+      shimmerOsc.frequency.exponentialRampToValueAtTime(880, now + 1.5);
+      shimmerGain.gain.setValueAtTime(0.2, now + 0.5);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+      shimmerOsc.connect(shimmerGain);
+      shimmerGain.connect(masterGain);
+      shimmerOsc.start(now + 0.5);
+      shimmerOsc.stop(now + 1.5);
+    },
+  },
+};
+
 export class AudioManager {
   constructor() {
-    // Audio context
     this.context = null;
     this.masterGain = null;
-
-    // Sound buffers
-    this.sounds = {};
-
-    // Music
     this.musicGain = null;
     this.musicOscillators = [];
-
-    // Initialize on first user interaction
     this.initialized = false;
-
-    // Settings
     this.soundEnabled = true;
     this.musicEnabled = true;
   }
 
   init() {
     if (this.initialized) return;
-
     try {
       this.context = new (window.AudioContext || window.webkitAudioContext)();
-
-      // Master gain
       this.masterGain = this.context.createGain();
       this.masterGain.gain.value = 0.5;
       this.masterGain.connect(this.context.destination);
-
-      // Music gain
       this.musicGain = this.context.createGain();
       this.musicGain.gain.value = 0.15;
       this.musicGain.connect(this.masterGain);
-
       this.initialized = true;
-      console.log("Audio initialized");
     } catch (e) {
       console.warn("Web Audio not supported:", e);
     }
@@ -44,948 +119,207 @@ export class AudioManager {
 
   playSound(name) {
     if (!this.soundEnabled) return;
-
     this.init();
     if (!this.context) return;
+    if (this.context.state === "suspended") this.context.resume();
 
-    // Resume context if suspended
-    if (this.context.state === "suspended") {
-      this.context.resume();
-    }
+    const def = SOUND_DEFS[name];
+    if (!def) return;
 
-    // Generate procedural sounds
-    switch (name) {
-      case "shoot":
-        this.playShoot();
-        break;
-      case "shotgun":
-        this.playShotgun();
-        break;
-      case "machinegun":
-        this.playMachinegun();
-        break;
-      case "rocket":
-        this.playRocket();
-        break;
-      case "railgun":
-        this.playRailgun();
-        break;
-      case "bfg":
-        this.playBFG();
-        break;
-      case "explosion":
-        this.playExplosion();
-        break;
-      case "zombieDeath":
-        this.playZombieDeath();
-        break;
-      case "zombieAttack":
-        this.playZombieAttack();
-        break;
-      case "playerHit":
-        this.playPlayerHit();
-        break;
-      case "pickup":
-        this.playPickup();
-        break;
-      case "weaponSwitch":
-        this.playWeaponSwitch();
-        break;
-      case "gameOver":
-        this.playGameOver();
-        break;
-      // New VS-style sounds
-      case "xpPickup":
-        this.playXPPickup();
-        break;
-      case "levelUp":
-        this.playLevelUp();
-        break;
-      case "upgrade":
-        this.playUpgrade();
-        break;
-      case "whip":
-        this.playWhip();
-        break;
-      case "knife":
-        this.playKnife();
-        break;
-      case "axe":
-        this.playAxe();
-        break;
-      case "cross":
-        this.playCross();
-        break;
-      case "fireball":
-        this.playFireball();
-        break;
-      case "lightning":
-        this.playLightning();
-        break;
-      case "runetracer":
-        this.playRunetracer();
-        break;
-      case "throw":
-        this.playThrow();
-        break;
-      case "splash":
-        this.playSplash();
-        break;
-      case "chestSpawn":
-        this.playChestSpawn();
-        break;
-      case "chestOpen":
-        this.playChestOpen();
-        break;
-      case "evolution":
-        this.playEvolution();
-        break;
+    switch (def.type) {
+      case "sweep":  this._playSweep(def); break;
+      case "noise":  this._playNoise(def); break;
+      case "multi":  this._playMulti(def); break;
+      case "chord":  this._playChord(def); break;
+      case "custom": def.play(this.context, this.masterGain); break;
     }
   }
 
-  // Evolution sound - dramatic ascending chime
-  playEvolution() {
-    const now = this.context.currentTime;
+  _playSweep(def) {
+    const ctx = this.context;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-    // Multiple ascending tones for epic feel
-    const notes = [440, 554, 659, 880, 1108, 1318]; // A4 to E6
-    notes.forEach((freq, i) => {
-      const osc = this.context.createOscillator();
-      const gain = this.context.createGain();
+    osc.type = def.wave;
+    osc.frequency.setValueAtTime(def.startFreq, now);
 
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+    if (def.freqStepAt) {
+      osc.frequency.setValueAtTime(def.endFreq, now + def.freqStepAt);
+    } else {
+      osc.frequency.exponentialRampToValueAtTime(def.endFreq, now + def.duration);
+    }
 
-      gain.gain.setValueAtTime(0, now + i * 0.08);
-      gain.gain.linearRampToValueAtTime(0.3, now + i * 0.08 + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.4);
+    gain.gain.setValueAtTime(def.volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + def.duration);
 
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + def.duration);
+  }
+
+  _playNoise(def) {
+    const ctx = this.context;
+    const bufferSize = Math.floor(ctx.sampleRate * def.duration);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    const decayRate = typeof def.decay === "number" ? def.decay : 1 / (def.duration * (def.decay || 0.1));
+
+    for (let i = 0; i < bufferSize; i++) {
+      const t = i / bufferSize;
+      let sample = (Math.random() * 2 - 1) * Math.exp(-t * decayRate);
+      if (def.envelopeFn === "whip") sample *= (1 - t);
+      if (def.modulate) sample *= Math.sin(t * def.modulate);
+      data[i] = sample;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    let lastNode = source;
+
+    if (def.filter) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = def.filter;
+      filter.frequency.value = def.filterFreq;
+      lastNode.connect(filter);
+      lastNode = filter;
+    }
+
+    const gain = ctx.createGain();
+    gain.gain.value = def.volume;
+    lastNode.connect(gain);
+    gain.connect(this.masterGain);
+
+    source.start();
+  }
+
+  _playMulti(def) {
+    for (const note of def.notes) {
+      setTimeout(() => {
+        const ctx = this.context;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = note.wave || "sine";
+        osc.frequency.value = note.freq;
+        gain.gain.setValueAtTime(note.volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + note.duration);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + note.duration);
+      }, note.delay);
+    }
+  }
+
+  _playChord(def) {
+    const ctx = this.context;
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(def.volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + def.duration);
+    gain.connect(this.masterGain);
+
+    def.frequencies.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = def.wave || "sine";
+      osc.frequency.setValueAtTime(freq, now);
+      if (def.sweepEnd?.[i]) {
+        osc.frequency.exponentialRampToValueAtTime(def.sweepEnd[i], now + def.duration);
+      }
       osc.connect(gain);
-      gain.connect(this.masterGain);
-
-      osc.start(now + i * 0.08);
-      osc.stop(now + i * 0.08 + 0.5);
-    });
-
-    // Final shimmer
-    const shimmerOsc = this.context.createOscillator();
-    const shimmerGain = this.context.createGain();
-
-    shimmerOsc.type = "triangle";
-    shimmerOsc.frequency.setValueAtTime(1760, now + 0.5);
-    shimmerOsc.frequency.exponentialRampToValueAtTime(880, now + 1.5);
-
-    shimmerGain.gain.setValueAtTime(0.2, now + 0.5);
-    shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
-
-    shimmerOsc.connect(shimmerGain);
-    shimmerGain.connect(this.masterGain);
-
-    shimmerOsc.start(now + 0.5);
-    shimmerOsc.stop(now + 1.5);
-  }
-
-  // Procedural sound generators
-  playShoot() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "square";
-    osc.frequency.setValueAtTime(400, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      100,
-      this.context.currentTime + 0.1,
-    );
-
-    gain.gain.setValueAtTime(0.3, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.1,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.1);
-  }
-
-  playShotgun() {
-    // Noise burst
-    const bufferSize = this.context.sampleRate * 0.15;
-    const buffer = this.context.createBuffer(
-      1,
-      bufferSize,
-      this.context.sampleRate,
-    );
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.1));
-    }
-
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-
-    const gain = this.context.createGain();
-    gain.gain.value = 0.5;
-
-    source.connect(gain);
-    gain.connect(this.masterGain);
-
-    source.start();
-  }
-
-  playMachinegun() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(200, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      80,
-      this.context.currentTime + 0.05,
-    );
-
-    gain.gain.setValueAtTime(0.2, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.05,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.05);
-  }
-
-  playRocket() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(100, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      50,
-      this.context.currentTime + 0.3,
-    );
-
-    gain.gain.setValueAtTime(0.4, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.3,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.3);
-  }
-
-  playRailgun() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(2000, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      100,
-      this.context.currentTime + 0.3,
-    );
-
-    gain.gain.setValueAtTime(0.3, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.3,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.3);
-  }
-
-  playBFG() {
-    // Deep bass + high whine
-    const osc1 = this.context.createOscillator();
-    const osc2 = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(50, this.context.currentTime);
-
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(1500, this.context.currentTime);
-    osc2.frequency.exponentialRampToValueAtTime(
-      200,
-      this.context.currentTime + 0.5,
-    );
-
-    gain.gain.setValueAtTime(0.4, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.5,
-    );
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc1.start();
-    osc2.start();
-    osc1.stop(this.context.currentTime + 0.5);
-    osc2.stop(this.context.currentTime + 0.5);
-  }
-
-  playExplosion() {
-    // Low frequency noise
-    const bufferSize = this.context.sampleRate * 0.5;
-    const buffer = this.context.createBuffer(
-      1,
-      bufferSize,
-      this.context.sampleRate,
-    );
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / bufferSize;
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 4) * Math.sin(t * 50);
-    }
-
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-
-    const filter = this.context.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 500;
-
-    const gain = this.context.createGain();
-    gain.gain.value = 0.7;
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-
-    source.start();
-  }
-
-  playZombieDeath() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(200, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      50,
-      this.context.currentTime + 0.2,
-    );
-
-    gain.gain.setValueAtTime(0.2, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.2,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.2);
-  }
-
-  playZombieAttack() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(150, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      100,
-      this.context.currentTime + 0.1,
-    );
-
-    gain.gain.setValueAtTime(0.15, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.1,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.1);
-  }
-
-  playPlayerHit() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "square";
-    osc.frequency.setValueAtTime(100, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      50,
-      this.context.currentTime + 0.15,
-    );
-
-    gain.gain.setValueAtTime(0.3, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.15,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.15);
-  }
-
-  playPickup() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(400, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      800,
-      this.context.currentTime + 0.1,
-    );
-
-    gain.gain.setValueAtTime(0.2, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.15,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.15);
-  }
-
-  playWeaponSwitch() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(600, this.context.currentTime);
-    osc.frequency.setValueAtTime(400, this.context.currentTime + 0.05);
-
-    gain.gain.setValueAtTime(0.15, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.1,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.1);
-  }
-
-  playGameOver() {
-    // Descending tone
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(400, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      50,
-      this.context.currentTime + 1,
-    );
-
-    gain.gain.setValueAtTime(0.3, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 1);
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 1);
-  }
-
-  // New VS-style sounds
-  playXPPickup() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(600, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      1200,
-      this.context.currentTime + 0.05,
-    );
-
-    gain.gain.setValueAtTime(0.1, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.08,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.08);
-  }
-
-  playLevelUp() {
-    // Ascending arpeggio
-    const notes = [400, 500, 600, 800];
-    notes.forEach((freq, i) => {
-      setTimeout(() => {
-        const osc = this.context.createOscillator();
-        const gain = this.context.createGain();
-
-        osc.type = "sine";
-        osc.frequency.value = freq;
-
-        gain.gain.setValueAtTime(0.2, this.context.currentTime);
-        gain.gain.exponentialRampToValueAtTime(
-          0.01,
-          this.context.currentTime + 0.2,
-        );
-
-        osc.connect(gain);
-        gain.connect(this.masterGain);
-
-        osc.start();
-        osc.stop(this.context.currentTime + 0.2);
-      }, i * 80);
+      osc.start(now);
+      osc.stop(now + def.duration);
     });
   }
 
-  playUpgrade() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(300, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      600,
-      this.context.currentTime + 0.15,
-    );
-
-    gain.gain.setValueAtTime(0.25, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.2,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.2);
-  }
-
-  playWhip() {
-    // Crack sound
-    const bufferSize = this.context.sampleRate * 0.1;
-    const buffer = this.context.createBuffer(
-      1,
-      bufferSize,
-      this.context.sampleRate,
-    );
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / bufferSize;
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 20) * (1 - t);
-    }
-
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-
-    const filter = this.context.createBiquadFilter();
-    filter.type = "highpass";
-    filter.frequency.value = 1000;
-
-    const gain = this.context.createGain();
-    gain.gain.value = 0.4;
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-
-    source.start();
-  }
-
-  playKnife() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(800, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      200,
-      this.context.currentTime + 0.05,
-    );
-
-    gain.gain.setValueAtTime(0.15, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.05,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.05);
-  }
-
-  playAxe() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(300, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      100,
-      this.context.currentTime + 0.15,
-    );
-
-    gain.gain.setValueAtTime(0.25, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.15,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.15);
-  }
-
-  playCross() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(500, this.context.currentTime);
-
-    gain.gain.setValueAtTime(0.2, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.1,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.1);
-  }
-
-  playFireball() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(200, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      100,
-      this.context.currentTime + 0.2,
-    );
-
-    gain.gain.setValueAtTime(0.25, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.2,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.2);
-  }
-
-  playLightning() {
-    // Sharp crack
-    const bufferSize = this.context.sampleRate * 0.15;
-    const buffer = this.context.createBuffer(
-      1,
-      bufferSize,
-      this.context.sampleRate,
-    );
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / bufferSize;
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 15);
-    }
-
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-
-    const filter = this.context.createBiquadFilter();
-    filter.type = "highpass";
-    filter.frequency.value = 2000;
-
-    const gain = this.context.createGain();
-    gain.gain.value = 0.35;
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-
-    source.start();
-  }
-
-  playRunetracer() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(800, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      400,
-      this.context.currentTime + 0.1,
-    );
-
-    gain.gain.setValueAtTime(0.15, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.15,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.15);
-  }
-
-  playThrow() {
-    const osc = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(400, this.context.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      200,
-      this.context.currentTime + 0.1,
-    );
-
-    gain.gain.setValueAtTime(0.15, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.1,
-    );
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.context.currentTime + 0.1);
-  }
-
-  playSplash() {
-    // Water splash
-    const bufferSize = this.context.sampleRate * 0.2;
-    const buffer = this.context.createBuffer(
-      1,
-      bufferSize,
-      this.context.sampleRate,
-    );
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / bufferSize;
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 10) * Math.sin(t * 100);
-    }
-
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-
-    const filter = this.context.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 1500;
-
-    const gain = this.context.createGain();
-    gain.gain.value = 0.3;
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-
-    source.start();
-  }
-
-  playChestSpawn() {
-    // Magical chime
-    const notes = [523, 659, 784];
-    notes.forEach((freq, i) => {
-      setTimeout(() => {
-        const osc = this.context.createOscillator();
-        const gain = this.context.createGain();
-
-        osc.type = "sine";
-        osc.frequency.value = freq;
-
-        gain.gain.setValueAtTime(0.15, this.context.currentTime);
-        gain.gain.exponentialRampToValueAtTime(
-          0.01,
-          this.context.currentTime + 0.3,
-        );
-
-        osc.connect(gain);
-        gain.connect(this.masterGain);
-
-        osc.start();
-        osc.stop(this.context.currentTime + 0.3);
-      }, i * 100);
-    });
-  }
-
-  playChestOpen() {
-    // Triumphant sound
-    const osc1 = this.context.createOscillator();
-    const osc2 = this.context.createOscillator();
-    const gain = this.context.createGain();
-
-    osc1.type = "sine";
-    osc1.frequency.value = 523;
-
-    osc2.type = "sine";
-    osc2.frequency.value = 659;
-
-    gain.gain.setValueAtTime(0.2, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      this.context.currentTime + 0.4,
-    );
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc1.start();
-    osc2.start();
-    osc1.stop(this.context.currentTime + 0.4);
-    osc2.stop(this.context.currentTime + 0.4);
-  }
+  // --- Music ---
 
   playMusic() {
     if (!this.musicEnabled) return;
-
     this.init();
     if (!this.context) return;
-
-    // Stop any existing music
     this.stopMusic();
-
-    // Create a dark ambient loop
-    this.createAmbientMusic();
+    this._createAmbientMusic();
   }
 
-  createAmbientMusic() {
+  _createAmbientMusic() {
+    const ctx = this.context;
+
     // Bass drone
-    const bassOsc = this.context.createOscillator();
-    bassOsc.type = "sine";
-    bassOsc.frequency.value = 55; // A1
+    this._addMusicLayer("sine", 55, 0.15);
 
-    const bassGain = this.context.createGain();
-    bassGain.gain.value = 0.15;
-
-    bassOsc.connect(bassGain);
-    bassGain.connect(this.musicGain);
-    bassOsc.start();
-
-    this.musicOscillators.push({ osc: bassOsc, gain: bassGain });
-
-    // Creepy pad
-    const padOsc = this.context.createOscillator();
+    // Creepy pad with LFO
+    const padOsc = ctx.createOscillator();
     padOsc.type = "triangle";
-    padOsc.frequency.value = 110; // A2
-
-    const padGain = this.context.createGain();
+    padOsc.frequency.value = 110;
+    const padGain = ctx.createGain();
     padGain.gain.value = 0.08;
-
-    // LFO for pad
-    const lfo = this.context.createOscillator();
+    const lfo = ctx.createOscillator();
     lfo.type = "sine";
     lfo.frequency.value = 0.1;
-
-    const lfoGain = this.context.createGain();
+    const lfoGain = ctx.createGain();
     lfoGain.gain.value = 5;
-
     lfo.connect(lfoGain);
     lfoGain.connect(padOsc.frequency);
     lfo.start();
-
     padOsc.connect(padGain);
     padGain.connect(this.musicGain);
     padOsc.start();
+    this.musicOscillators.push({ osc: padOsc, gain: padGain }, { osc: lfo, gain: lfoGain });
 
-    this.musicOscillators.push({ osc: padOsc, gain: padGain });
-    this.musicOscillators.push({ osc: lfo, gain: lfoGain });
-
-    // High tension tone
-    const highOsc = this.context.createOscillator();
+    // High tension tone with tremolo
+    const highOsc = ctx.createOscillator();
     highOsc.type = "sine";
-    highOsc.frequency.value = 440; // A4
-
-    const highGain = this.context.createGain();
+    highOsc.frequency.value = 440;
+    const highGain = ctx.createGain();
     highGain.gain.value = 0.03;
-
-    // Tremolo
-    const tremolo = this.context.createOscillator();
+    const tremolo = ctx.createOscillator();
     tremolo.type = "sine";
     tremolo.frequency.value = 4;
-
-    const tremoloGain = this.context.createGain();
+    const tremoloGain = ctx.createGain();
     tremoloGain.gain.value = 0.02;
-
     tremolo.connect(tremoloGain);
     tremoloGain.connect(highGain.gain);
     tremolo.start();
-
     highOsc.connect(highGain);
     highGain.connect(this.musicGain);
     highOsc.start();
+    this.musicOscillators.push({ osc: highOsc, gain: highGain }, { osc: tremolo, gain: tremoloGain });
+  }
 
-    this.musicOscillators.push({ osc: highOsc, gain: highGain });
-    this.musicOscillators.push({ osc: tremolo, gain: tremoloGain });
+  _addMusicLayer(wave, freq, vol) {
+    const osc = this.context.createOscillator();
+    osc.type = wave;
+    osc.frequency.value = freq;
+    const gain = this.context.createGain();
+    gain.gain.value = vol;
+    osc.connect(gain);
+    gain.connect(this.musicGain);
+    osc.start();
+    this.musicOscillators.push({ osc, gain });
   }
 
   stopMusic() {
-    this.musicOscillators.forEach(({ osc }) => {
-      try {
-        osc.stop();
-      } catch (e) {
-        // Oscillator may already be stopped
-      }
-    });
+    for (const { osc } of this.musicOscillators) {
+      try { osc.stop(); } catch (_) { /* already stopped */ }
+    }
     this.musicOscillators = [];
   }
 
   pauseMusic() {
-    if (this.musicGain) {
-      this.musicGain.gain.setTargetAtTime(0, this.context.currentTime, 0.1);
-    }
+    this.musicGain?.gain.setTargetAtTime(0, this.context.currentTime, 0.1);
   }
 
   resumeMusic() {
-    if (this.musicGain) {
-      this.musicGain.gain.setTargetAtTime(0.15, this.context.currentTime, 0.1);
-    }
+    this.musicGain?.gain.setTargetAtTime(0.15, this.context.currentTime, 0.1);
   }
 
   setVolume(volume) {
-    if (this.masterGain) {
-      this.masterGain.gain.value = volume;
-    }
+    if (this.masterGain) this.masterGain.gain.value = volume;
   }
 
   toggleSound() {
@@ -997,15 +331,11 @@ export class AudioManager {
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled;
     localStorage.setItem("zombieSurvivor_music", this.musicEnabled);
-
-    // If music was playing, stop it
     if (!this.musicEnabled) {
       this.stopMusic();
     } else {
-      // If turning on and game is playing, start music
       this.playMusic();
     }
-
     return this.musicEnabled;
   }
 }

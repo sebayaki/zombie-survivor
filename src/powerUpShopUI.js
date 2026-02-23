@@ -1,5 +1,5 @@
-// PowerUp Shop UI - Purchase permanent upgrades with gold
 import { POWER_UPS } from "./powerUps.js";
+import { injectCSS } from "./utils.js";
 
 export class PowerUpShopUI {
   constructor(game) {
@@ -51,8 +51,7 @@ export class PowerUpShopUI {
   }
 
   addStyles() {
-    const style = document.createElement("style");
-    style.textContent = `
+    injectCSS(`
       .powerup-shop-overlay {
         position: fixed;
         top: 0;
@@ -240,8 +239,7 @@ export class PowerUpShopUI {
       .powerup-shop-container::-webkit-scrollbar-thumb:hover {
         background: #555;
       }
-    `;
-    document.head.appendChild(style);
+    `, "powerup-shop-styles");
   }
 
   show() {

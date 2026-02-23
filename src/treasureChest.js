@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { findSpawnPosition } from "./utils.js";
 
 // Treasure chest system - spawns periodically and gives rewards
 export class TreasureChestSystem {
@@ -141,50 +142,16 @@ export class TreasureChestSystem {
   }
 
   findSpawnPosition() {
-    const bounds = this.game.arenaSize - 5;
-    let position;
-    let valid = false;
-    let attempts = 0;
-
-    while (!valid && attempts < 50) {
-      position = new THREE.Vector3(
-        (Math.random() - 0.5) * bounds * 2,
-        0,
-        (Math.random() - 0.5) * bounds * 2,
-      );
-
-      valid = true;
-
-      // Not too close to player
-      const playerPos = this.game.player.getPosition();
-      if (position.distanceTo(playerPos) < 10) {
-        valid = false;
-      }
-
-      // Not inside obstacles
-      for (const obstacle of this.game.obstacles) {
-        const halfSize = Math.max(obstacle.size.x, obstacle.size.z) / 2 + 2;
-        if (
-          Math.abs(position.x - obstacle.position.x) < halfSize &&
-          Math.abs(position.z - obstacle.position.z) < halfSize
-        ) {
-          valid = false;
-          break;
-        }
-      }
-
-      // Not too close to other chests
-      for (const chest of this.chests) {
-        if (position.distanceTo(chest.position) < 5) {
-          valid = false;
-          break;
-        }
-      }
-
-      attempts++;
-    }
-
-    return position || new THREE.Vector3(0, 0, 10);
+    return findSpawnPosition({
+      minDist: 10,
+      maxDist: this.game.arenaSize - 5,
+      arenaSize: this.game.arenaSize,
+      obstacles: this.game.obstacles,
+      avoid: this.chests.map(c => ({ position: c.position })),
+      avoidDist: 5,
+      origin: this.game.player.getPosition(),
+      maxAttempts: 50,
+    }) || new THREE.Vector3(0, 0, 10);
   }
 
   determineRarity() {
@@ -213,57 +180,9 @@ export class TreasureChestSystem {
   }
 
   playOpenAnimation(chest) {
-    const position = chest.mesh.position.clone();
-
-    // Spawn particles
-    const colors = {
-      common: 0xaaaaaa,
-      uncommon: 0x00ff00,
-      rare: 0x0088ff,
-      legendary: 0xffd700,
-    };
-
-    const color = colors[chest.rarity] || colors.common;
-    const particleCount = chest.rarity === "legendary" ? 30 : 15;
-
-    for (let i = 0; i < particleCount; i++) {
-      const geometry = new THREE.SphereGeometry(0.1, 4, 4);
-      const material = new THREE.MeshBasicMaterial({
-        color: color,
-        transparent: true,
-        opacity: 1,
-      });
-
-      const particle = new THREE.Mesh(geometry, material);
-      particle.position.copy(position);
-      particle.position.y += 0.5;
-
-      this.game.scene.add(particle);
-
-      // Random velocity
-      const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 5,
-        Math.random() * 5 + 2,
-        (Math.random() - 0.5) * 5,
-      );
-
-      // Animate
-      let opacity = 1;
-      const animate = () => {
-        opacity -= 0.02;
-        if (opacity <= 0) {
-          this.game.scene.remove(particle);
-          return;
-        }
-
-        particle.position.add(velocity.clone().multiplyScalar(0.016));
-        velocity.y -= 10 * 0.016;
-        particle.material.opacity = opacity;
-
-        requestAnimationFrame(animate);
-      };
-
-      setTimeout(animate, i * 20);
+    if (this.game.particleSystem) {
+      const count = chest.rarity === "legendary" ? 30 : 15;
+      this.game.particleSystem.spawn(chest.mesh.position, "treasure", { count });
     }
   }
 

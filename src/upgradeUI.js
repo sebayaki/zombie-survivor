@@ -1,4 +1,5 @@
-// Upgrade Selection UI - Vampire Survivors style level up choices
+import { shuffleArray, injectCSS } from "./utils.js";
+
 export class UpgradeUI {
   constructor(game) {
     this.game = game;
@@ -42,8 +43,7 @@ export class UpgradeUI {
   }
 
   addStyles() {
-    const style = document.createElement("style");
-    style.textContent = `
+    injectCSS(`
       .upgrade-overlay {
         position: fixed;
         top: 0;
@@ -352,8 +352,7 @@ export class UpgradeUI {
           top: -10px;
         }
       }
-    `;
-    document.head.appendChild(style);
+    `, "upgrade-ui-styles");
   }
 
   show(level) {
@@ -397,7 +396,7 @@ export class UpgradeUI {
     ];
 
     // Shuffle and pick 3-4
-    const shuffled = this.shuffleArray(allUpgrades);
+    const shuffled = shuffleArray(allUpgrades);
     const numChoices = Math.min(4, shuffled.length);
 
     // Prefer showing evolutions first if available
@@ -420,30 +419,21 @@ export class UpgradeUI {
         if (remainingSlots > 1) this.choices.push(passives[0]);
 
         const remaining = [...weapons.slice(1), ...passives.slice(1)];
-        const shuffledRemaining = this.shuffleArray(remaining);
+        const shuffledRemaining = shuffleArray(remaining);
         this.choices.push(...shuffledRemaining.slice(0, remainingSlots - 2));
       } else {
         const remaining = [...weapons, ...passives];
-        const shuffledRemaining = this.shuffleArray(remaining);
+        const shuffledRemaining = shuffleArray(remaining);
         this.choices.push(...shuffledRemaining.slice(0, remainingSlots));
       }
     }
 
     // Shuffle final choices (but keep evolutions at the front for visibility)
     const finalEvolutions = this.choices.filter((c) => c.type === "evolution");
-    const finalOthers = this.shuffleArray(
+    const finalOthers = shuffleArray(
       this.choices.filter((c) => c.type !== "evolution"),
     );
     this.choices = [...finalEvolutions, ...finalOthers];
-  }
-
-  shuffleArray(array) {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
   }
 
   createChoiceElement(choice, index) {

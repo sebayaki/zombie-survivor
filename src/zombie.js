@@ -261,470 +261,168 @@ export class ZombieManager {
     return "normal";
   }
 
+  // --- Mesh building helpers ---
+
+  _addPart(group, geometry, material, pos, rot) {
+    const mesh = new THREE.Mesh(geometry, material);
+    if (pos) mesh.position.set(pos.x ?? 0, pos.y ?? 0, pos.z ?? 0);
+    if (rot) {
+      if (rot.x) mesh.rotation.x = rot.x;
+      if (rot.y) mesh.rotation.y = rot.y;
+      if (rot.z) mesh.rotation.z = rot.z;
+    }
+    group.add(mesh);
+    return mesh;
+  }
+
+  _addArms(group, mat, s, radius, length, offsets) {
+    const { lx, rx, y, z, rotX, lRotZ, rRotZ } = offsets;
+    const geo = new THREE.CapsuleGeometry(radius * s, length * s, 4, 8);
+    this._addPart(group, geo, mat.clone(), { x: lx * s, y: y * s, z: z * s }, { x: rotX, z: lRotZ });
+    this._addPart(group, geo, mat.clone(), { x: rx * s, y: y * s, z: z * s }, { x: rotX, z: rRotZ });
+  }
+
+  _addEyes(group, type, s, eyeColor) {
+    const eyeGeo = new THREE.SphereGeometry(0.1 * s, 6, 6);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: eyeColor });
+
+    const EYE_POS = {
+      fast:     { y: 1.75, z: 0.35 },
+      tank:     { y: 2.45, z: 0.35 },
+      spitter:  { y: 2.05, z: 0.28 },
+      exploder: { y: 1.95, z: 0.28 },
+      boss:     { y: 2.55, z: 0.4 },
+      normal:   { y: 2.15, z: 0.28 },
+    };
+    const ep = EYE_POS[type] || EYE_POS.normal;
+
+    this._addPart(group, eyeGeo, eyeMat, { x: -0.12 * s, y: ep.y * s, z: ep.z * s });
+    this._addPart(group, eyeGeo, eyeMat, { x:  0.12 * s, y: ep.y * s, z: ep.z * s });
+
+    if (type === "boss") {
+      this._addPart(group, eyeGeo, eyeMat, { x: 0, y: 2.65 * s, z: 0.35 * s });
+    }
+  }
+
   createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) {
     const mesh = new THREE.Group();
-    const scale = typeDef.scale;
-    const color = typeDef.color;
-    const secondaryColor = typeDef.secondaryColor || color;
+    const s = typeDef.scale;
     const eyeColor = typeDef.eyeColor || 0xff0000;
     const glowColor = typeDef.glowColor || eyeColor;
+    const mat = new THREE.MeshStandardMaterial({ color: typeDef.color, roughness: 0.7 });
 
-    // Main material
-    const material = new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: 0.7,
-    });
+    const builders = {
+      fast: () => this._buildFastZombie(mesh, mat, s, eyeColor),
+      tank: () => this._buildTankZombie(mesh, mat, s, glowColor),
+      spitter: () => this._buildSpitterZombie(mesh, mat, s, glowColor),
+      exploder: () => this._buildExploderZombie(mesh, mat, s, glowColor),
+      boss: () => this._buildBossZombie(mesh, mat, s, glowColor),
+    };
 
-    // Secondary material for details
-    const secondaryMaterial = new THREE.MeshStandardMaterial({
-      color: secondaryColor,
-      roughness: 0.8,
-    });
-
-    // === FAST ZOMBIE (Runner) - Lean, hunched, long limbs ===
-    if (type === "fast") {
-      // Thin body
-      const bodyGeometry = new THREE.CapsuleGeometry(
-        0.25 * scale,
-        1.0 * scale,
-        4,
-        8,
-      );
-      const body = new THREE.Mesh(bodyGeometry, material.clone());
-      body.position.y = 0.9 * scale;
-      body.rotation.x = 0.3; // Hunched forward
-      mesh.add(body);
-
-      // Small head
-      const headGeometry = new THREE.SphereGeometry(0.28 * scale, 8, 8);
-      const head = new THREE.Mesh(headGeometry, material.clone());
-      head.position.set(0, 1.7 * scale, 0.2 * scale);
-      mesh.add(head);
-
-      // Long arms for running
-      const armGeometry = new THREE.CapsuleGeometry(
-        0.08 * scale,
-        1.0 * scale,
-        4,
-        8,
-      );
-      const leftArm = new THREE.Mesh(armGeometry, material.clone());
-      leftArm.position.set(-0.4 * scale, 1.0 * scale, 0.4 * scale);
-      leftArm.rotation.x = -1.0;
-      leftArm.rotation.z = 0.2;
-      mesh.add(leftArm);
-
-      const rightArm = new THREE.Mesh(armGeometry, material.clone());
-      rightArm.position.set(0.4 * scale, 1.0 * scale, 0.4 * scale);
-      rightArm.rotation.x = -1.0;
-      rightArm.rotation.z = -0.2;
-      mesh.add(rightArm);
-
-      // Speed lines effect (glowing streaks)
-      const streakMaterial = new THREE.MeshBasicMaterial({
-        color: eyeColor,
-        transparent: true,
-        opacity: 0.4,
-      });
-      for (let i = 0; i < 3; i++) {
-        const streak = new THREE.Mesh(
-          new THREE.BoxGeometry(0.05, 0.5 * scale, 0.02),
-          streakMaterial,
-        );
-        streak.position.set(-0.5 * scale - i * 0.15, 1.2 * scale, 0);
-        mesh.add(streak);
-      }
-    }
-    // === TANK ZOMBIE (Brute) - Massive, armored ===
-    else if (type === "tank") {
-      // Huge body
-      const bodyGeometry = new THREE.CapsuleGeometry(
-        0.6 * scale,
-        1.4 * scale,
-        4,
-        8,
-      );
-      const body = new THREE.Mesh(bodyGeometry, material.clone());
-      body.position.y = 1.2 * scale;
-      mesh.add(body);
-
-      // Armored head with helmet
-      const headGeometry = new THREE.SphereGeometry(0.4 * scale, 8, 8);
-      const head = new THREE.Mesh(headGeometry, material.clone());
-      head.position.y = 2.4 * scale;
-      mesh.add(head);
-
-      // Metal helmet
-      const helmetGeometry = new THREE.SphereGeometry(0.45 * scale, 8, 4);
-      const helmetMaterial = new THREE.MeshStandardMaterial({
-        color: 0x444455,
-        metalness: 0.9,
-        roughness: 0.2,
-      });
-      const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
-      helmet.position.y = 2.5 * scale;
-      helmet.scale.y = 0.7;
-      mesh.add(helmet);
-
-      // Massive arms
-      const armGeometry = new THREE.CapsuleGeometry(
-        0.2 * scale,
-        1.0 * scale,
-        4,
-        8,
-      );
-      const leftArm = new THREE.Mesh(armGeometry, material.clone());
-      leftArm.position.set(-0.8 * scale, 1.5 * scale, 0.2 * scale);
-      leftArm.rotation.x = -0.3;
-      mesh.add(leftArm);
-
-      const rightArm = new THREE.Mesh(armGeometry, material.clone());
-      rightArm.position.set(0.8 * scale, 1.5 * scale, 0.2 * scale);
-      rightArm.rotation.x = -0.3;
-      mesh.add(rightArm);
-
-      // Chest armor plate
-      const armorGeometry = new THREE.BoxGeometry(
-        1.0 * scale,
-        0.8 * scale,
-        0.3 * scale,
-      );
-      const chestArmor = new THREE.Mesh(armorGeometry, helmetMaterial);
-      chestArmor.position.set(0, 1.3 * scale, 0.4 * scale);
-      mesh.add(chestArmor);
-
-      // Shoulder spikes
-      const spikeGeometry = new THREE.ConeGeometry(0.1 * scale, 0.4 * scale, 6);
-      for (let i = 0; i < 3; i++) {
-        const leftSpike = new THREE.Mesh(spikeGeometry, helmetMaterial);
-        leftSpike.position.set(-0.7 * scale, 1.8 * scale + i * 0.15, 0);
-        leftSpike.rotation.z = -0.5;
-        mesh.add(leftSpike);
-
-        const rightSpike = new THREE.Mesh(spikeGeometry, helmetMaterial);
-        rightSpike.position.set(0.7 * scale, 1.8 * scale + i * 0.15, 0);
-        rightSpike.rotation.z = 0.5;
-        mesh.add(rightSpike);
-      }
-    }
-    // === SPITTER ZOMBIE - Mutated, toxic appearance ===
-    else if (type === "spitter") {
-      // Normal body but with toxic coloring
-      const bodyGeometry = new THREE.CapsuleGeometry(
-        0.35 * scale,
-        1.1 * scale,
-        4,
-        8,
-      );
-      const body = new THREE.Mesh(bodyGeometry, material.clone());
-      body.position.y = 1 * scale;
-      mesh.add(body);
-
-      // Distorted head with bulging cheeks
-      const headGeometry = new THREE.SphereGeometry(0.32 * scale, 8, 8);
-      const head = new THREE.Mesh(headGeometry, material.clone());
-      head.position.y = 2.0 * scale;
-      mesh.add(head);
-
-      // Bulging acid sacks on neck/throat
-      const sackMaterial = new THREE.MeshBasicMaterial({
-        color: glowColor,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const mainSack = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3 * scale, 8, 8),
-        sackMaterial,
-      );
-      mainSack.position.set(0, 1.6 * scale, 0.25 * scale);
-      mesh.add(mainSack);
-
-      // Side sacks
-      const sideSack1 = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15 * scale, 6, 6),
-        sackMaterial,
-      );
-      sideSack1.position.set(-0.25 * scale, 1.7 * scale, 0.15 * scale);
-      mesh.add(sideSack1);
-
-      const sideSack2 = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15 * scale, 6, 6),
-        sackMaterial,
-      );
-      sideSack2.position.set(0.25 * scale, 1.7 * scale, 0.15 * scale);
-      mesh.add(sideSack2);
-
-      // Dripping acid effect
-      const dripMaterial = new THREE.MeshBasicMaterial({
-        color: glowColor,
-        transparent: true,
-        opacity: 0.5,
-      });
-      for (let i = 0; i < 3; i++) {
-        const drip = new THREE.Mesh(
-          new THREE.CylinderGeometry(
-            0.02 * scale,
-            0.04 * scale,
-            0.3 * scale,
-            6,
-          ),
-          dripMaterial,
-        );
-        drip.position.set(
-          (Math.random() - 0.5) * 0.3 * scale,
-          1.3 * scale,
-          0.3 * scale,
-        );
-        mesh.add(drip);
-      }
-
-      // Thin arms
-      const armGeometry = new THREE.CapsuleGeometry(
-        0.1 * scale,
-        0.7 * scale,
-        4,
-        8,
-      );
-      const leftArm = new THREE.Mesh(armGeometry, material.clone());
-      leftArm.position.set(-0.5 * scale, 1.2 * scale, 0.2 * scale);
-      leftArm.rotation.x = -0.4;
-      mesh.add(leftArm);
-
-      const rightArm = new THREE.Mesh(armGeometry, material.clone());
-      rightArm.position.set(0.5 * scale, 1.2 * scale, 0.2 * scale);
-      rightArm.rotation.x = -0.4;
-      mesh.add(rightArm);
-    }
-    // === EXPLODER ZOMBIE (Bloater) - Bloated, glowing cracks ===
-    else if (type === "exploder") {
-      // Bloated body
-      const bodyGeometry = new THREE.SphereGeometry(0.6 * scale, 12, 12);
-      const body = new THREE.Mesh(bodyGeometry, material.clone());
-      body.position.y = 0.9 * scale;
-      body.scale.set(1, 1.3, 1);
-      mesh.add(body);
-
-      // Small head on bloated body
-      const headGeometry = new THREE.SphereGeometry(0.25 * scale, 8, 8);
-      const head = new THREE.Mesh(headGeometry, material.clone());
-      head.position.y = 1.9 * scale;
-      mesh.add(head);
-
-      // Glowing inner mass (visible through cracks)
-      const innerGlowGeometry = new THREE.SphereGeometry(0.5 * scale, 8, 8);
-      const innerGlowMaterial = new THREE.MeshBasicMaterial({
-        color: glowColor,
-        transparent: true,
-        opacity: 0.6,
-      });
-      const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
-      innerGlow.position.y = 0.9 * scale;
-      mesh.add(innerGlow);
-
-      // Glowing cracks all over body
-      const crackMaterial = new THREE.MeshBasicMaterial({ color: glowColor });
-      for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const crack = new THREE.Mesh(
-          new THREE.BoxGeometry(0.08 * scale, 0.4 * scale, 0.03 * scale),
-          crackMaterial,
-        );
-        crack.position.set(
-          Math.cos(angle) * 0.55 * scale,
-          0.9 * scale + (Math.random() - 0.5) * 0.4 * scale,
-          Math.sin(angle) * 0.55 * scale,
-        );
-        crack.rotation.y = angle;
-        crack.rotation.z = (Math.random() - 0.5) * 0.5;
-        mesh.add(crack);
-      }
-
-      // Stubby arms
-      const armGeometry = new THREE.CapsuleGeometry(
-        0.12 * scale,
-        0.5 * scale,
-        4,
-        8,
-      );
-      const leftArm = new THREE.Mesh(armGeometry, material.clone());
-      leftArm.position.set(-0.65 * scale, 1.0 * scale, 0);
-      leftArm.rotation.z = 0.5;
-      mesh.add(leftArm);
-
-      const rightArm = new THREE.Mesh(armGeometry, material.clone());
-      rightArm.position.set(0.65 * scale, 1.0 * scale, 0);
-      rightArm.rotation.z = -0.5;
-      mesh.add(rightArm);
-    }
-    // === BOSS - Massive abomination ===
-    else if (type === "boss") {
-      // Massive twisted body
-      const bodyGeometry = new THREE.CapsuleGeometry(
-        0.5 * scale,
-        1.5 * scale,
-        6,
-        12,
-      );
-      const body = new THREE.Mesh(bodyGeometry, material.clone());
-      body.position.y = 1.2 * scale;
-      mesh.add(body);
-
-      // Large head with multiple eyes
-      const headGeometry = new THREE.SphereGeometry(0.45 * scale, 12, 12);
-      const head = new THREE.Mesh(headGeometry, material.clone());
-      head.position.y = 2.5 * scale;
-      mesh.add(head);
-
-      // Multiple horns
-      const hornMaterial = new THREE.MeshStandardMaterial({
-        color: 0x222222,
-        metalness: 0.6,
-        roughness: 0.4,
-      });
-      const hornPositions = [
-        { x: -0.3, y: 2.8, z: 0, rx: 0, rz: 0.4 },
-        { x: 0.3, y: 2.8, z: 0, rx: 0, rz: -0.4 },
-        { x: 0, y: 2.9, z: -0.2, rx: -0.3, rz: 0 },
-      ];
-      hornPositions.forEach((pos) => {
-        const horn = new THREE.Mesh(
-          new THREE.ConeGeometry(0.12 * scale, 0.7 * scale, 6),
-          hornMaterial,
-        );
-        horn.position.set(pos.x * scale, pos.y * scale, pos.z * scale);
-        horn.rotation.x = pos.rx;
-        horn.rotation.z = pos.rz;
-        mesh.add(horn);
-      });
-
-      // Massive arms with claws
-      const armGeometry = new THREE.CapsuleGeometry(
-        0.18 * scale,
-        1.2 * scale,
-        4,
-        8,
-      );
-      const leftArm = new THREE.Mesh(armGeometry, material.clone());
-      leftArm.position.set(-0.7 * scale, 1.6 * scale, 0.3 * scale);
-      leftArm.rotation.x = -0.5;
-      leftArm.rotation.z = 0.3;
-      mesh.add(leftArm);
-
-      const rightArm = new THREE.Mesh(armGeometry, material.clone());
-      rightArm.position.set(0.7 * scale, 1.6 * scale, 0.3 * scale);
-      rightArm.rotation.x = -0.5;
-      rightArm.rotation.z = -0.3;
-      mesh.add(rightArm);
-
-      // Glowing aura
-      const auraGeometry = new THREE.SphereGeometry(1.8 * scale, 16, 16);
-      const auraMaterial = new THREE.MeshBasicMaterial({
-        color: glowColor,
-        transparent: true,
-        opacity: 0.15,
-      });
-      const aura = new THREE.Mesh(auraGeometry, auraMaterial);
-      aura.position.y = 1.2 * scale;
-      mesh.add(aura);
-      mesh.userData.aura = aura;
-
-      // Health bar
-      const healthBarBg = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.5 * scale, 0.25),
-        new THREE.MeshBasicMaterial({ color: 0x333333 }),
-      );
-      healthBarBg.position.set(0, 3.5 * scale, 0);
-      healthBarBg.rotation.x = -Math.PI / 4;
-      mesh.add(healthBarBg);
-
-      const healthBar = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.5 * scale, 0.2),
-        new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-      );
-      healthBar.position.set(0, 3.5 * scale, 0.01);
-      healthBar.rotation.x = -Math.PI / 4;
-      mesh.add(healthBar);
-      mesh.userData.healthBar = healthBar;
-      mesh.userData.healthBarWidth = 2.5 * scale;
-    }
-    // === NORMAL ZOMBIE - Standard appearance ===
-    else {
-      // Standard body
-      const bodyGeometry = new THREE.CapsuleGeometry(
-        0.4 * scale,
-        1.2 * scale,
-        4,
-        8,
-      );
-      const body = new THREE.Mesh(bodyGeometry, material.clone());
-      body.position.y = 1 * scale;
-      mesh.add(body);
-
-      // Head
-      const headGeometry = new THREE.SphereGeometry(0.35 * scale, 8, 8);
-      const head = new THREE.Mesh(headGeometry, material.clone());
-      head.position.y = 2.1 * scale;
-      mesh.add(head);
-
-      // Arms
-      const armGeometry = new THREE.CapsuleGeometry(
-        0.12 * scale,
-        0.8 * scale,
-        4,
-        8,
-      );
-      const leftArm = new THREE.Mesh(armGeometry, material.clone());
-      leftArm.position.set(-0.6 * scale, 1.3 * scale, 0.3 * scale);
-      leftArm.rotation.x = -0.5;
-      leftArm.rotation.z = 0.3;
-      mesh.add(leftArm);
-
-      const rightArm = new THREE.Mesh(armGeometry, material.clone());
-      rightArm.position.set(0.6 * scale, 1.3 * scale, 0.3 * scale);
-      rightArm.rotation.x = -0.5;
-      rightArm.rotation.z = -0.3;
-      mesh.add(rightArm);
+    const builder = builders[type];
+    if (builder) {
+      builder();
+    } else {
+      this._buildNormalZombie(mesh, mat, s);
     }
 
-    // Add eyes to all types
-    const eyeGeometry = new THREE.SphereGeometry(0.1 * scale, 6, 6);
-    const eyeMaterial = new THREE.MeshBasicMaterial({ color: eyeColor });
-
-    // Eye positions vary by type
-    let eyeY = 2.15 * scale;
-    let eyeZ = 0.28 * scale;
-    if (type === "fast") {
-      eyeY = 1.75 * scale;
-      eyeZ = 0.35 * scale;
-    } else if (type === "tank") {
-      eyeY = 2.45 * scale;
-      eyeZ = 0.35 * scale;
-    } else if (type === "spitter") {
-      eyeY = 2.05 * scale;
-    } else if (type === "exploder") {
-      eyeY = 1.95 * scale;
-    } else if (type === "boss") {
-      eyeY = 2.55 * scale;
-      eyeZ = 0.4 * scale;
-      // Boss has extra eyes
-      const extraEye1 = new THREE.Mesh(eyeGeometry, eyeMaterial);
-      extraEye1.position.set(0, 2.65 * scale, 0.35 * scale);
-      mesh.add(extraEye1);
-    }
-
-    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    leftEye.position.set(-0.12 * scale, eyeY, eyeZ);
-    mesh.add(leftEye);
-
-    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    rightEye.position.set(0.12 * scale, eyeY, eyeZ);
-    mesh.add(rightEye);
-
-    // Store body reference for damage flash (use first mesh child as body)
+    this._addEyes(mesh, type, s, eyeColor);
     mesh.userData.body = mesh.children[0];
     mesh.userData.type = type;
-
     return mesh;
+  }
+
+  _buildNormalZombie(mesh, mat, s) {
+    this._addPart(mesh, new THREE.CapsuleGeometry(0.4 * s, 1.2 * s, 4, 8), mat.clone(), { y: 1 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.35 * s, 8, 8), mat.clone(), { y: 2.1 * s });
+    this._addArms(mesh, mat, s, 0.12, 0.8, { lx: -0.6, rx: 0.6, y: 1.3, z: 0.3, rotX: -0.5, lRotZ: 0.3, rRotZ: -0.3 });
+  }
+
+  _buildFastZombie(mesh, mat, s, eyeColor) {
+    this._addPart(mesh, new THREE.CapsuleGeometry(0.25 * s, 1.0 * s, 4, 8), mat.clone(), { y: 0.9 * s }, { x: 0.3 });
+    this._addPart(mesh, new THREE.SphereGeometry(0.28 * s, 8, 8), mat.clone(), { y: 1.7 * s, z: 0.2 * s });
+    this._addArms(mesh, mat, s, 0.08, 1.0, { lx: -0.4, rx: 0.4, y: 1.0, z: 0.4, rotX: -1.0, lRotZ: 0.2, rRotZ: -0.2 });
+
+    const streakMat = new THREE.MeshBasicMaterial({ color: eyeColor, transparent: true, opacity: 0.4 });
+    for (let i = 0; i < 3; i++) {
+      this._addPart(mesh, new THREE.BoxGeometry(0.05, 0.5 * s, 0.02), streakMat, { x: -0.5 * s - i * 0.15, y: 1.2 * s });
+    }
+  }
+
+  _buildTankZombie(mesh, mat, s) {
+    const armorMat = new THREE.MeshStandardMaterial({ color: 0x444455, metalness: 0.9, roughness: 0.2 });
+
+    this._addPart(mesh, new THREE.CapsuleGeometry(0.6 * s, 1.4 * s, 4, 8), mat.clone(), { y: 1.2 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.4 * s, 8, 8), mat.clone(), { y: 2.4 * s });
+    const helmet = this._addPart(mesh, new THREE.SphereGeometry(0.45 * s, 8, 4), armorMat, { y: 2.5 * s });
+    helmet.scale.y = 0.7;
+    this._addArms(mesh, mat, s, 0.2, 1.0, { lx: -0.8, rx: 0.8, y: 1.5, z: 0.2, rotX: -0.3, lRotZ: 0, rRotZ: 0 });
+    this._addPart(mesh, new THREE.BoxGeometry(1.0 * s, 0.8 * s, 0.3 * s), armorMat, { y: 1.3 * s, z: 0.4 * s });
+
+    const spikeGeo = new THREE.ConeGeometry(0.1 * s, 0.4 * s, 6);
+    for (let i = 0; i < 3; i++) {
+      this._addPart(mesh, spikeGeo, armorMat, { x: -0.7 * s, y: 1.8 * s + i * 0.15 }, { z: -0.5 });
+      this._addPart(mesh, spikeGeo, armorMat, { x:  0.7 * s, y: 1.8 * s + i * 0.15 }, { z: 0.5 });
+    }
+  }
+
+  _buildSpitterZombie(mesh, mat, s, glowColor) {
+    this._addPart(mesh, new THREE.CapsuleGeometry(0.35 * s, 1.1 * s, 4, 8), mat.clone(), { y: 1 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.32 * s, 8, 8), mat.clone(), { y: 2.0 * s });
+
+    const sackMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.7 });
+    this._addPart(mesh, new THREE.SphereGeometry(0.3 * s, 8, 8), sackMat, { y: 1.6 * s, z: 0.25 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.15 * s, 6, 6), sackMat, { x: -0.25 * s, y: 1.7 * s, z: 0.15 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.15 * s, 6, 6), sackMat, { x:  0.25 * s, y: 1.7 * s, z: 0.15 * s });
+
+    const dripMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.5 });
+    for (let i = 0; i < 3; i++) {
+      this._addPart(mesh, new THREE.CylinderGeometry(0.02 * s, 0.04 * s, 0.3 * s, 6), dripMat,
+        { x: (Math.random() - 0.5) * 0.3 * s, y: 1.3 * s, z: 0.3 * s });
+    }
+    this._addArms(mesh, mat, s, 0.1, 0.7, { lx: -0.5, rx: 0.5, y: 1.2, z: 0.2, rotX: -0.4, lRotZ: 0, rRotZ: 0 });
+  }
+
+  _buildExploderZombie(mesh, mat, s, glowColor) {
+    const body = this._addPart(mesh, new THREE.SphereGeometry(0.6 * s, 12, 12), mat.clone(), { y: 0.9 * s });
+    body.scale.set(1, 1.3, 1);
+    this._addPart(mesh, new THREE.SphereGeometry(0.25 * s, 8, 8), mat.clone(), { y: 1.9 * s });
+
+    const innerGlowMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.6 });
+    this._addPart(mesh, new THREE.SphereGeometry(0.5 * s, 8, 8), innerGlowMat, { y: 0.9 * s });
+
+    const crackMat = new THREE.MeshBasicMaterial({ color: glowColor });
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      this._addPart(mesh, new THREE.BoxGeometry(0.08 * s, 0.4 * s, 0.03 * s), crackMat,
+        { x: Math.cos(angle) * 0.55 * s, y: 0.9 * s + (Math.random() - 0.5) * 0.4 * s, z: Math.sin(angle) * 0.55 * s },
+        { y: angle, z: (Math.random() - 0.5) * 0.5 });
+    }
+    this._addArms(mesh, mat, s, 0.12, 0.5, { lx: -0.65, rx: 0.65, y: 1.0, z: 0, rotX: 0, lRotZ: 0.5, rRotZ: -0.5 });
+  }
+
+  _buildBossZombie(mesh, mat, s, glowColor) {
+    this._addPart(mesh, new THREE.CapsuleGeometry(0.5 * s, 1.5 * s, 6, 12), mat.clone(), { y: 1.2 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.45 * s, 12, 12), mat.clone(), { y: 2.5 * s });
+
+    const hornMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6, roughness: 0.4 });
+    const hornGeo = new THREE.ConeGeometry(0.12 * s, 0.7 * s, 6);
+    for (const h of [{ x: -0.3, y: 2.8, rz: 0.4 }, { x: 0.3, y: 2.8, rz: -0.4 }, { x: 0, y: 2.9, z: -0.2, rx: -0.3 }]) {
+      this._addPart(mesh, hornGeo, hornMat, { x: (h.x ?? 0) * s, y: h.y * s, z: (h.z ?? 0) * s }, { x: h.rx, z: h.rz });
+    }
+
+    this._addArms(mesh, mat, s, 0.18, 1.2, { lx: -0.7, rx: 0.7, y: 1.6, z: 0.3, rotX: -0.5, lRotZ: 0.3, rRotZ: -0.3 });
+
+    const auraMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.15 });
+    const aura = this._addPart(mesh, new THREE.SphereGeometry(1.8 * s, 16, 16), auraMat, { y: 1.2 * s });
+    mesh.userData.aura = aura;
+
+    const hbBg = this._addPart(mesh, new THREE.PlaneGeometry(2.5 * s, 0.25),
+      new THREE.MeshBasicMaterial({ color: 0x333333 }), { y: 3.5 * s }, { x: -Math.PI / 4 });
+    const hb = this._addPart(mesh, new THREE.PlaneGeometry(2.5 * s, 0.2),
+      new THREE.MeshBasicMaterial({ color: 0xff0000 }), { y: 3.5 * s, z: 0.01 }, { x: -Math.PI / 4 });
+    mesh.userData.healthBar = hb;
+    mesh.userData.healthBarWidth = 2.5 * s;
   }
 
   getSpawnPosition() {
@@ -1120,133 +818,16 @@ export class ZombieManager {
   }
 
   createBossDeathEffect(position) {
-    // Massive death effect for bosses
-    const particleCount = 50;
-    const particles = [];
-
-    for (let i = 0; i < particleCount; i++) {
-      const size = 0.1 + Math.random() * 0.2;
-      const geometry = new THREE.SphereGeometry(size, 4, 4);
-      const material = new THREE.MeshBasicMaterial({
-        color: i % 3 === 0 ? 0x440066 : i % 3 === 1 ? 0xff0088 : 0x000000,
-        transparent: true,
-        opacity: 1,
-      });
-
-      const particle = new THREE.Mesh(geometry, material);
-      particle.position.copy(position);
-      particle.position.y += 1.5;
-
-      // Stronger velocity
-      particle.userData.velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 10,
-        Math.random() * 8 + 4,
-        (Math.random() - 0.5) * 10,
-      );
-
-      this.game.scene.add(particle);
-      particles.push(particle);
+    if (this.game.particleSystem) {
+      this.game.particleSystem.spawn(position, "bossDeath");
     }
-
-    // Screen shake effect (if implemented)
-    // this.game.screenShake(0.5);
-
-    // Animate
-    const animateParticles = () => {
-      let allDone = true;
-
-      for (const particle of particles) {
-        if (particle.material.opacity <= 0) continue;
-        allDone = false;
-
-        particle.position.add(
-          particle.userData.velocity.clone().multiplyScalar(0.016),
-        );
-        particle.userData.velocity.y -= 15 * 0.016;
-        particle.material.opacity -= 0.015;
-
-        if (particle.position.y < 0) {
-          particle.position.y = 0;
-          particle.userData.velocity.y *= -0.3;
-        }
-      }
-
-      if (!allDone) {
-        requestAnimationFrame(animateParticles);
-      } else {
-        particles.forEach((p) => this.game.scene.remove(p));
-      }
-    };
-    requestAnimationFrame(animateParticles);
   }
 
   createDeathEffect(position, type = "normal") {
-    // Get color based on enemy type
-    const typeDef = ENEMY_TYPES[type] || ENEMY_TYPES.normal;
-    const baseColor = typeDef.color;
-
-    // Particle burst
-    const particleCount = type === "tank" ? 25 : 15;
-    const particles = [];
-
-    for (let i = 0; i < particleCount; i++) {
-      const geometry = new THREE.SphereGeometry(0.1, 4, 4);
-      const material = new THREE.MeshBasicMaterial({
-        color: baseColor,
-        transparent: true,
-        opacity: 1,
-      });
-
-      const particle = new THREE.Mesh(geometry, material);
-      particle.position.copy(position);
-      particle.position.y += 1;
-
-      // Random velocity (stronger for bigger enemies)
-      const velocityMult = typeDef.scale;
-      particle.userData.velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 5 * velocityMult,
-        Math.random() * 5 + 2,
-        (Math.random() - 0.5) * 5 * velocityMult,
-      );
-
-      this.game.scene.add(particle);
-      particles.push(particle);
+    if (this.game.particleSystem) {
+      const count = type === "tank" ? 25 : 15;
+      this.game.particleSystem.spawn(position, "enemyDeath", { count });
     }
-
-    // Animate particles
-    const animateParticles = () => {
-      let allDone = true;
-
-      for (const particle of particles) {
-        if (particle.material.opacity <= 0) continue;
-
-        allDone = false;
-
-        // Apply velocity and gravity
-        particle.position.add(
-          particle.userData.velocity.clone().multiplyScalar(0.016),
-        );
-        particle.userData.velocity.y -= 10 * 0.016;
-
-        // Fade out
-        particle.material.opacity -= 0.02;
-
-        // Stop at ground
-        if (particle.position.y < 0) {
-          particle.position.y = 0;
-          particle.userData.velocity.set(0, 0, 0);
-        }
-      }
-
-      if (!allDone) {
-        requestAnimationFrame(animateParticles);
-      } else {
-        // Clean up
-        particles.forEach((p) => this.game.scene.remove(p));
-      }
-    };
-
-    requestAnimationFrame(animateParticles);
   }
 
   getZombies() {

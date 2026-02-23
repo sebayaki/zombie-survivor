@@ -1,5 +1,6 @@
 import { AUTO_WEAPONS } from "./autoWeapons.js";
 import { PASSIVE_ITEMS } from "./passiveItems.js";
+import { injectCSS } from "./utils.js";
 
 export class UI {
   constructor(game) {
@@ -19,11 +20,39 @@ export class UI {
       hud: document.getElementById("hud"),
     };
 
-    // Create VS-style HUD elements
+    this.injectHUDStyles();
     this.createVSHUD();
-
-    // Create damage flash element
     this.createDamageFlash();
+  }
+
+  injectHUDStyles() {
+    injectCSS(`
+      #xp-container { position: absolute; top: 0; left: 0; width: 100%; z-index: 100; }
+      #xp-bar { width: 100%; height: 8px; background: rgba(0,0,0,0.8); border-bottom: 2px solid #333; }
+      #xp-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #00aaff, #00ffff); transition: width 0.2s ease; box-shadow: 0 0 10px #00aaff; }
+
+      #game-timer { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 32px; font-weight: bold; color: #fff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); letter-spacing: 2px; }
+
+      #level-display { position: absolute; top: 20px; right: 20px; display: flex; align-items: baseline; gap: 5px; }
+      #level-display span:first-child { font-size: 16px; color: #888; }
+      #level-value { font-size: 36px; font-weight: bold; color: #ffcc00; text-shadow: 0 0 10px rgba(255,204,0,0.5); }
+
+      #inventory-container { position: absolute; top: 60px; left: 20px; display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
+      #weapon-icons { display: flex; gap: 8px; flex-wrap: wrap; }
+      .weapon-icon-box { width: 48px; height: 48px; background: rgba(0,0,0,0.7); border: 2px solid #0088ff; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      .weapon-icon-box .icon { font-size: 24px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5)); }
+      .weapon-icon-box .level { position: absolute; bottom: 2px; right: 2px; font-size: 10px; font-weight: bold; color: #ffcc00; text-shadow: 1px 1px 1px #000; }
+      .weapon-icon-box.max-level { border-color: #ffcc00; box-shadow: 0 0 10px rgba(255,204,0,0.5); }
+
+      #passive-items { display: flex; gap: 6px; flex-wrap: wrap; }
+      .passive-item-box { width: 36px; height: 36px; background: rgba(0,0,0,0.7); border: 2px solid #00ff88; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      .passive-item-box .icon { font-size: 18px; }
+      .passive-item-box .level { position: absolute; bottom: 1px; right: 1px; font-size: 9px; font-weight: bold; color: #ffcc00; text-shadow: 1px 1px 1px #000; }
+      .passive-item-box.max-level { border-color: #ffcc00; }
+
+      #gold-display { position: absolute; top: 55px; right: 20px; display: flex; align-items: center; gap: 5px; font-size: 20px; color: #ffcc00; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+      .gold-icon { font-size: 24px; }
+    `, "hud-styles");
   }
 
   createVSHUD() {
@@ -57,34 +86,6 @@ export class UI {
     document.getElementById("hud").appendChild(xpContainer);
 
     this.elements.xpFill = document.getElementById("xp-fill");
-
-    // Add styles
-    const style = document.createElement("style");
-    style.textContent = `
-      #xp-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        z-index: 100;
-      }
-
-      #xp-bar {
-        width: 100%;
-        height: 8px;
-        background: rgba(0, 0, 0, 0.8);
-        border-bottom: 2px solid #333;
-      }
-
-      #xp-fill {
-        width: 0%;
-        height: 100%;
-        background: linear-gradient(90deg, #00aaff, #00ffff);
-        transition: width 0.2s ease;
-        box-shadow: 0 0 10px #00aaff;
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   createTimer() {
@@ -94,22 +95,6 @@ export class UI {
     document.getElementById("hud").appendChild(timer);
 
     this.elements.timer = timer;
-
-    const style = document.createElement("style");
-    style.textContent = `
-      #game-timer {
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 32px;
-        font-weight: bold;
-        color: #fff;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-        letter-spacing: 2px;
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   createLevelDisplay() {
@@ -119,31 +104,6 @@ export class UI {
     document.getElementById("hud").appendChild(levelDisplay);
 
     this.elements.levelValue = document.getElementById("level-value");
-
-    const style = document.createElement("style");
-    style.textContent = `
-      #level-display {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        align-items: baseline;
-        gap: 5px;
-      }
-
-      #level-display span:first-child {
-        font-size: 16px;
-        color: #888;
-      }
-
-      #level-value {
-        font-size: 36px;
-        font-weight: bold;
-        color: #ffcc00;
-        text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   createWeaponIconsContainer() {
@@ -160,59 +120,6 @@ export class UI {
     inventoryContainer.appendChild(container);
 
     this.elements.weaponIcons = container;
-
-    const style = document.createElement("style");
-    style.textContent = `
-      #inventory-container {
-        position: absolute;
-        top: 60px;
-        left: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        max-width: 300px;
-      }
-
-      #weapon-icons {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      .weapon-icon-box {
-        width: 48px;
-        height: 48px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 2px solid #0088ff;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-      }
-
-      .weapon-icon-box .icon {
-        font-size: 24px;
-        filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
-      }
-
-      .weapon-icon-box .level {
-        position: absolute;
-        bottom: 2px;
-        right: 2px;
-        font-size: 10px;
-        font-weight: bold;
-        color: #ffcc00;
-        text-shadow: 1px 1px 1px #000;
-      }
-
-      .weapon-icon-box.max-level {
-        border-color: #ffcc00;
-        box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   createPassiveItemsContainer() {
@@ -229,47 +136,6 @@ export class UI {
     inventoryContainer.appendChild(container);
 
     this.elements.passiveItems = container;
-
-    const style = document.createElement("style");
-    style.textContent = `
-      #passive-items {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-
-      .passive-item-box {
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 2px solid #00ff88;
-        border-radius: 6px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-      }
-
-      .passive-item-box .icon {
-        font-size: 18px;
-      }
-
-      .passive-item-box .level {
-        position: absolute;
-        bottom: 1px;
-        right: 1px;
-        font-size: 9px;
-        font-weight: bold;
-        color: #ffcc00;
-        text-shadow: 1px 1px 1px #000;
-      }
-
-      .passive-item-box.max-level {
-        border-color: #ffcc00;
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   createGoldDisplay() {
@@ -279,26 +145,6 @@ export class UI {
     document.getElementById("hud").appendChild(gold);
 
     this.elements.goldValue = document.getElementById("gold-value");
-
-    const style = document.createElement("style");
-    style.textContent = `
-      #gold-display {
-        position: absolute;
-        top: 55px;
-        right: 20px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 20px;
-        color: #ffcc00;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-      }
-
-      .gold-icon {
-        font-size: 24px;
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   createDamageFlash() {
@@ -494,11 +340,7 @@ export class UI {
       levelUp.remove();
     }, 1500);
 
-    // Add animation styles if not already added
-    if (!document.getElementById("level-up-styles")) {
-      const style = document.createElement("style");
-      style.id = "level-up-styles";
-      style.textContent = `
+    injectCSS(`
         .level-up-announcement {
           position: fixed;
           top: 40%;
@@ -544,9 +386,7 @@ export class UI {
             transform: translate(-50%, -60%) scale(1);
           }
         }
-      `;
-      document.head.appendChild(style);
-    }
+    `, "level-up-styles");
   }
 
   damageFlash() {
@@ -604,14 +444,11 @@ export class UI {
   }
 }
 
-// Add fadeInOut animation to document
-const style = document.createElement("style");
-style.textContent = `
+injectCSS(`
   @keyframes fadeInOut {
     0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
     20% { opacity: 1; transform: translateX(-50%) translateY(0); }
     80% { opacity: 1; transform: translateX(-50%) translateY(0); }
     100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
   }
-`;
-document.head.appendChild(style);
+`, "fade-in-out-anim");
