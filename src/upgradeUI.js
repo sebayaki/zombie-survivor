@@ -1,6 +1,7 @@
 import { shuffleArray, injectCSS } from "./utils.js";
 import { AUTO_WEAPONS } from "./autoWeapons.js";
 import { PASSIVE_ITEMS } from "./passiveItems.js";
+import { clearChildren, createLevelPips } from "./uiUtils.js";
 
 export class UpgradeUI {
   constructor(game) {
@@ -398,7 +399,7 @@ export class UpgradeUI {
     }
 
     // Clear previous choices
-    this.choicesContainer.innerHTML = "";
+    clearChildren(this.choicesContainer);
 
     // Create choice elements
     this.choices.forEach((choice, index) => {
@@ -575,20 +576,7 @@ export class UpgradeUI {
             : 5;
 
     if (choice.type !== "fallback") {
-      const levelDisplay = document.createElement("div");
-      levelDisplay.className = "upgrade-level-display";
-
-      for (let i = 0; i < maxLevel; i++) {
-        const pip = document.createElement("div");
-        pip.className = "level-pip";
-        if (i < choice.currentLevel) {
-          pip.classList.add("filled");
-        } else if (i === choice.currentLevel) {
-          pip.classList.add("next");
-        }
-        levelDisplay.appendChild(pip);
-      }
-      element.appendChild(levelDisplay);
+      element.appendChild(createLevelPips(choice.currentLevel, maxLevel));
     }
 
     // Click/touch handler - use both for mobile compatibility

@@ -20,6 +20,7 @@ export class Player {
     this.character = null;
     this.mesh = null;
     this.isLoaded = false;
+    this._characterMeshes = null;
 
     // Movement state
     this.velocity = new THREE.Vector3();
@@ -341,20 +342,29 @@ export class Player {
       this.mesh.position.set(0, 0, 0);
       this.mesh.rotation.y = 0;
 
-      // Reset opacity for MD2 character
-      if (this.character && this.character.root) {
-        this.character.root.traverse((child) => {
-          if (child.isMesh && child.material) {
-            child.material.opacity = 1;
-            child.material.transparent = false;
-          }
-        });
-      }
+      this.setCharacterOpacity(1);
     }
 
     this.setWeapon(0);
     this.setAnimation("stand");
     this.game.ui.updateHealth();
+  }
+
+  setCharacterOpacity(value) {
+    if (!this.character?.root) return;
+    if (!this._characterMeshes) {
+      this._characterMeshes = [];
+      this.character.root.traverse((child) => {
+        if (child.isMesh && child.material) {
+          this._characterMeshes.push(child);
+        }
+      });
+    }
+    const transparent = value < 1;
+    for (const mesh of this._characterMeshes) {
+      mesh.material.transparent = transparent;
+      mesh.material.opacity = value;
+    }
   }
 
   update(delta) {
@@ -391,26 +401,10 @@ export class Player {
       this.invulnerableTime -= delta;
       if (this.invulnerableTime <= 0) {
         this.invulnerable = false;
-        // Reset opacity
-        if (this.character && this.character.root) {
-          this.character.root.traverse((child) => {
-            if (child.isMesh && child.material) {
-              child.material.opacity = 1;
-              child.material.transparent = false;
-            }
-          });
-        }
+        this.setCharacterOpacity(1);
       } else {
-        // Flash effect
         const flash = Math.sin(this.invulnerableTime * 20) * 0.3 + 0.7;
-        if (this.character && this.character.root) {
-          this.character.root.traverse((child) => {
-            if (child.isMesh && child.material) {
-              child.material.transparent = true;
-              child.material.opacity = flash;
-            }
-          });
-        }
+        this.setCharacterOpacity(flash);
       }
     }
 
@@ -421,35 +415,20 @@ export class Player {
     this.clampToArena();
   }
 
-  handleMovement(delta) {
+  getMovementInput() {
     const keys = this.game.keys;
-    const moveSpeed = this.speed * delta;
-
-    // Calculate movement direction
     let moveX = 0;
     let moveZ = 0;
     let usingKeyboard = false;
     let usingTouch = false;
 
-    // Check keyboard input (WASD)
-    if (keys["KeyW"] || keys["ArrowUp"]) {
-      moveZ -= 1;
-      usingKeyboard = true;
-    }
-    if (keys["KeyS"] || keys["ArrowDown"]) {
-      moveZ += 1;
-      usingKeyboard = true;
-    }
-    if (keys["KeyA"] || keys["ArrowLeft"]) {
-      moveX -= 1;
-      usingKeyboard = true;
-    }
-    if (keys["KeyD"] || keys["ArrowRight"]) {
-      moveX += 1;
-      usingKeyboard = true;
-    }
+    // Priority 1: Keyboard (WASD / arrows)
+    if (keys["KeyW"] || keys["ArrowUp"]) { moveZ -= 1; usingKeyboard = true; }
+    if (keys["KeyS"] || keys["ArrowDown"]) { moveZ += 1; usingKeyboard = true; }
+    if (keys["KeyA"] || keys["ArrowLeft"]) { moveX -= 1; usingKeyboard = true; }
+    if (keys["KeyD"] || keys["ArrowRight"]) { moveX += 1; usingKeyboard = true; }
 
-    // Check touch/joystick input (takes priority over mouse)
+    // Priority 2: Touch/joystick
     if (
       !usingKeyboard &&
       this.game.touchControls &&
@@ -458,13 +437,12 @@ export class Player {
       const touchVector = this.game.touchControls.getMovementVector();
       if (Math.abs(touchVector.x) > 0.1 || Math.abs(touchVector.y) > 0.1) {
         moveX = touchVector.x;
-        moveZ = touchVector.y; // Y on screen = Z in world
+        moveZ = touchVector.y;
         usingTouch = true;
       }
     }
 
-    // Follow mouse position only if not using keyboard or touch
-    // Don't use mouse movement on touch devices (causes random movement when no input)
+    // Priority 3: Mouse follow (disabled on touch devices)
     const isTouchDevice =
       this.game.touchControls && this.game.touchControls.isTouch;
     if (
@@ -478,12 +456,9 @@ export class Player {
       const dz = mouseTarget.z - this.mesh.position.z;
       const distance = Math.sqrt(dx * dx + dz * dz);
 
-      // Small deadzone (0.3 units) to prevent jittering when close
       if (distance > 0.3) {
         moveX = dx / distance;
         moveZ = dz / distance;
-
-        // Slow down when very close to target for smoother stop
         if (distance < 1.5) {
           const slowdown = distance / 1.5;
           moveX *= slowdown;
@@ -492,57 +467,53 @@ export class Player {
       }
     }
 
+    // Normalize so diagonal keyboard movement doesn't exceed unit length
+    const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+    if (length > 1) {
+      moveX /= length;
+      moveZ /= length;
+    }
+
+    return { x: moveX, z: moveZ };
+  }
+
+  handleMovement(delta) {
+    const moveSpeed = this.speed * delta;
+    const { x: moveX, z: moveZ } = this.getMovementInput();
+
     const wasMoving = this.isMoving;
     this.isMoving = moveX !== 0 || moveZ !== 0;
 
     if (this.isMoving) {
-      // Normalize diagonal movement (for keyboard)
-      const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
-      if (length > 1) {
-        moveX /= length;
-        moveZ /= length;
-      }
-
-      // Check for obstacle collisions before moving
       _tmpVec.copy(this.mesh.position);
       _tmpVec.x += moveX * moveSpeed;
       _tmpVec.z += moveZ * moveSpeed;
-      const newPos = _tmpVec;
 
-      if (!this.checkObstacleCollision(newPos)) {
+      if (!this.game.collisionSystem.checkObstacleCollision(_tmpVec, 0.8)) {
         this.mesh.position.x += moveX * moveSpeed;
         this.mesh.position.z += moveZ * moveSpeed;
       }
 
-      // Set run animation (only if not attacking)
       if (!this.isAttacking) {
         this.setAnimation("run");
       }
     } else {
-      // Set idle animation (only if not attacking)
       if (!this.isAttacking && wasMoving) {
         this.setAnimation("stand");
       }
     }
 
-    // Determine target rotation:
-    // - If there's an auto-aim target, always face it (Vampire Survivors style)
-    // - Otherwise, face movement direction
     if (this.aimTarget !== null) {
       this.targetRotation = this.aimTarget;
     } else if (this.isMoving) {
-      // Face movement direction when no enemies
       this.targetRotation = Math.atan2(moveX, moveZ);
     }
 
     // Smoothly rotate character toward target rotation
     let rotationDiff = this.targetRotation - this.rotation;
-
-    // Normalize the difference to [-PI, PI]
     while (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
     while (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
 
-    // Apply smooth rotation
     const maxRotation = this.rotationSpeed * delta;
     if (Math.abs(rotationDiff) < maxRotation) {
       this.rotation = this.targetRotation;
@@ -550,26 +521,7 @@ export class Player {
       this.rotation += Math.sign(rotationDiff) * maxRotation;
     }
 
-    // Update mesh rotation
     this.mesh.rotation.y = this.rotation;
-  }
-
-  checkObstacleCollision(position) {
-    const playerRadius = 0.8;
-
-    for (const obstacle of this.game.obstacles) {
-      const hx = obstacle.size.x * 0.5 + playerRadius;
-      const hz = obstacle.size.z * 0.5 + playerRadius;
-
-      if (
-        Math.abs(position.x - obstacle.position.x) < hx &&
-        Math.abs(position.z - obstacle.position.z) < hz
-      ) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   clampToArena() {

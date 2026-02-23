@@ -1,4 +1,5 @@
 import { shuffleArray, injectCSS } from "./utils.js";
+import { clearChildren } from "./uiUtils.js";
 
 export class ChestUI {
   constructor(game) {
@@ -250,7 +251,7 @@ export class ChestUI {
     this.title.classList.remove("visible");
     this.title.textContent = rarity === "legendary" ? "LEGENDARY TREASURE!" : "TREASURE FOUND!";
     this.title.style.color = rarity === "legendary" ? "#ff00ff" : "#ffcc00";
-    this.itemsContainer.innerHTML = "";
+    clearChildren(this.itemsContainer);
     this.doneBtn.className = "chest-done-btn btn-hidden";
     this.flash.classList.remove("fire");
 

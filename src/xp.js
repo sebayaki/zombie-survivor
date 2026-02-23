@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { swapRemove } from "./utils.js";
 
 const XP_THRESHOLDS = [
   0, // Level 1
@@ -70,12 +71,15 @@ export class XPSystem {
     this.collectRadius = 1.5;
     this.magnetRadius = 3;
     this.magnetSpeed = 15;
+
+    this._cachedNextLevelXP = null;
   }
 
   reset() {
     this.currentXP = 0;
     this.level = 1;
     this.totalXPCollected = 0;
+    this._cachedNextLevelXP = null;
 
     // Remove all gems
     this.gems.forEach((gem) => {
@@ -84,18 +88,21 @@ export class XPSystem {
     this.gems = [];
   }
 
-  // Get XP needed for next level
   getXPForNextLevel() {
+    if (this._cachedNextLevelXP !== null) return this._cachedNextLevelXP;
+
     if (this.level >= XP_THRESHOLDS.length) {
-      // If beyond the defined array, extrapolate based on previous scale
       const lastIndex = XP_THRESHOLDS.length - 1;
       const lastThreshold = XP_THRESHOLDS[lastIndex];
       const secondLast = XP_THRESHOLDS[lastIndex - 1];
       const ratio = lastThreshold / secondLast;
-      
-      return Math.floor(lastThreshold * Math.pow(ratio, this.level - lastIndex));
+      this._cachedNextLevelXP = Math.floor(
+        lastThreshold * Math.pow(ratio, this.level - lastIndex),
+      );
+    } else {
+      this._cachedNextLevelXP = XP_THRESHOLDS[this.level];
     }
-    return XP_THRESHOLDS[this.level];
+    return this._cachedNextLevelXP;
   }
 
   // Get current progress to next level (0-1)
@@ -163,6 +170,7 @@ export class XPSystem {
   // Level up!
   levelUp() {
     this.level++;
+    this._cachedNextLevelXP = null;
     console.log(`Level Up! Now level ${this.level}`);
 
     // Play level up sound
@@ -197,29 +205,25 @@ export class XPSystem {
       gem.mesh.rotation.y += delta * 2;
       gem.mesh.rotation.x += delta;
 
-      // Calculate distance to player
       const dx = playerPos.x - gem.mesh.position.x;
       const dz = playerPos.z - gem.mesh.position.z;
-      const distance = Math.sqrt(dx * dx + dz * dz);
+      const distSq = dx * dx + dz * dz;
 
-      // Magnet effect - pull gems toward player
-      const effectiveMagnetRadius =
-        this.magnetRadius + (this.game.playerStats?.magnet || 0);
-      if (distance < effectiveMagnetRadius) {
-        gem.beingMagneted = true;
-
-        // Move toward player
-        const speed = this.magnetSpeed * delta;
-        const dirX = dx / distance;
-        const dirZ = dz / distance;
-
-        gem.mesh.position.x += dirX * speed;
-        gem.mesh.position.z += dirZ * speed;
+      const collectRadiusSq = this.collectRadius * this.collectRadius;
+      if (distSq < collectRadiusSq) {
+        this.collectGem(i);
+        continue;
       }
 
-      // Collect gem
-      if (distance < this.collectRadius) {
-        this.collectGem(i);
+      const effectiveMagnetRadius =
+        this.magnetRadius + (this.game.playerStats?.magnet || 0);
+      const magnetRadiusSq = effectiveMagnetRadius * effectiveMagnetRadius;
+      if (distSq < magnetRadiusSq) {
+        gem.beingMagneted = true;
+        const dist = Math.sqrt(distSq);
+        const speed = this.magnetSpeed * delta;
+        gem.mesh.position.x += (dx / dist) * speed;
+        gem.mesh.position.z += (dz / dist) * speed;
       }
     }
   }
@@ -238,7 +242,7 @@ export class XPSystem {
 
     // Remove gem
     this.game.scene.remove(gem.mesh);
-    this.gems.splice(index, 1);
+    swapRemove(this.gems, index);
   }
 
   createCollectEffect(position) {

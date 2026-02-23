@@ -28,7 +28,10 @@ export class CollisionSystem {
       const hitRadius = this.zombieRadius + projectile.mesh.scale.x;
       const hitRadiusSq = hitRadius * hitRadius;
 
-      for (const zombie of zombies) {
+      const nearby = this.game.zombieGrid
+        ? this.game.zombieGrid.query(px, pz, hitRadius * 2)
+        : zombies;
+      for (const zombie of nearby) {
         const zp = zombie.mesh.position;
         const dx = px - zp.x;
         const dz = pz - zp.z;

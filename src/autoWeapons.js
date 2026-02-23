@@ -1,912 +1,45 @@
 import * as THREE from "three";
 import { EVOLUTION_RECIPES } from "./evolutionSystem.js";
+import { AUTO_WEAPONS } from "./weapons/weaponDefinitions.js";
+import { WeaponMeshFactory } from "./weapons/weaponMeshFactory.js";
+import {
+  homingBehavior,
+  orbitBehavior,
+  wallBounceBehavior,
+  areaDamage,
+  knockback,
+  fadeTraverse,
+  wingFlap,
+} from "./weapons/weaponBehaviors.js";
+
+export { AUTO_WEAPONS };
 
 // Reusable temp vectors for hot loops (avoids GC pressure)
 const _tv1 = new THREE.Vector3();
 const _tv2 = new THREE.Vector3();
 
-// Weapon definitions - Vampire Survivors style
-export const AUTO_WEAPONS = {
-  // Starting weapon - simple projectile
-  magicWand: {
-    id: "magicWand",
-    name: "Magic Wand",
-    rarity: "common",
-    description: "Fires at the nearest enemy",
-    iconColor: "#00ccff",
-    icon: `<i class="fa-solid fa-wand-magic-sparkles"></i>`,
-    maxLevel: 8,
-    baseStats: {
-      damage: 10,
-      cooldown: 0.5,
-      projectileCount: 1,
-      projectileSpeed: 35,
-      pierce: 0,
-      area: 1.0,
-      duration: 1.5,
-    },
-    levelBonuses: [
-      {},
-      { damage: 3 },
-      { projectileCount: 1, cooldown: -0.05 },
-      { damage: 4 },
-      { pierce: 1, cooldown: -0.05 },
-      { damage: 5, projectileCount: 1 },
-      { cooldown: -0.05 },
-      { damage: 5, projectileCount: 1 },
-    ],
-  },
 
-  // Whip - horizontal attack
-  whip: {
-    id: "whip",
-    name: "Whip",
-    rarity: "common",
-    description: "Attacks horizontally, passes through enemies",
-    iconColor: "#cc4444",
-    icon: '<i class="fa-solid fa-bolt"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 15,
-      cooldown: 1.5,
-      projectileCount: 1,
-      area: 1.0,
-      duration: 0.3,
-      knockback: 2,
-    },
-    levelBonuses: [
-      {},
-      { damage: 5, area: 0.1 },
-      { projectileCount: 1 }, // Attacks behind too
-      { damage: 5, area: 0.2 },
-      { damage: 10 },
-      { area: 0.3, knockback: 1 },
-      { damage: 10 },
-      { damage: 15, projectileCount: 1, area: 0.5 },
-    ],
-  },
-
-  // Knife - throws in facing direction
-  knife: {
-    id: "knife",
-    name: "Knife",
-    rarity: "common",
-    description: "Throws knives in facing direction",
-    iconColor: "#88aaff",
-    icon: '<i class="fa-solid fa-khanda"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 9,
-      cooldown: 0.55,
-      projectileCount: 1,
-      projectileSpeed: 25,
-      pierce: 0,
-      area: 1.0,
-      duration: 1.5,
-    },
-    levelBonuses: [
-      {},
-      { damage: 3, projectileSpeed: 3 },
-      { projectileCount: 1 },
-      { damage: 4 },
-      { pierce: 1, projectileCount: 1 },
-      { damage: 5, cooldown: -0.05 },
-      { projectileCount: 1 },
-      { damage: 5, projectileCount: 1 },
-    ],
-  },
-
-  // Axe - thrown in arc
-  axe: {
-    id: "axe",
-    name: "Axe",
-    rarity: "uncommon",
-    description: "High damage, passes through enemies",
-    iconColor: "#ff4444",
-    icon: '<i class="fa-solid fa-gavel"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 25,
-      cooldown: 1.8,
-      projectileCount: 1,
-      projectileSpeed: 8,
-      pierce: Infinity,
-      area: 1.2,
-      duration: 3.0,
-    },
-    levelBonuses: [
-      {},
-      { damage: 10 },
-      { projectileCount: 1 },
-      { damage: 10, area: 0.2 },
-      { projectileCount: 1 },
-      { damage: 15 },
-      { projectileCount: 1, cooldown: -0.2 },
-      { damage: 20, projectileCount: 1 },
-    ],
-  },
-
-  // Garlic - damage aura
-  garlic: {
-    id: "garlic",
-    name: "Garlic",
-    rarity: "uncommon",
-    description: "Damages nearby enemies and knocks them back",
-    iconColor: "#88cc44",
-    icon: '<i class="fa-solid fa-shield-cat"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 5,
-      cooldown: 0.5,
-      area: 2.0,
-      knockback: 1.5,
-      duration: 0.3,
-    },
-    levelBonuses: [
-      {},
-      { area: 0.3 },
-      { damage: 2 },
-      { area: 0.4, knockback: 0.5 },
-      { damage: 3 },
-      { area: 0.5 },
-      { damage: 3, cooldown: -0.05 },
-      { damage: 5, area: 1.0 },
-    ],
-  },
-
-  // Cross/Boomerang - returns to player
-  cross: {
-    id: "cross",
-    name: "Cross",
-    rarity: "rare",
-    description: "Boomerangs around, deals damage on the way back",
-    iconColor: "#ffcc00",
-    icon: '<i class="fa-solid fa-cross"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 15,
-      cooldown: 1.2,
-      projectileCount: 1,
-      projectileSpeed: 10,
-      pierce: Infinity,
-      area: 1.0,
-      duration: 3.0,
-    },
-    levelBonuses: [
-      {},
-      { damage: 5, projectileSpeed: 2 },
-      { projectileCount: 1 },
-      { damage: 5, area: 0.2 },
-      { projectileCount: 1 },
-      { damage: 10 },
-      { cooldown: -0.1 },
-      { projectileCount: 1, damage: 10 },
-    ],
-  },
-
-  // Fire Wand - area explosion
-  fireWand: {
-    id: "fireWand",
-    name: "Fire Wand",
-    rarity: "uncommon",
-    description: "Fires explosive projectiles",
-    iconColor: "#ff6600",
-    icon: '<i class="fa-solid fa-fire"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 20,
-      cooldown: 1.5,
-      projectileCount: 1,
-      projectileSpeed: 12,
-      area: 1.5,
-      explosionRadius: 2,
-      duration: 2.0,
-    },
-    levelBonuses: [
-      {},
-      { damage: 5 },
-      { explosionRadius: 0.5 },
-      { damage: 10, projectileCount: 1 },
-      { explosionRadius: 0.5, cooldown: -0.1 },
-      { damage: 10 },
-      { projectileCount: 1 },
-      { damage: 15, explosionRadius: 1.0 },
-    ],
-  },
-
-  // Lightning Ring - random strikes
-  lightning: {
-    id: "lightning",
-    name: "Lightning Ring",
-    rarity: "rare",
-    description: "Strikes random enemies in range",
-    iconColor: "#ffdd00",
-    icon: '<i class="fa-solid fa-bolt"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 15,
-      cooldown: 1.0,
-      projectileCount: 1,
-      area: 5.0,
-      duration: 0.1,
-    },
-    levelBonuses: [
-      {},
-      { damage: 5 },
-      { area: 1.0, projectileCount: 1 },
-      { damage: 5 },
-      { area: 1.0, projectileCount: 1 },
-      { damage: 8, cooldown: -0.1 },
-      { projectileCount: 1 },
-      { damage: 10, projectileCount: 1 },
-    ],
-  },
-
-  // Runetracer - bouncing projectile
-  runetracer: {
-    id: "runetracer",
-    name: "Runetracer",
-    rarity: "rare",
-    description: "Bouncing projectile that lasts a long time",
-    iconColor: "#ff44ff",
-    icon: '<i class="fa-solid fa-gem"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 10,
-      cooldown: 3.0,
-      projectileCount: 1,
-      projectileSpeed: 8,
-      pierce: Infinity,
-      duration: 5.0,
-      bounces: true,
-    },
-    levelBonuses: [
-      {},
-      { damage: 5, projectileSpeed: 1 },
-      { duration: 1.0 },
-      { damage: 5, projectileCount: 1 },
-      { duration: 1.0 },
-      { damage: 10 },
-      { projectileCount: 1, cooldown: -0.3 },
-      { damage: 10, duration: 2.0 },
-    ],
-  },
-
-  // Holy Water - ground area damage
-  holyWater: {
-    id: "holyWater",
-    name: "Holy Water",
-    rarity: "uncommon",
-    description: "Throws bottles that create damaging pools",
-    iconColor: "#44aaff",
-    icon: '<i class="fa-solid fa-droplet"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 8,
-      cooldown: 2.0,
-      projectileCount: 1,
-      area: 2.0,
-      duration: 3.0,
-      tickRate: 0.3,
-    },
-    levelBonuses: [
-      {},
-      { damage: 2, area: 0.3 },
-      { projectileCount: 1 },
-      { damage: 3, duration: 0.5 },
-      { area: 0.4 },
-      { projectileCount: 1, damage: 3 },
-      { duration: 1.0, cooldown: -0.2 },
-      { damage: 5, projectileCount: 1, area: 0.5 },
-    ],
-  },
-
-  // === NEW WEAPONS ===
-
-  // Bone - bounces between enemies
-  bone: {
-    id: "bone",
-    name: "Bone",
-    rarity: "common",
-    description: "Bounces between enemies, hitting multiple times",
-    iconColor: "#ddccaa",
-    icon: '<i class="fa-solid fa-bone"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 12,
-      cooldown: 1.5,
-      projectileCount: 1,
-      projectileSpeed: 10,
-      bounceCount: 3,
-      area: 0.8,
-      duration: 4.0,
-    },
-    levelBonuses: [
-      {},
-      { damage: 4, bounceCount: 1 },
-      { projectileCount: 1 },
-      { damage: 4, projectileSpeed: 2 },
-      { bounceCount: 2 },
-      { projectileCount: 1, damage: 4 },
-      { cooldown: -0.2, bounceCount: 1 },
-      { damage: 8, projectileCount: 1, bounceCount: 2 },
-    ],
-  },
-
-  // Magic Missile - homing projectiles
-  magicMissile: {
-    id: "magicMissile",
-    name: "Magic Missile",
-    rarity: "common",
-    description: "Slow but relentless homing missiles",
-    iconColor: "#ff88ff",
-    icon: '<i class="fa-solid fa-star"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 15,
-      cooldown: 2.8,
-      projectileCount: 1,
-      projectileSpeed: 6,
-      pierce: 0,
-      area: 1.0,
-      duration: 5.0,
-      homing: true,
-      homingStrength: 2,
-    },
-    levelBonuses: [
-      {},
-      { damage: 5, projectileCount: 1 },
-      { homingStrength: 0.5 },
-      { damage: 5, projectileCount: 1 },
-      { projectileSpeed: 1, cooldown: -0.3 },
-      { damage: 8, projectileCount: 1 },
-      { cooldown: -0.3 },
-      { damage: 10, projectileCount: 1 },
-    ],
-  },
-
-  // Peachone - orbiting bird
-  peachone: {
-    id: "peachone",
-    name: "Peachone",
-    rarity: "rare",
-    description: "A bird that orbits around you, dealing damage",
-    iconColor: "#ffaadd",
-    icon: '<i class="fa-solid fa-dove"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 10,
-      cooldown: 0, // Always active
-      projectileCount: 1,
-      orbitRadius: 3,
-      orbitSpeed: 2,
-      area: 1.5,
-    },
-    levelBonuses: [
-      {},
-      { damage: 3, orbitRadius: 0.3 },
-      { projectileCount: 1 },
-      { damage: 4, orbitSpeed: 0.3 },
-      { projectileCount: 1 },
-      { damage: 5, area: 0.3 },
-      { orbitRadius: 0.5, orbitSpeed: 0.3 },
-      { damage: 8, projectileCount: 1 },
-    ],
-  },
-
-  // Ebony Wings - dark orbiting bird (pairs with Peachone)
-  ebonyWings: {
-    id: "ebonyWings",
-    name: "Ebony Wings",
-    rarity: "rare",
-    description: "A dark bird that orbits opposite to Peachone",
-    iconColor: "#aa88ff",
-    icon: '<i class="fa-solid fa-crow"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 10,
-      cooldown: 0,
-      projectileCount: 1,
-      orbitRadius: 3,
-      orbitSpeed: -2, // Opposite direction
-      area: 1.5,
-    },
-    levelBonuses: [
-      {},
-      { damage: 3, orbitRadius: 0.3 },
-      { projectileCount: 1 },
-      { damage: 4, orbitSpeed: -0.3 },
-      { projectileCount: 1 },
-      { damage: 5, area: 0.3 },
-      { orbitRadius: 0.5 },
-      { damage: 8, projectileCount: 1 },
-    ],
-  },
-
-  // Pentagram - screen clear at intervals
-  pentagram: {
-    id: "pentagram",
-    name: "Pentagram",
-    rarity: "legendary",
-    description: "Periodically erases all enemies on screen",
-    iconColor: "#ff4444",
-    icon: '<i class="fa-solid fa-star-of-david"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 999,
-      cooldown: 60, // Very long cooldown
-      area: 50, // Full screen
-      duration: 0.5,
-    },
-    levelBonuses: [
-      {},
-      { cooldown: -10 },
-      { cooldown: -8 },
-      { cooldown: -6 },
-      { cooldown: -5 },
-      { cooldown: -5 },
-      { cooldown: -5 },
-      { cooldown: -5 },
-    ],
-  },
-
-  // Clock Lancet - freeze enemies
-  clockLancet: {
-    id: "clockLancet",
-    name: "Clock Lancet",
-    rarity: "rare",
-    description: "Freezes enemies in place temporarily",
-    iconColor: "#88ddff",
-    icon: '<i class="fa-solid fa-clock"></i>',
-    maxLevel: 8,
-    baseStats: {
-      damage: 1,
-      cooldown: 2.0,
-      area: 4.0,
-      freezeDuration: 1.0,
-      duration: 0.1,
-    },
-    levelBonuses: [
-      {},
-      { area: 0.5, freezeDuration: 0.2 },
-      { area: 0.5 },
-      { freezeDuration: 0.3 },
-      { area: 1.0 },
-      { freezeDuration: 0.3, cooldown: -0.2 },
-      { area: 1.0 },
-      { freezeDuration: 0.5, area: 2.0 },
-    ],
-  },
-
-  // Laurel - temporary invincibility
-  laurel: {
-    id: "laurel",
-    name: "Laurel",
-    rarity: "rare",
-    description: "Grants brief invincibility when taking fatal damage",
-    iconColor: "#44cc44",
-    icon: '<i class="fa-solid fa-leaf"></i>',
-    maxLevel: 8,
-    baseStats: {
-      cooldown: 60, // Once per minute
-      shieldDuration: 1.0,
-    },
-    levelBonuses: [
-      {},
-      { shieldDuration: 0.3 },
-      { cooldown: -10 },
-      { shieldDuration: 0.3 },
-      { cooldown: -10 },
-      { shieldDuration: 0.5 },
-      { cooldown: -10 },
-      { shieldDuration: 1.0, cooldown: -10 },
-    ],
-  },
-};
 
 export class AutoWeaponSystem {
   constructor(game) {
     this.game = game;
 
-    // Player's current weapons (can have multiple)
     this.equippedWeapons = [];
-
-    // Active projectiles/effects
     this.projectiles = [];
     this.effects = [];
-
-    // Last fire times for cooldowns
     this.cooldowns = {};
 
-    // Explosion performance limiter
     this._activeExplosions = 0;
     this._maxActiveExplosions = 8;
     this._explosionLightCount = 0;
     this._maxExplosionLights = 2;
 
-    // Shared explosion geometries (lazy-init in createExplosion)
     this._sharedExpGeo = null;
     this._sharedRingGeo = null;
 
-    // Create detailed weapon geometries
-    this.createWeaponGeometries();
+    this.meshFactory = new WeaponMeshFactory();
   }
 
-  createWeaponGeometries() {
-    // Magic orb - glowing sphere with inner core
-    this.orbGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-
-    // Knife - elongated diamond blade
-    this.knifeGeometry = new THREE.BufferGeometry();
-    const knifeVertices = new Float32Array([
-      // Blade tip
-      0, 0, 0.5,
-      // Blade sides
-      -0.08, 0.02, 0, 0.08, 0.02, 0, 0.08, -0.02, 0, -0.08, -0.02, 0,
-      // Handle end
-      0, 0, -0.15,
-    ]);
-    const knifeIndices = [
-      0,
-      1,
-      2,
-      0,
-      2,
-      3,
-      0,
-      3,
-      4,
-      0,
-      4,
-      1, // Blade top
-      5,
-      2,
-      1,
-      5,
-      3,
-      2,
-      5,
-      4,
-      3,
-      5,
-      1,
-      4, // Handle
-    ];
-    this.knifeGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(knifeVertices, 3),
-    );
-    this.knifeGeometry.setIndex(knifeIndices);
-    this.knifeGeometry.computeVertexNormals();
-
-    // Axe - detailed axe head with handle
-    this.axeGroup = null; // Created per instance
-
-    // Cross - proper cross shape
-    this.crossGeometry = new THREE.BufferGeometry();
-    const crossVertices = new Float32Array([
-      // Vertical bar
-      -0.05, 0, -0.25, 0.05, 0, -0.25, 0.05, 0, 0.25, -0.05, 0, 0.25,
-      // Horizontal bar
-      -0.2, 0, -0.05, 0.2, 0, -0.05, 0.2, 0, 0.1, -0.2, 0, 0.1,
-    ]);
-    const crossIndices = [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7];
-    this.crossGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(crossVertices, 3),
-    );
-    this.crossGeometry.setIndex(crossIndices);
-    this.crossGeometry.computeVertexNormals();
-
-    // Fireball - sphere with spiky corona
-    this.fireballGeometry = new THREE.IcosahedronGeometry(0.25, 1);
-
-    // Runetracer - octahedron (diamond shape)
-    this.runeGeometry = new THREE.OctahedronGeometry(0.25, 0);
-
-    // Holy water bottle
-    this.bottleGeometry = new THREE.CylinderGeometry(0.08, 0.12, 0.3, 8);
-  }
-
-  markShared(obj) {
-    obj.traverse((child) => {
-      if (child.isMesh) {
-        if (child.geometry) {
-          if (!child.geometry.userData) child.geometry.userData = {};
-          child.geometry.userData.shared = true;
-        }
-        if (child.material) {
-          if (!child.material.userData) child.material.userData = {};
-          child.material.userData.shared = true;
-        }
-      }
-    });
-    return obj;
-  }
-
-  // Create a detailed knife mesh - VIBRANT ENERGY SWORD
-  createKnifeMesh() {
-    if (this._knifeMeshCache) return this._knifeMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.15, 1.2, 4),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    );
-    core.rotation.x = Math.PI / 2;
-    core.position.z = 0.4;
-    group.add(core);
-
-    const aura = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.22, 1.4, 4),
-      new THREE.MeshBasicMaterial({
-        color: 0x0088ff,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    aura.rotation.x = Math.PI / 2;
-    aura.position.z = 0.45;
-    group.add(aura);
-
-    this._knifeMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
-  // Create evolved knife mesh
-  createEvolvedKnifeMesh() {
-    if (this._evolvedKnifeMeshCache) return this._evolvedKnifeMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.18, 1.4, 4),
-      new THREE.MeshBasicMaterial({ color: 0x88ccff }),
-    );
-    core.rotation.x = Math.PI / 2;
-    core.position.z = 0.45;
-    group.add(core);
-
-    const aura = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.28, 1.6, 4),
-      new THREE.MeshBasicMaterial({
-        color: 0x0044ff,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    aura.rotation.x = Math.PI / 2;
-    aura.position.z = 0.5;
-    group.add(aura);
-
-    this._evolvedKnifeMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
-  createAxeMesh() {
-    if (this._axeMeshCache) return this._axeMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    );
-    group.add(core);
-
-    const bladeMat = new THREE.MeshBasicMaterial({
-      color: 0xff0044,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-
-    const bladeGeo = new THREE.PlaneGeometry(1.2, 0.5);
-    for (let i = 0; i < 4; i++) {
-      const blade = new THREE.Mesh(bladeGeo, bladeMat);
-      blade.rotation.x = Math.PI / 2;
-      blade.position.x = Math.cos((i * Math.PI) / 2) * 0.6;
-      blade.position.z = Math.sin((i * Math.PI) / 2) * 0.6;
-      blade.rotation.y = (-i * Math.PI) / 2;
-      group.add(blade);
-    }
-
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(1.0, 1.2, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xff00aa,
-        transparent: true,
-        opacity: 0.4,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
-    );
-    ring.rotation.x = Math.PI / 2;
-    group.add(ring);
-
-    this._axeMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
-  createMagicOrbMesh(color) {
-    if (!this._orbMeshCaches) this._orbMeshCaches = {};
-    if (this._orbMeshCaches[color]) return this._orbMeshCaches[color].clone();
-
-    const group = new THREE.Group();
-
-    const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.06, 0.8, 6),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    );
-    core.rotation.x = Math.PI / 2;
-    group.add(core);
-
-    const glow1 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.12, 1.0, 6),
-      new THREE.MeshBasicMaterial({
-        color: color || 0x00ffff,
-        transparent: true,
-        opacity: 0.7,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    glow1.rotation.x = Math.PI / 2;
-    group.add(glow1);
-
-    this._orbMeshCaches[color] = this.markShared(group);
-    return group.clone();
-  }
-
-  createCrossMesh() {
-    if (this._crossMeshCache) return this._crossMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: 0xffaa00,
-      transparent: true,
-      opacity: 0.6,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 1.4), coreMat));
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 1.6), glowMat));
-
-    const hCore = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.15, 0.15), coreMat);
-    hCore.position.z = -0.2;
-    group.add(hCore);
-
-    const hGlow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.35), glowMat);
-    hGlow.position.z = -0.2;
-    group.add(hGlow);
-
-    this._crossMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
-  createFireballMesh() {
-    if (this._fireballMeshCache) return this._fireballMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      ),
-    );
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.SphereGeometry(0.6, 8, 8),
-        new THREE.MeshBasicMaterial({
-          color: 0xff8800,
-          transparent: true,
-          opacity: 0.8,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    );
-
-    const trail = new THREE.Mesh(
-      new THREE.ConeGeometry(0.8, 2.0, 8),
-      new THREE.MeshBasicMaterial({
-        color: 0xff2200,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    trail.rotation.x = Math.PI / 2;
-    trail.position.z = 0.8;
-    group.add(trail);
-
-    this._fireballMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
-  createRunetracerMesh() {
-    if (this._runeMeshCache) return this._runeMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.35, 0),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      ),
-    );
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.7, 0),
-        new THREE.MeshBasicMaterial({
-          color: 0xff00ff,
-          transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    );
-
-    this._runeMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
-  createHolyWaterMesh() {
-    if (this._bottleMeshCache) return this._bottleMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.SphereGeometry(0.25, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      ),
-    );
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 8, 8),
-        new THREE.MeshBasicMaterial({
-          color: 0x00aaff,
-          transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    );
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.4, 0.7, 6),
-        new THREE.MeshBasicMaterial({
-          color: 0x000000,
-          transparent: true,
-          opacity: 0.4,
-          wireframe: true,
-        }),
-      ),
-    );
-
-    this._bottleMeshCache = this.markShared(group);
-    return group.clone();
-  }
 
   reset() {
     // Clear weapons
@@ -1239,49 +372,6 @@ export class AutoWeaponSystem {
     }
   }
 
-  createHolyWandMesh() {
-    if (this._holyWandMeshCache) return this._holyWandMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.07, 0.07, 1.0, 6),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    core.rotation.x = Math.PI / 2;
-    group.add(core);
-
-    const glow = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.18, 1.3, 6),
-      new THREE.MeshBasicMaterial({
-        color: 0xffaa00,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    glow.rotation.x = Math.PI / 2;
-    group.add(glow);
-
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.25, 0.03, 6, 12),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(ring);
-
-    this._holyWandMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
   // Holy Wand - rapid divine projectiles
   fireHolyWand(stats, playerPos, zombies) {
     if (zombies.length === 0) return;
@@ -1294,7 +384,7 @@ export class AutoWeaponSystem {
       direction.y = 0;
       direction.normalize();
 
-      const group = this.createHolyWandMesh();
+      const group = this.meshFactory.createHolyWandMesh();
 
       group.position.copy(playerPos);
       group.position.y = 1;
@@ -1406,7 +496,7 @@ export class AutoWeaponSystem {
       dir.x += spread;
       dir.normalize();
 
-      const mesh = this.createEvolvedKnifeMesh();
+      const mesh = this.meshFactory.createEvolvedKnifeMesh();
       mesh.scale.setScalar(1.5);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
@@ -1440,7 +530,7 @@ export class AutoWeaponSystem {
     for (let i = 0; i < stats.projectileCount; i++) {
       const angle = (i / stats.projectileCount) * Math.PI * 2;
 
-      const mesh = this.createAxeMesh();
+      const mesh = this.meshFactory.createAxeMesh();
       mesh.scale.setScalar(1.8);
 
       const aura = new THREE.Mesh(
@@ -1555,74 +645,6 @@ export class AutoWeaponSystem {
     });
   }
 
-  createHeavenSwordMesh() {
-    if (this._heavenSwordMeshCache) return this._heavenSwordMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    const core = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 1.8, 0.3),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(core);
-
-    const bladeGlow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 2.0, 0.5),
-      new THREE.MeshBasicMaterial({
-        color: 0xffdd00,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(bladeGlow);
-
-    const halo = new THREE.Mesh(
-      new THREE.RingGeometry(0.6, 0.75, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffaa,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      }),
-    );
-    halo.rotation.x = Math.PI / 2;
-    group.add(halo);
-
-    const wingMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const leftWing = new THREE.Mesh(
-      new THREE.ConeGeometry(0.25, 0.8, 4),
-      wingMat,
-    );
-    leftWing.position.set(-0.4, 0.2, 0);
-    leftWing.rotation.z = Math.PI / 2;
-    group.add(leftWing);
-
-    const rightWing = new THREE.Mesh(
-      new THREE.ConeGeometry(0.25, 0.8, 4),
-      wingMat,
-    );
-    rightWing.position.set(0.4, 0.2, 0);
-    rightWing.rotation.z = -Math.PI / 2;
-    group.add(rightWing);
-
-    this._heavenSwordMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
   // Heaven Sword - homing divine blades
   fireHeavenSword(stats, playerPos, zombies) {
     if (zombies.length === 0) return;
@@ -1635,7 +657,7 @@ export class AutoWeaponSystem {
       direction.y = 0;
       direction.normalize();
 
-      const group = this.createHeavenSwordMesh();
+      const group = this.meshFactory.createHeavenSwordMesh();
 
       group.position.copy(playerPos);
       group.position.y = 1.5;
@@ -1678,7 +700,7 @@ export class AutoWeaponSystem {
         targetPos.z += Math.sin(angle) * 8;
       }
 
-      const mesh = this.createFireballMesh();
+      const mesh = this.meshFactory.createFireballMesh();
       mesh.scale.setScalar(2.5);
 
       mesh.position.copy(targetPos);
@@ -1829,62 +851,13 @@ export class AutoWeaponSystem {
     this.game.audioManager.playSound("lightning");
   }
 
-  createNoFutureMesh() {
-    if (this._noFutureMeshCache) return this._noFutureMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.3, 8, 8),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(core);
-
-    const innerAura = new THREE.Mesh(
-      new THREE.SphereGeometry(0.55, 8, 8),
-      new THREE.MeshBasicMaterial({
-        color: 0xaa00ff,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(innerAura);
-
-    const lineGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.8, 6);
-    const lineMat = new THREE.MeshBasicMaterial({
-      color: 0xffaaff,
-      transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const line1 = new THREE.Mesh(lineGeo, lineMat);
-    line1.rotation.x = Math.PI / 4;
-    line1.rotation.z = Math.PI / 4;
-    group.add(line1);
-
-    const line2 = new THREE.Mesh(lineGeo, lineMat);
-    line2.rotation.x = -Math.PI / 4;
-    line2.rotation.z = -Math.PI / 4;
-    group.add(line2);
-
-    this._noFutureMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
   // NO FUTURE - exploding bouncing doom orb
   fireNoFuture(stats, playerPos) {
     for (let i = 0; i < stats.projectileCount; i++) {
       const angle = (i / stats.projectileCount) * Math.PI * 2;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
-      const group = this.createNoFutureMesh();
+      const group = this.meshFactory.createNoFutureMesh();
 
       group.position.copy(playerPos);
       group.position.y = 1;
@@ -2732,7 +1705,7 @@ export class AutoWeaponSystem {
       dir.normalize();
 
       // Create detailed knife mesh with level scaling
-      const mesh = this.createKnifeMesh();
+      const mesh = this.meshFactory.createKnifeMesh();
       mesh.scale.setScalar(scale);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
@@ -2763,7 +1736,7 @@ export class AutoWeaponSystem {
       const angle = (Math.random() - 0.5) * Math.PI * 0.5;
 
       // Create detailed axe mesh with level scaling
-      const mesh = this.createAxeMesh();
+      const mesh = this.meshFactory.createAxeMesh();
       mesh.scale.setScalar(scale);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
@@ -2872,7 +1845,7 @@ export class AutoWeaponSystem {
       }
 
       // Create detailed cross mesh with level scaling
-      const mesh = this.createCrossMesh();
+      const mesh = this.meshFactory.createCrossMesh();
       mesh.scale.setScalar(scale);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
@@ -2912,7 +1885,7 @@ export class AutoWeaponSystem {
       direction.normalize();
 
       // Create detailed fireball mesh with level scaling
-      const mesh = this.createFireballMesh();
+      const mesh = this.meshFactory.createFireballMesh();
       mesh.scale.setScalar(scale);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
@@ -3083,7 +2056,7 @@ export class AutoWeaponSystem {
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
       // Create detailed runetracer mesh with level scaling
-      const mesh = this.createRunetracerMesh();
+      const mesh = this.meshFactory.createRunetracerMesh();
       mesh.scale.setScalar(scale);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
@@ -3122,7 +2095,7 @@ export class AutoWeaponSystem {
       }
 
       // Create detailed holy water bottle mesh with level scaling
-      const mesh = this.createHolyWaterMesh();
+      const mesh = this.meshFactory.createHolyWaterMesh();
       mesh.scale.setScalar(scale);
       mesh.position.copy(playerPos);
       mesh.position.y = 2;
@@ -3149,7 +2122,7 @@ export class AutoWeaponSystem {
 
   // Create a generic projectile (magic orb style)
   createProjectile(config) {
-    const mesh = this.createMagicOrbMesh(config.color);
+    const mesh = this.meshFactory.createMagicOrbMesh(config.color);
     const visualScale = (config.scale || 1) * Math.min(1.5, Math.sqrt(config.area || 1));
     mesh.scale.setScalar(visualScale);
     mesh.position.copy(config.position);

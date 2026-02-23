@@ -19,6 +19,7 @@ import { PowerUpSystem } from "./powerUps.js";
 import { PowerUpShopUI } from "./powerUpShopUI.js";
 import { TouchControls } from "./touchControls.js";
 import { findSpawnPosition } from "./utils.js";
+import { SpatialGrid } from "./spatialGrid.js";
 import {
   setupEnhancedLighting,
   createEnhancedArena,
@@ -75,6 +76,9 @@ export class Game {
     this.autoAim = true;
     this.autoFire = true;
     this.autoAimRange = 20; // Range to detect enemies
+
+    // Spatial indexing for fast neighbor queries
+    this.zombieGrid = new SpatialGrid(8);
 
     // Arena settings
     this.arenaSize = 50; // Larger arena for VS style
@@ -450,6 +454,9 @@ export class Game {
       // Update zombies
       this.zombieManager.update(delta);
 
+      // Rebuild spatial grid after zombie positions are finalized
+      this.zombieGrid.rebuild(this.zombieManager.getZombies());
+
       // Update auto weapons (VS style)
       this.autoWeaponSystem.update(delta);
 
@@ -493,11 +500,15 @@ export class Game {
 
   findNearestZombie() {
     const playerPos = this.player.getPosition();
-    const zombies = this.zombieManager.getZombies();
-    let nearest = null;
-    let nearestDistSq = this.autoAimRange * this.autoAimRange;
+    const range = this.autoAimRange;
+    const candidates = this.zombieGrid
+      ? this.zombieGrid.query(playerPos.x, playerPos.z, range)
+      : this.zombieManager.getZombies();
 
-    for (const zombie of zombies) {
+    let nearest = null;
+    let nearestDistSq = range * range;
+
+    for (const zombie of candidates) {
       const pos = zombie.mesh.position;
       const dx = pos.x - playerPos.x;
       const dz = pos.z - playerPos.z;

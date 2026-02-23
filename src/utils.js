@@ -1,5 +1,66 @@
 import * as THREE from "three";
 
+// ── Rarity constants (used across UI, upgrade, chest, etc.) ──
+
+export const RARITY_COLORS = {
+  common: "#aaa",
+  uncommon: "#00ff88",
+  rare: "#00aaff",
+  legendary: "#ffcc00",
+  evolution: "#ff00ff",
+};
+
+export const RARITY_BORDER_COLORS = {
+  common: "#555",
+  uncommon: "#00aa00",
+  rare: "#0088ff",
+  legendary: "#ffaa00",
+  evolution: "#ff00ff",
+};
+
+export const RARITY_ORDER = ["common", "uncommon", "rare", "legendary"];
+
+// ── Math helpers ──
+
+export function distanceSq2D(ax, az, bx, bz) {
+  const dx = ax - bx;
+  const dz = az - bz;
+  return dx * dx + dz * dz;
+}
+
+export function distance2D(ax, az, bx, bz) {
+  return Math.sqrt(distanceSq2D(ax, az, bx, bz));
+}
+
+const _findNearestVec = new THREE.Vector3();
+export function findNearest(position, entities, maxRange = Infinity) {
+  let nearest = null;
+  let nearestDistSq = maxRange * maxRange;
+  const px = position.x;
+  const pz = position.z;
+  for (let i = 0; i < entities.length; i++) {
+    const e = entities[i];
+    const pos = e.mesh ? e.mesh.position : e.position || e;
+    const dsq = distanceSq2D(px, pz, pos.x, pos.z);
+    if (dsq < nearestDistSq) {
+      nearestDistSq = dsq;
+      nearest = e;
+    }
+  }
+  return nearest;
+}
+
+/**
+ * Swap-and-pop: O(1) removal from an array when order doesn't matter.
+ */
+export function swapRemove(arr, index) {
+  const last = arr.length - 1;
+  if (index !== last) arr[index] = arr[last];
+  arr.pop();
+}
+
+// ── Array helpers ──
+
 /**
  * Fisher-Yates shuffle. Returns a new shuffled array.
  */

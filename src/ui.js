@@ -1,6 +1,7 @@
 import { AUTO_WEAPONS } from "./autoWeapons.js";
 import { PASSIVE_ITEMS } from "./passiveItems.js";
 import { injectCSS } from "./utils.js";
+import { clearChildren, createIconBox } from "./uiUtils.js";
 
 export class UI {
   constructor(game) {
@@ -338,7 +339,7 @@ export class UI {
     if (!this.elements.powerUpStats || !this.game.powerUpSystem) return;
 
     const bonuses = this.game.powerUpSystem.getActiveBonusSummary();
-    this.elements.powerUpStats.innerHTML = "";
+    clearChildren(this.elements.powerUpStats);
 
     if (bonuses.length === 0) return;
 
@@ -460,7 +461,7 @@ export class UI {
   updateWeaponIcons() {
     if (!this.elements.weaponIcons || !this.game.autoWeaponSystem) return;
 
-    this.elements.weaponIcons.innerHTML = "";
+    clearChildren(this.elements.weaponIcons);
 
     const weapons = this.game.autoWeaponSystem.getEquippedWeapons();
 
@@ -468,36 +469,14 @@ export class UI {
       const def = AUTO_WEAPONS[weapon.id];
       if (!def) continue;
 
-      const box = document.createElement("div");
-      const rarityClass = def.rarity || "common";
-      box.className = `weapon-icon-box rarity-${rarityClass}`;
-      if (weapon.level >= def.maxLevel) {
-        box.classList.add("max-level");
-      }
-
-      const icon = document.createElement("span");
-      icon.className = "icon";
-      icon.innerHTML = def.icon;
-      if (def.iconColor) {
-        icon.style.color = def.iconColor;
-      }
-      box.appendChild(icon);
-
-      const level = document.createElement("span");
-      level.className = "level";
-      level.textContent = weapon.level;
-      box.appendChild(level);
-
-      box.title = `${def.name} Lv.${weapon.level}`;
-
-      this.elements.weaponIcons.appendChild(box);
+      this.elements.weaponIcons.appendChild(createIconBox(def, weapon.level));
     }
   }
 
   updatePassiveItems() {
     if (!this.elements.passiveItems || !this.game.passiveItemSystem) return;
 
-    this.elements.passiveItems.innerHTML = "";
+    clearChildren(this.elements.passiveItems);
 
     const items = this.game.passiveItemSystem.getItems();
 
@@ -505,29 +484,9 @@ export class UI {
       const def = PASSIVE_ITEMS[item.id];
       if (!def) continue;
 
-      const box = document.createElement("div");
-      const rarityClass = def.rarity || "common";
-      box.className = `passive-item-box rarity-${rarityClass}`;
-      if (item.level >= def.maxLevel) {
-        box.classList.add("max-level");
-      }
-
-      const icon = document.createElement("span");
-      icon.className = "icon";
-      icon.innerHTML = def.icon;
-      if (def.iconColor) {
-        icon.style.color = def.iconColor;
-      }
-      box.appendChild(icon);
-
-      const level = document.createElement("span");
-      level.className = "level";
-      level.textContent = item.level;
-      box.appendChild(level);
-
-      box.title = `${def.name} Lv.${item.level}`;
-
-      this.elements.passiveItems.appendChild(box);
+      this.elements.passiveItems.appendChild(
+        createIconBox(def, item.level, { boxClass: "passive-item-box" }),
+      );
     }
   }
 

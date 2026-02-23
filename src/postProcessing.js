@@ -6,20 +6,21 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
-// Custom vignette shader
+const PASSTHROUGH_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
 const VignetteShader = {
   uniforms: {
     tDiffuse: { value: null },
     offset: { value: 1.0 },
     darkness: { value: 1.0 },
   },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
+  vertexShader: PASSTHROUGH_VERTEX,
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform float offset;
@@ -35,20 +36,13 @@ const VignetteShader = {
   `,
 };
 
-// Color grading — cool shadows, warm highlights
 const ColorGradingShader = {
   uniforms: {
     tDiffuse: { value: null },
     contrast: { value: 1.04 },
     saturation: { value: 1.05 },
   },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
+  vertexShader: PASSTHROUGH_VERTEX,
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform float contrast;
@@ -67,20 +61,13 @@ const ColorGradingShader = {
   `,
 };
 
-// Film grain for atmosphere
 const FilmGrainShader = {
   uniforms: {
     tDiffuse: { value: null },
     time: { value: 0.0 },
     intensity: { value: 0.035 },
   },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
+  vertexShader: PASSTHROUGH_VERTEX,
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform float time;
@@ -98,19 +85,12 @@ const FilmGrainShader = {
   `,
 };
 
-// Chromatic aberration for damage effect
 const ChromaticAberrationShader = {
   uniforms: {
     tDiffuse: { value: null },
     amount: { value: 0.0 },
   },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
+  vertexShader: PASSTHROUGH_VERTEX,
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform float amount;
@@ -145,6 +125,13 @@ export class PostProcessingManager {
     // Time slow (for dramatic moments)
     this.timeScale = 1.0;
     this.timeSlowDuration = 0;
+
+    // Bloom pulse (driven by update() instead of rAF)
+    this._bloomPulseTarget = 0;
+    this._bloomPulseIntensity = 0;
+    this._bloomPulseDuration = 0;
+    this._bloomPulseElapsed = 0;
+    this._bloomPulseBaseStrength = 0;
 
     this.init();
   }
@@ -205,32 +192,11 @@ export class PostProcessingManager {
     this.bloomPass.strength = strength;
   }
 
-  // Pulse bloom effect
   pulseBloom(duration = 0.3, maxStrength = 2.0) {
-    const startStrength = this.bloomPass.strength;
-    let elapsed = 0;
-
-    const animate = () => {
-      elapsed += 0.016;
-      const t = elapsed / duration;
-
-      if (t < 0.5) {
-        // Increase
-        this.bloomPass.strength =
-          startStrength + (maxStrength - startStrength) * (t * 2);
-      } else {
-        // Decrease
-        this.bloomPass.strength =
-          maxStrength - (maxStrength - startStrength) * ((t - 0.5) * 2);
-      }
-
-      if (elapsed < duration) {
-        requestAnimationFrame(animate);
-      } else {
-        this.bloomPass.strength = startStrength;
-      }
-    };
-    requestAnimationFrame(animate);
+    this._bloomPulseBaseStrength = this.bloomPass.strength;
+    this._bloomPulseTarget = maxStrength;
+    this._bloomPulseDuration = duration;
+    this._bloomPulseElapsed = 0;
   }
 
   update(delta) {
@@ -248,6 +214,22 @@ export class PostProcessingManager {
       this.chromaticPass.uniforms.amount.value = this.damageFlashIntensity * 2;
       this.vignettePass.uniforms.darkness.value =
         0.15 + this.damageFlashIntensity * 0.3;
+    }
+
+    // Update bloom pulse
+    if (this._bloomPulseElapsed < this._bloomPulseDuration) {
+      this._bloomPulseElapsed += delta;
+      const t = Math.min(this._bloomPulseElapsed / this._bloomPulseDuration, 1);
+      const base = this._bloomPulseBaseStrength;
+      const peak = this._bloomPulseTarget;
+      if (t < 0.5) {
+        this.bloomPass.strength = base + (peak - base) * (t * 2);
+      } else {
+        this.bloomPass.strength = peak - (peak - base) * ((t - 0.5) * 2);
+      }
+      if (t >= 1) {
+        this.bloomPass.strength = base;
+      }
     }
 
     // Update time slow

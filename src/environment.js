@@ -1,191 +1,19 @@
 import * as THREE from "three";
-
-// ============================================================
-// PROCEDURAL TEXTURES (canvas-based, no external assets needed)
-// ============================================================
-
-function createAsphaltTexture() {
-  const size = 1024;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-
-  const imageData = ctx.createImageData(size, size);
-  const d = imageData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const n = (Math.random() - 0.5) * 22;
-    d[i] = 38 + n;
-    d[i + 1] = 38 + n;
-    d[i + 2] = 42 + n;
-    d[i + 3] = 255;
-  }
-  ctx.putImageData(imageData, 0, 0);
-
-  for (let i = 0; i < 6000; i++) {
-    const b = 65 + Math.random() * 25;
-    ctx.fillStyle = `rgba(${b},${b},${b + 3},0.35)`;
-    ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
-  }
-
-  ctx.lineCap = "round";
-  for (let i = 0; i < 14; i++) {
-    ctx.beginPath();
-    let x = Math.random() * size;
-    let y = Math.random() * size;
-    ctx.moveTo(x, y);
-    const segs = 5 + Math.floor(Math.random() * 6);
-    for (let j = 0; j < segs; j++) {
-      x += (Math.random() - 0.5) * 70;
-      y += (Math.random() - 0.5) * 70;
-      ctx.lineTo(x, y);
-      if (Math.random() > 0.65) {
-        ctx.lineTo(
-          x + (Math.random() - 0.5) * 35,
-          y + (Math.random() - 0.5) * 35,
-        );
-        ctx.moveTo(x, y);
-      }
-    }
-    ctx.strokeStyle = `rgba(0,0,0,${0.15 + Math.random() * 0.25})`;
-    ctx.lineWidth = 0.5 + Math.random() * 1.5;
-    ctx.stroke();
-  }
-
-  for (let i = 0; i < 5; i++) {
-    const cx = Math.random() * size;
-    const cy = Math.random() * size;
-    ctx.beginPath();
-    ctx.ellipse(
-      cx,
-      cy,
-      12 + Math.random() * 20,
-      8 + Math.random() * 15,
-      Math.random() * Math.PI,
-      0,
-      Math.PI * 2,
-    );
-    ctx.fillStyle = `rgba(22,22,26,${0.2 + Math.random() * 0.2})`;
-    ctx.fill();
-  }
-
-  for (let i = 0; i < 4; i++) {
-    const cx = Math.random() * size;
-    const cy = Math.random() * size;
-    const r = 12 + Math.random() * 20;
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, "rgba(18,12,28,0.25)");
-    g.addColorStop(1, "rgba(20,20,25,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.fillStyle = "rgba(50,50,52,0.06)";
-  ctx.fillRect(size * 0.2, 0, size * 0.12, size);
-  ctx.fillRect(size * 0.68, 0, size * 0.12, size);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(10, 10);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-function createAsphaltBumpMap() {
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-
-  ctx.fillStyle = "#808080";
-  ctx.fillRect(0, 0, size, size);
-
-  for (let i = 0; i < 4000; i++) {
-    const v = 128 + ((Math.random() - 0.5) * 40) | 0;
-    ctx.fillStyle = `rgb(${v},${v},${v})`;
-    const s = Math.random() * 3 + 0.5;
-    ctx.beginPath();
-    ctx.arc(Math.random() * size, Math.random() * size, s, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  for (let i = 0; i < 8; i++) {
-    ctx.beginPath();
-    let x = Math.random() * size;
-    let y = Math.random() * size;
-    ctx.moveTo(x, y);
-    for (let j = 0; j < 4; j++) {
-      x += (Math.random() - 0.5) * 60;
-      y += (Math.random() - 0.5) * 60;
-      ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = "rgba(40,40,40,0.5)";
-    ctx.lineWidth = 1 + Math.random() * 2;
-    ctx.stroke();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(10, 10);
-  return texture;
-}
-
-function createSidewalkTexture() {
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-
-  const imageData = ctx.createImageData(size, size);
-  const d = imageData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const n = (Math.random() - 0.5) * 12;
-    d[i] = 72 + n;
-    d[i + 1] = 72 + n;
-    d[i + 2] = 74 + n;
-    d[i + 3] = 255;
-  }
-  ctx.putImageData(imageData, 0, 0);
-
-  const ps = size / 4;
-  ctx.strokeStyle = "rgba(40,40,42,0.6)";
-  ctx.lineWidth = 2;
-  for (let x = ps; x < size; x += ps) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, size);
-    ctx.stroke();
-  }
-  for (let y = ps; y < size; y += ps) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(size, y);
-    ctx.stroke();
-  }
-
-  for (let i = 0; i < 5; i++) {
-    const cx = Math.random() * size;
-    const cy = Math.random() * size;
-    const r = 8 + Math.random() * 15;
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, "rgba(50,48,52,0.2)");
-    g.addColorStop(1, "rgba(60,58,62,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 8);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
+import {
+  createAsphaltTexture,
+  createAsphaltBumpMap,
+  createSidewalkTexture,
+} from "./environment/textures.js";
+import {
+  NEON_COLORS,
+  createEnhancedBuilding,
+  createEnhancedCar,
+  createEnhancedStreetLamp,
+  createDumpster,
+  createBarricade,
+  createTrashCan,
+  createFireHydrant,
+} from "./environment/decorations.js";
 
 // ============================================================
 // LIGHTING
@@ -223,7 +51,7 @@ export function setupEnhancedLighting(game) {
 }
 
 // ============================================================
-// ARENA (ground, markings, sidewalks, decorations, particles)
+// ARENA (ground, markings, sidewalks, decorations)
 // ============================================================
 
 export function createEnhancedArena(game) {
@@ -283,7 +111,6 @@ export function createEnhancedArena(game) {
   createEnhancedSidewalks(game);
   game.obstacles = [];
   createEnhancedDecorations(game);
-  createGroundDetails(game);
   createBoundaryFence(game);
 }
 
@@ -538,21 +365,8 @@ function createEnhancedSidewalks(game) {
 }
 
 // ============================================================
-// DECORATIONS (buildings, cars, lamps, obstacles)
+// DECORATIONS (orchestrator – delegates to imported functions)
 // ============================================================
-
-const NEON_COLORS = [
-  0xff2244, 0x22aaff, 0xff6600, 0xaa22ff, 0x22ff88, 0xff44aa, 0xffaa00,
-  0x44ffff,
-];
-
-const BUILDING_MATS = [
-  new THREE.MeshLambertMaterial({ color: 0x4a4a5a }),
-  new THREE.MeshLambertMaterial({ color: 0x504858 }),
-  new THREE.MeshLambertMaterial({ color: 0x3d4050 }),
-  new THREE.MeshLambertMaterial({ color: 0x454555 }),
-  new THREE.MeshLambertMaterial({ color: 0x3a3a48 }),
-];
 
 function createEnhancedDecorations(game) {
   const arenaSize = game.arenaSize;
@@ -590,7 +404,6 @@ function createEnhancedDecorations(game) {
     game.scene.add(building);
   }
 
-  // Neon light pools on ground near buildings
   for (let i = 0; i < 18; i++) {
     const bp = buildingPositions[i % buildingPositions.length];
     const color = NEON_COLORS[Math.floor(Math.random() * NEON_COLORS.length)];
@@ -631,7 +444,6 @@ function createEnhancedDecorations(game) {
     game.scene.add(core);
   }
 
-  // Cars
   for (let i = 0; i < 5; i++) {
     const pos = game.findValidObstaclePosition(12, 42, 5);
     if (!pos) continue;
@@ -647,7 +459,6 @@ function createEnhancedDecorations(game) {
     });
   }
 
-  // Street lamps with light pools
   for (let i = 0; i < 6; i++) {
     const pos = game.findValidObstaclePosition(15, 45, 4);
     if (!pos) continue;
@@ -662,7 +473,6 @@ function createEnhancedDecorations(game) {
     });
   }
 
-  // Varied small obstacles
   for (let i = 0; i < 6; i++) {
     const pos = game.findValidObstaclePosition(10, 40, 2);
     if (!pos) continue;
@@ -684,368 +494,5 @@ function createEnhancedDecorations(game) {
     });
   }
 }
-
-// ============================================================
-// BUILDING
-// ============================================================
-
-function createEnhancedBuilding() {
-  const group = new THREE.Group();
-  const width = 5 + Math.random() * 7;
-  const depth = 5 + Math.random() * 7;
-  const height = 10 + Math.random() * 20;
-
-  const wallMat =
-    BUILDING_MATS[Math.floor(Math.random() * BUILDING_MATS.length)];
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, depth),
-    wallMat,
-  );
-  body.position.y = height / 2;
-  body.castShadow = true;
-  body.receiveShadow = true;
-  group.add(body);
-
-  // Lit windows on all faces (planes slightly offset from each face)
-  const windowLitMat = new THREE.MeshBasicMaterial({ color: 0xffeeaa });
-  const windowDarkMat = new THREE.MeshBasicMaterial({ color: 0x1a1a28 });
-  const wRows = Math.min(6, Math.floor(height / 3));
-  const wCols = Math.floor(width / 2);
-
-  for (let wy = 0; wy < wRows; wy++) {
-    const yPos = 2.5 + wy * 3;
-    for (let wx = 0; wx < wCols; wx++) {
-      const xPos = (wx - (wCols - 1) / 2) * 1.8;
-      const isLit = Math.random() > 0.35;
-      const wMat = isLit ? windowLitMat : windowDarkMat;
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.4), wMat);
-      win.position.set(xPos, yPos, depth / 2 + 0.02);
-      group.add(win);
-    }
-  }
-
-  // Rooftop surface
-  const roofMat = new THREE.MeshLambertMaterial({ color: 0x303038 });
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(width - 0.3, 0.15, depth - 0.3),
-    roofMat,
-  );
-  roof.position.y = height + 0.08;
-  group.add(roof);
-
-  // Parapet
-  const trimMat = new THREE.MeshLambertMaterial({ color: 0x404048 });
-  const trim = new THREE.Mesh(
-    new THREE.BoxGeometry(width + 0.2, 0.35, depth + 0.2),
-    trimMat,
-  );
-  trim.position.y = height;
-  group.add(trim);
-
-  // AC units on roof
-  const acMat = new THREE.MeshLambertMaterial({ color: 0x667777 });
-  const acCount = 1 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < acCount; i++) {
-    const aw = 0.8 + Math.random() * 1.2;
-    const ad = 0.6 + Math.random() * 0.8;
-    const ac = new THREE.Mesh(new THREE.BoxGeometry(aw, 0.6, ad), acMat);
-    ac.position.set(
-      (Math.random() - 0.5) * (width - aw - 1),
-      height + 0.45,
-      (Math.random() - 0.5) * (depth - ad - 1),
-    );
-    group.add(ac);
-  }
-
-  // Water tank (some buildings)
-  if (Math.random() > 0.55) {
-    const tankMat = new THREE.MeshLambertMaterial({ color: 0x665544 });
-    const tx = (Math.random() - 0.5) * (width - 2);
-    const tz = (Math.random() - 0.5) * (depth - 2);
-    const legH = 0.7;
-    for (const [lx, lz] of [
-      [-0.25, -0.25],
-      [0.25, -0.25],
-      [-0.25, 0.25],
-      [0.25, 0.25],
-    ]) {
-      const leg = new THREE.Mesh(
-        new THREE.BoxGeometry(0.06, legH, 0.06),
-        tankMat,
-      );
-      leg.position.set(tx + lx, height + legH / 2, tz + lz);
-      group.add(leg);
-    }
-    const tank = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.45, 0.45, 0.9, 8),
-      tankMat,
-    );
-    tank.position.set(tx, height + legH + 0.45, tz);
-    group.add(tank);
-  }
-
-  // Rooftop beacon (some buildings)
-  if (Math.random() > 0.7) {
-    const bColor = Math.random() > 0.5 ? 0xff3333 : 0x33ff33;
-    const beacon = new THREE.Mesh(
-      new THREE.SphereGeometry(0.15, 6, 6),
-      new THREE.MeshBasicMaterial({ color: bColor }),
-    );
-    beacon.position.set(0, height + 0.5, 0);
-    group.add(beacon);
-  }
-
-  return group;
-}
-
-// ============================================================
-// CAR
-// ============================================================
-
-function createEnhancedCar() {
-  const group = new THREE.Group();
-  const carColors = [
-    0xaa1818, 0x1818aa, 0x18aa18, 0xaaaa18, 0x181818, 0xcccccc, 0x884400,
-    0x444444, 0x662244,
-  ];
-  const color = carColors[Math.floor(Math.random() * carColors.length)];
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.3,
-    metalness: 0.6,
-  });
-
-  const lower = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.55, 4.2), bodyMat);
-  lower.position.y = 0.45;
-  lower.castShadow = true;
-  group.add(lower);
-
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.55, 2.2), bodyMat);
-  cabin.position.set(0, 0.95, -0.2);
-  cabin.castShadow = true;
-  group.add(cabin);
-
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x112233,
-    roughness: 0.1,
-    metalness: 0.8,
-  });
-  const ws = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.5), glassMat);
-  ws.position.set(0, 0.95, 0.91);
-  ws.rotation.x = -0.2;
-  group.add(ws);
-
-  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-  const wheelGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.2, 8);
-  for (const [x, z] of [
-    [-0.95, 1.2],
-    [0.95, 1.2],
-    [-0.95, -1.2],
-    [0.95, -1.2],
-  ]) {
-    const w = new THREE.Mesh(wheelGeo, wheelMat);
-    w.rotation.z = Math.PI / 2;
-    w.position.set(x, 0.28, z);
-    group.add(w);
-  }
-
-  const headMat = new THREE.MeshBasicMaterial({ color: 0xffffcc });
-  for (const x of [-0.6, 0.6]) {
-    const hl = new THREE.Mesh(
-      new THREE.SphereGeometry(0.12, 6, 6),
-      headMat,
-    );
-    hl.position.set(x, 0.5, 2.1);
-    group.add(hl);
-  }
-
-  const tailMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
-  for (const x of [-0.6, 0.6]) {
-    const tl = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.1, 0.05),
-      tailMat,
-    );
-    tl.position.set(x, 0.5, -2.1);
-    group.add(tl);
-  }
-
-  return group;
-}
-
-// ============================================================
-// STREET LAMP
-// ============================================================
-
-function createEnhancedStreetLamp() {
-  const group = new THREE.Group();
-  const poleMat = new THREE.MeshStandardMaterial({
-    color: 0x2a2a2a,
-    roughness: 0.4,
-    metalness: 0.7,
-  });
-
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.12, 4.5, 6),
-    poleMat,
-  );
-  pole.position.y = 2.25;
-  pole.castShadow = true;
-  group.add(pole);
-
-  const arm = new THREE.Mesh(
-    new THREE.BoxGeometry(0.06, 0.06, 1.5),
-    poleMat,
-  );
-  arm.position.set(0, 4.3, 0.65);
-  group.add(arm);
-
-  const housing = new THREE.Mesh(
-    new THREE.BoxGeometry(0.4, 0.15, 0.6),
-    new THREE.MeshLambertMaterial({ color: 0x333333 }),
-  );
-  housing.position.set(0, 4.2, 1.3);
-  group.add(housing);
-
-  const bulb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffeeaa }),
-  );
-  bulb.position.set(0, 4.1, 1.3);
-  group.add(bulb);
-
-  // Warm light pool on ground
-  const pool = new THREE.Mesh(
-    new THREE.CircleGeometry(3.5, 16),
-    new THREE.MeshBasicMaterial({
-      color: 0xffddaa,
-      transparent: true,
-      opacity: 0.08,
-    }),
-  );
-  pool.rotation.x = -Math.PI / 2;
-  pool.position.set(0, 0.04, 1.3);
-  group.add(pool);
-
-  const core = new THREE.Mesh(
-    new THREE.CircleGeometry(1.5, 12),
-    new THREE.MeshBasicMaterial({
-      color: 0xffeebb,
-      transparent: true,
-      opacity: 0.06,
-    }),
-  );
-  core.rotation.x = -Math.PI / 2;
-  core.position.set(0, 0.045, 1.3);
-  group.add(core);
-
-  return group;
-}
-
-// ============================================================
-// SMALL OBSTACLES
-// ============================================================
-
-function createDumpster() {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshLambertMaterial({ color: 0x336633 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 0.8), mat);
-  body.position.y = 0.45;
-  body.castShadow = true;
-  group.add(body);
-  const lid = new THREE.Mesh(
-    new THREE.BoxGeometry(1.25, 0.05, 0.85),
-    new THREE.MeshLambertMaterial({ color: 0x2a552a }),
-  );
-  lid.position.set(0, 0.92, 0);
-  group.add(lid);
-  return group;
-}
-
-function createBarricade() {
-  const group = new THREE.Group();
-  const legMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
-  for (const x of [-0.3, 0.3]) {
-    const leg = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.8, 0.08),
-      legMat,
-    );
-    leg.position.set(x, 0.4, 0);
-    group.add(leg);
-  }
-  const bar = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 0.15, 0.06),
-    new THREE.MeshBasicMaterial({ color: 0xff6600 }),
-  );
-  bar.position.y = 0.7;
-  group.add(bar);
-  const stripe = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 0.08, 0.065),
-    new THREE.MeshBasicMaterial({ color: 0xffffff }),
-  );
-  stripe.position.y = 0.55;
-  group.add(stripe);
-  return group;
-}
-
-function createTrashCan() {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshLambertMaterial({ color: 0x228822 });
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.3, 1, 8),
-    mat,
-  );
-  body.position.y = 0.5;
-  body.castShadow = true;
-  group.add(body);
-  const lid = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.37, 0.37, 0.06, 8),
-    new THREE.MeshLambertMaterial({ color: 0x1a6b1a }),
-  );
-  lid.position.y = 1.03;
-  group.add(lid);
-  return group;
-}
-
-function createFireHydrant() {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0xcc2222,
-    roughness: 0.3,
-    metalness: 0.5,
-  });
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.18, 0.22, 0.7, 8),
-    mat,
-  );
-  body.position.y = 0.35;
-  body.castShadow = true;
-  group.add(body);
-  const cap = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.18, 0.12, 8),
-    mat,
-  );
-  cap.position.y = 0.76;
-  group.add(cap);
-  for (const s of [-1, 1]) {
-    const nozzle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.06, 0.15, 6),
-      mat,
-    );
-    nozzle.rotation.x = Math.PI / 2;
-    nozzle.position.set(0, 0.45, s * 0.22);
-    group.add(nozzle);
-  }
-  return group;
-}
-
-// ============================================================
-// GROUND DETAILS (manholes, drains, blood, debris)
-// ============================================================
-
-function createGroundDetails() {}
-
-// ============================================================
-// AMBIENT PARTICLES (floating embers + dust)
-// ============================================================
 
 export function updateAmbientParticles() {}

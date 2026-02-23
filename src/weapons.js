@@ -305,47 +305,7 @@ export class WeaponSystem {
   }
 
   createExplosion(position, radius, damage) {
-    // Damage zombies in radius
-    this.game.zombieManager.damageInRadius(position, radius, damage);
-
-    // Shared geometry (lazy-init)
-    if (!WeaponSystem._sharedExpGeo) {
-      WeaponSystem._sharedExpGeo = new THREE.SphereGeometry(1, 10, 10);
-    }
-
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xff4400,
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-
-    const explosion = new THREE.Mesh(WeaponSystem._sharedExpGeo, mat);
-    explosion.position.copy(position);
-    explosion.scale.setScalar(0.1);
-    this.game.scene.add(explosion);
-
-    let scale = 0.1;
-    let opacity = 0.8;
-    const targetScale = radius;
-
-    const animateExplosion = () => {
-      scale += (targetScale - scale) * 0.2 + 0.1;
-      opacity -= 0.06;
-
-      if (opacity <= 0) {
-        this.game.scene.remove(explosion);
-        mat.dispose();
-      } else {
-        explosion.scale.setScalar(scale);
-        mat.opacity = opacity;
-        requestAnimationFrame(animateExplosion);
-      }
-    };
-
-    requestAnimationFrame(animateExplosion);
-    this.game.audioManager.playSound("explosion");
+    this.game.autoWeaponSystem.createExplosion(position, radius, damage);
   }
 
   addAmmo(weaponIndex, amount) {
