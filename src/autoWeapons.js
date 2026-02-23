@@ -11,23 +11,23 @@ export const AUTO_WEAPONS = {
     icon: `<i class="fa-solid fa-wand-magic-sparkles"></i>`,
     maxLevel: 8,
     baseStats: {
-      damage: 10,
-      cooldown: 1.0,
+      damage: 8,
+      cooldown: 0.15, // Machine gun fast!
       projectileCount: 1,
-      projectileSpeed: 15,
+      projectileSpeed: 40, // Super fast projectile
       pierce: 0,
       area: 1.0,
-      duration: 2.0,
+      duration: 1.5,
     },
     levelBonuses: [
       {}, // Level 1 (base)
-      { damage: 5 }, // Level 2
+      { damage: 2 }, // Level 2
       { projectileCount: 1 }, // Level 3
-      { damage: 5 }, // Level 4
+      { damage: 3 }, // Level 4
       { projectileCount: 1, pierce: 1 }, // Level 5
-      { damage: 10, cooldown: -0.1 }, // Level 6
+      { damage: 5, cooldown: -0.02 }, // Level 6
       { projectileCount: 1 }, // Level 7
-      { damage: 15, projectileCount: 1 }, // Level 8
+      { damage: 5, projectileCount: 1 }, // Level 8
     ],
   },
 
@@ -560,417 +560,400 @@ export class AutoWeaponSystem {
     this.bottleGeometry = new THREE.CylinderGeometry(0.08, 0.12, 0.3, 8);
   }
 
-  // Create a detailed knife mesh - LARGER & MORE VIBRANT
+  markShared(obj) {
+    obj.traverse((child) => {
+      if (child.isMesh) {
+        if (child.geometry) {
+          if (!child.geometry.userData) child.geometry.userData = {};
+          child.geometry.userData.shared = true;
+        }
+        if (child.material) {
+          if (!child.material.userData) child.material.userData = {};
+          child.material.userData.shared = true;
+        }
+      }
+    });
+    return obj;
+  }
+
+  // Create a detailed knife mesh - VIBRANT ENERGY SWORD
   createKnifeMesh() {
+    if (this._knifeMeshCache) return this._knifeMeshCache.clone();
+
     const group = new THREE.Group();
 
-    // Blade - much larger and brighter
-    const bladeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xeeeeee,
-    });
-    const blade = new THREE.Mesh(
-      new THREE.ConeGeometry(0.15, 1.0, 4),
-      bladeMaterial,
-    );
-    blade.rotation.x = Math.PI / 2;
-    blade.position.z = 0.4;
-    group.add(blade);
-
-    // Handle - larger
-    const handleMaterial = new THREE.MeshBasicMaterial({
-      color: 0x664422,
-    });
-    const handle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.1, 0.35, 6),
-      handleMaterial,
-    );
-    handle.rotation.x = Math.PI / 2;
-    handle.position.z = -0.2;
-    group.add(handle);
-
-    // Glint/glow effect - larger
-    const glintMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.7,
-    });
-    const glint = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.08, 0.8),
-      glintMaterial,
-    );
-    glint.position.set(0.05, 0.02, 0.35);
-    glint.rotation.x = Math.PI / 2;
-    group.add(glint);
-
-    // Outer glow
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xaaaaff,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.5, 8, 8),
-      glowMaterial,
-    );
-    glow.position.z = 0.2;
-    group.add(glow);
-
-    return group;
-  }
-
-  // Create a detailed axe mesh - LARGER & MORE VIBRANT
-  createAxeMesh() {
-    const group = new THREE.Group();
-
-    // Axe head - larger, bright silver
-    const headMaterial = new THREE.MeshBasicMaterial({
-      color: 0xcccccc,
-    });
-
-    // Main blade (simple box for visibility)
-    const blade = new THREE.Mesh(
-      new THREE.BoxGeometry(0.8, 0.6, 0.15),
-      headMaterial,
-    );
-    blade.position.set(0.3, 0.2, 0);
-    group.add(blade);
-
-    // Blade edge highlight
-    const edgeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-    });
-    const edge = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.65, 0.08),
-      edgeMaterial,
-    );
-    edge.position.set(0.7, 0.2, 0);
-    group.add(edge);
-
-    // Handle - larger
-    const handleMaterial = new THREE.MeshBasicMaterial({
-      color: 0x664422,
-    });
-    const handle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.1, 1.0, 8),
-      handleMaterial,
-    );
-    handle.position.y = -0.3;
-    group.add(handle);
-
-    // Glow effect
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xaaaaaa,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.6, 8, 8),
-      glowMaterial,
-    );
-    glow.position.set(0.2, 0.1, 0);
-    group.add(glow);
-
-    return group;
-  }
-
-  // Create magic orb with glow - LARGER & MORE VIBRANT (fixed z-fighting)
-  createMagicOrbMesh(color) {
-    const group = new THREE.Group();
-
-    // Bright core - solid
-    const coreMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-    });
+    // Solid bright core
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.3, 12, 12),
-      coreMaterial,
+      new THREE.CylinderGeometry(0.05, 0.2, 1.8, 4),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    );
+    core.rotation.x = Math.PI / 2;
+    core.position.z = 0.5;
+    group.add(core);
+
+    // Glowing energy aura (Additive)
+    const aura = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.4, 2.2, 4),
+      new THREE.MeshBasicMaterial({
+        color: 0x0088ff,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    aura.rotation.x = Math.PI / 2;
+    aura.position.z = 0.6;
+    group.add(aura);
+
+    this._knifeMeshCache = this.markShared(group);
+    return group.clone();
+  }
+
+  // Create evolved knife mesh
+  createEvolvedKnifeMesh() {
+    if (this._evolvedKnifeMeshCache) return this._evolvedKnifeMeshCache.clone();
+
+    const group = new THREE.Group();
+
+    const core = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.2, 1.8, 4),
+      new THREE.MeshBasicMaterial({ color: 0x88ccff }),
+    );
+    core.rotation.x = Math.PI / 2;
+    core.position.z = 0.5;
+    group.add(core);
+
+    const aura = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.4, 2.2, 4),
+      new THREE.MeshBasicMaterial({
+        color: 0x0044ff,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    aura.rotation.x = Math.PI / 2;
+    aura.position.z = 0.6;
+    group.add(aura);
+
+    this._evolvedKnifeMeshCache = this.markShared(group);
+    return group.clone();
+  }
+
+  // Create a detailed axe mesh - SPINNING ENERGY SCYTHES
+  createAxeMesh() {
+    if (this._axeMeshCache) return this._axeMeshCache.clone();
+
+    const group = new THREE.Group();
+
+    // Core
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
     );
     group.add(core);
 
-    // Outer glow only - single layer to prevent z-fighting
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: color,
+    // 4 scythe blades using additive blending
+    const bladeMat = new THREE.MeshBasicMaterial({
+      color: 0xff0044,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
       depthWrite: false,
+      side: THREE.DoubleSide,
     });
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.6, 12, 12),
-      glowMaterial,
-    );
-    group.add(glow);
 
-    // Particle ring
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.7,
-      depthWrite: false,
-    });
+    const bladeGeo = new THREE.PlaneGeometry(2.0, 0.8);
+    for (let i = 0; i < 4; i++) {
+      const blade = new THREE.Mesh(bladeGeo, bladeMat);
+      blade.rotation.x = Math.PI / 2;
+      blade.position.x = Math.cos((i * Math.PI) / 2) * 1.0;
+      blade.position.z = Math.sin((i * Math.PI) / 2) * 1.0;
+      blade.rotation.y = (-i * Math.PI) / 2;
+      group.add(blade);
+    }
+
+    // Outer spinning ring
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.4, 0.06, 8, 16),
-      ringMaterial,
+      new THREE.RingGeometry(1.6, 2.0, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xff00aa,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     );
     ring.rotation.x = Math.PI / 2;
     group.add(ring);
 
-    return group;
+    this._axeMeshCache = this.markShared(group);
+    return group.clone();
   }
 
-  // Create cross/boomerang mesh - LARGER & MORE VIBRANT (fixed z-fighting)
-  createCrossMesh() {
+  // Create magic orb - SMALL FAST BLASTER SHOT
+  createMagicOrbMesh(color) {
+    if (!this._orbMeshCaches) this._orbMeshCaches = {};
+    if (this._orbMeshCaches[color]) return this._orbMeshCaches[color].clone();
+
     const group = new THREE.Group();
 
-    // Golden cross material
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xffdd00,
-    });
-
-    // Vertical bar - much larger
-    const vertical = new THREE.Mesh(
-      new THREE.BoxGeometry(0.25, 1.4, 0.15),
-      material,
-    );
-    group.add(vertical);
-
-    // Horizontal bar - much larger
-    const horizontal = new THREE.Mesh(
-      new THREE.BoxGeometry(1.0, 0.25, 0.15),
-      material,
-    );
-    horizontal.position.y = 0.3;
-    group.add(horizontal);
-
-    // Single outer glow - no overlapping layers to prevent z-fighting
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff44,
-      transparent: true,
-      opacity: 0.4,
-      depthWrite: false, // Prevents z-fighting
-    });
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.9, 12, 12),
-      glowMaterial,
-    );
-    glow.position.y = 0.15;
-    group.add(glow);
-
-    return group;
-  }
-
-  // Create fireball mesh - REALISTIC FIRE LOOK
-  createFireballMesh() {
-    const group = new THREE.Group();
-
-    // White-hot core (brightest center)
-    const coreMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-    });
+    // Hot inner core
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 8, 8),
-      coreMaterial,
+      new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
     );
+    core.rotation.x = Math.PI / 2;
     group.add(core);
 
-    // Yellow inner flame
-    const yellowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-    });
-    const yellowFlame = new THREE.Mesh(
-      new THREE.SphereGeometry(0.4, 8, 8),
-      yellowMaterial,
+    // Primary laser glow
+    const glow1 = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.18, 1.6, 8),
+      new THREE.MeshBasicMaterial({
+        color: color || 0x00ffff,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
     );
-    group.add(yellowFlame);
+    glow1.rotation.x = Math.PI / 2;
+    group.add(glow1);
 
-    // Orange main flame body - teardrop/cone shape pointing backward (trail)
-    const orangeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff6600,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-    });
-    const flameBody = new THREE.Mesh(
-      new THREE.ConeGeometry(0.5, 1.2, 8),
-      orangeMaterial,
+    // Outer laser aura
+    const glow2 = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.35, 0.35, 2.0, 8),
+      new THREE.MeshBasicMaterial({
+        color: color || 0x0088ff,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
     );
-    flameBody.rotation.x = Math.PI / 2; // Point backward
-    flameBody.position.z = 0.4; // Trail behind
-    group.add(flameBody);
+    glow2.rotation.x = Math.PI / 2;
+    group.add(glow2);
 
-    // Multiple flame tongues (licking upward)
-    const flameTongueMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff4400,
+    this._orbMeshCaches[color] = this.markShared(group);
+    return group.clone();
+  }
+
+  // Create cross/boomerang mesh - GLOWING HOLY BOOMERANG
+  createCrossMesh() {
+    if (this._crossMeshCache) return this._crossMeshCache.clone();
+
+    const group = new THREE.Group();
+
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0xffaa00,
       transparent: true,
       opacity: 0.8,
+      blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
-    for (let i = 0; i < 5; i++) {
-      const angle = (i / 5) * Math.PI * 2;
-      const tongue = new THREE.Mesh(
-        new THREE.ConeGeometry(0.2, 0.8, 6),
-        flameTongueMaterial,
-      );
-      tongue.position.set(
-        Math.cos(angle) * 0.3,
-        0.2,
-        Math.sin(angle) * 0.3 + 0.2,
-      );
-      // Tilt outward and backward
-      tongue.rotation.x = Math.PI * 0.3 + Math.random() * 0.3;
-      tongue.rotation.z = (Math.random() - 0.5) * 0.5;
-      group.add(tongue);
-    }
 
-    // Red outer flames
-    const redMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff2200,
-      transparent: true,
-      opacity: 0.6,
-      depthWrite: false,
-    });
-    const outerFlame1 = new THREE.Mesh(
-      new THREE.ConeGeometry(0.6, 1.5, 8),
-      redMaterial,
+    // Vertical
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 2.0), coreMat));
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 2.4), glowMat));
+
+    // Horizontal
+    const hCore = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 0.2), coreMat);
+    hCore.position.z = -0.3;
+    group.add(hCore);
+
+    const hGlow = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 0.6), glowMat);
+    hGlow.position.z = -0.3;
+    group.add(hGlow);
+
+    // Huge spherical holy aura
+    const aura = new THREE.Mesh(
+      new THREE.SphereGeometry(2.0, 16, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xffcc00,
+        transparent: true,
+        opacity: 0.2,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
     );
-    outerFlame1.rotation.x = Math.PI / 2;
-    outerFlame1.position.z = 0.6;
-    group.add(outerFlame1);
+    group.add(aura);
 
-    // Smoke/ember trail
-    const smokeMaterial = new THREE.MeshBasicMaterial({
-      color: 0x331100,
-      transparent: true,
-      opacity: 0.4,
-      depthWrite: false,
-    });
-    const smoke = new THREE.Mesh(
-      new THREE.ConeGeometry(0.4, 1.0, 6),
-      smokeMaterial,
-    );
-    smoke.rotation.x = Math.PI / 2;
-    smoke.position.z = 1.2;
-    group.add(smoke);
-
-    // Sparks/embers around the fireball
-    const sparkMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffaa00,
-    });
-    for (let i = 0; i < 8; i++) {
-      const spark = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 4, 4),
-        sparkMaterial,
-      );
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 0.4 + Math.random() * 0.4;
-      spark.position.set(
-        Math.cos(angle) * radius,
-        (Math.random() - 0.5) * 0.5,
-        Math.sin(angle) * radius + 0.3,
-      );
-      group.add(spark);
-    }
-
-    // Outer glow aura
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff4400,
-      transparent: true,
-      opacity: 0.25,
-      depthWrite: false,
-    });
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(1.2, 8, 8),
-      glowMaterial,
-    );
-    group.add(glow);
-
-    return group;
+    this._crossMeshCache = this.markShared(group);
+    return group.clone();
   }
 
-  // Create runetracer mesh (glowing diamond) - LARGER & MORE VIBRANT (fixed z-fighting)
-  createRunetracerMesh() {
+  // Create fireball mesh - MASSIVE METEOR
+  createFireballMesh() {
+    if (this._fireballMeshCache) return this._fireballMeshCache.clone();
+
     const group = new THREE.Group();
 
-    // Core diamond - bright magenta solid
-    const coreMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff44ff,
-    });
-    const core = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.45, 0),
-      coreMaterial,
+    // Hot white core
+    group.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.6, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      ),
     );
-    group.add(core);
 
-    // Outer trail/glow - single layer
-    const trailMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff00ff,
-      transparent: true,
-      opacity: 0.5,
-      depthWrite: false,
-    });
-    const trail = new THREE.Mesh(
-      new THREE.SphereGeometry(0.9, 8, 8),
-      trailMaterial,
+    // Intense inner flame
+    group.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(1.2, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xff8800,
+          transparent: true,
+          opacity: 0.9,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
     );
+
+    // Long fire trail (cone pointing backward)
+    const trail = new THREE.Mesh(
+      new THREE.ConeGeometry(2.0, 5.0, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xff2200,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    trail.rotation.x = Math.PI / 2;
+    trail.position.z = 1.5;
     group.add(trail);
 
-    return group;
+    // Outer heat aura
+    group.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(2.5, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.2,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
+    );
+
+    // Intense point light
+    const light = new THREE.PointLight(0xff4400, 3, 15);
+    group.add(light);
+
+    this._fireballMeshCache = this.markShared(group);
+    return group.clone();
   }
 
-  // Create holy water bottle - LARGER & MORE VIBRANT
-  createHolyWaterMesh() {
+  // Create runetracer mesh - BOUNCING NEON LASER ORB
+  createRunetracerMesh() {
+    if (this._runeMeshCache) return this._runeMeshCache.clone();
+
     const group = new THREE.Group();
 
-    // Bottle body - larger
-    const bottleMaterial = new THREE.MeshBasicMaterial({
-      color: 0x66aaff,
-      transparent: true,
-      opacity: 0.8,
-    });
-    const bottle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.2, 0.25, 0.6, 8),
-      bottleMaterial,
+    // Bright core
+    group.add(
+      new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.8, 0),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      ),
     );
-    group.add(bottle);
 
-    // Cork
-    const corkMaterial = new THREE.MeshBasicMaterial({
-      color: 0x8b4513,
-    });
-    const cork = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.15, 0.15, 8),
-      corkMaterial,
+    // Inner glowing diamond
+    group.add(
+      new THREE.Mesh(
+        new THREE.OctahedronGeometry(1.6, 0),
+        new THREE.MeshBasicMaterial({
+          color: 0xff00ff,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
     );
-    cork.position.y = 0.38;
-    group.add(cork);
 
-    // Inner glow
-    const innerGlow = new THREE.MeshBasicMaterial({
-      color: 0x88ddff,
-      transparent: true,
-      opacity: 0.6,
-    });
-    const inner = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35, 8, 8),
-      innerGlow,
+    // Massive outer aura
+    group.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(2.5, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xaa00ff,
+          transparent: true,
+          opacity: 0.3,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
     );
-    group.add(inner);
 
-    // Water glow - larger
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00aaff,
-      transparent: true,
-      opacity: 0.4,
-    });
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.6, 8, 8),
-      glowMaterial,
+    this._runeMeshCache = this.markShared(group);
+    return group.clone();
+  }
+
+  // Create holy water bottle - DIVINE EXPLOSIVE VIAL
+  createHolyWaterMesh() {
+    if (this._bottleMeshCache) return this._bottleMeshCache.clone();
+
+    const group = new THREE.Group();
+
+    // Bright cyan core
+    group.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 12, 12),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      ),
     );
-    group.add(glow);
 
-    return group;
+    // Intense liquid glow
+    group.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(1.0, 12, 12),
+        new THREE.MeshBasicMaterial({
+          color: 0x00aaff,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
+    );
+
+    // Outer holy aura
+    group.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(1.6, 12, 12),
+        new THREE.MeshBasicMaterial({
+          color: 0x0055ff,
+          transparent: true,
+          opacity: 0.4,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      ),
+    );
+
+    // Bottle outline (shadow)
+    group.add(
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.8, 1.2, 8),
+        new THREE.MeshBasicMaterial({
+          color: 0x000000,
+          transparent: true,
+          opacity: 0.5,
+          wireframe: true,
+        }),
+      ),
+    );
+
+    this._bottleMeshCache = this.markShared(group);
+    return group.clone();
   }
 
   reset() {
@@ -978,12 +961,18 @@ export class AutoWeaponSystem {
     this.equippedWeapons = [];
 
     // Clear projectiles
-    this.projectiles.forEach((p) => this.game.scene.remove(p.mesh));
+    this.projectiles.forEach((p) => {
+      this.game.scene.remove(p.mesh);
+      this.disposeObject(p.mesh);
+    });
     this.projectiles = [];
 
     // Clear effects
     this.effects.forEach((e) => {
-      if (e.mesh) this.game.scene.remove(e.mesh);
+      if (e.mesh) {
+        this.game.scene.remove(e.mesh);
+        this.disposeObject(e.mesh);
+      }
     });
     this.effects = [];
 
@@ -1272,6 +1261,56 @@ export class AutoWeaponSystem {
     }
   }
 
+  // Create holy wand projectile
+  createHolyWandMesh() {
+    if (this._holyWandMeshCache) return this._holyWandMeshCache.clone();
+
+    const group = new THREE.Group();
+
+    // Core white light
+    const core = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    core.rotation.x = Math.PI / 2;
+    group.add(core);
+
+    // Golden laser aura
+    const glow = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.3, 2.0, 8),
+      new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    glow.rotation.x = Math.PI / 2;
+    group.add(glow);
+
+    // Holy rings
+    for (let r = -0.5; r <= 0.5; r += 0.5) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.4, 0.05, 8, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      ring.position.z = r;
+      group.add(ring);
+    }
+
+    this._holyWandMeshCache = this.markShared(group);
+    return group.clone();
+  }
+
   // Holy Wand - rapid divine projectiles
   fireHolyWand(stats, playerPos, zombies) {
     if (zombies.length === 0) return;
@@ -1284,37 +1323,14 @@ export class AutoWeaponSystem {
       direction.y = 0;
       direction.normalize();
 
-      // Create golden divine projectile
-      const group = new THREE.Group();
-
-      // Core white light
-      const core = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      );
-      group.add(core);
-
-      // Golden glow
-      const glow = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 8, 8),
-        new THREE.MeshBasicMaterial({
-          color: 0xffdd00,
-          transparent: true,
-          opacity: 0.6,
-        }),
-      );
-      group.add(glow);
-
-      // Holy ring
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.4, 0.08, 8, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      );
-      ring.rotation.x = Math.PI / 2;
-      group.add(ring);
+      const group = this.createHolyWandMesh();
 
       group.position.copy(playerPos);
       group.position.y = 1;
+
+      // Point towards target
+      group.rotation.y = Math.atan2(direction.x, direction.z);
+
       this.game.scene.add(group);
 
       this.projectiles.push({
@@ -1339,36 +1355,69 @@ export class AutoWeaponSystem {
       const dir = i === 0 ? playerDir.clone() : playerDir.clone().negate();
 
       const group = new THREE.Group();
-      const width = 6 * stats.area;
+      const width = 8 * stats.area;
 
-      // Blood trail
-      for (let j = 0; j < 10; j++) {
-        const segment = new THREE.Mesh(
-          new THREE.SphereGeometry(0.4 + Math.random() * 0.3, 6, 6),
-          new THREE.MeshBasicMaterial({
-            color: j % 2 === 0 ? 0xff0000 : 0x880000,
-            transparent: true,
-            opacity: 0.8,
-          }),
-        );
-        segment.position.set(j * (width / 10), 0, (Math.random() - 0.5) * 0.5);
-        group.add(segment);
-      }
+      // Massive Crimson Plasma Slash
+      const slash = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 1.2, width, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.9,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      slash.rotation.z = Math.PI / 2;
+      slash.position.x = width / 2;
+      group.add(slash);
 
-      // Dripping blood effect
-      for (let d = 0; d < 5; d++) {
+      // Dark red inner aura
+      const aura = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 2.0, width * 0.9, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0x880000,
+          transparent: true,
+          opacity: 0.6,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      aura.rotation.z = Math.PI / 2;
+      aura.position.x = width / 2;
+      group.add(aura);
+
+      // Bloody ground fissure
+      const groundFissure = new THREE.Mesh(
+        new THREE.PlaneGeometry(width * 1.2, 3),
+        new THREE.MeshBasicMaterial({
+          color: 0xff0022,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      groundFissure.rotation.x = -Math.PI / 2;
+      groundFissure.position.set(width / 2, -0.9, 0);
+      group.add(groundFissure);
+
+      // Dripping blood particles
+      for (let d = 0; d < 12; d++) {
         const drip = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.05, 0.1, 0.5, 6),
+          new THREE.SphereGeometry(0.2, 6, 6),
           new THREE.MeshBasicMaterial({
             color: 0xff0000,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
           }),
         );
         drip.position.set(
           Math.random() * width,
           -0.3,
-          (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.5,
         );
         group.add(drip);
       }
@@ -1395,6 +1444,7 @@ export class AutoWeaponSystem {
     }
 
     this.game.audioManager.playSound("whip");
+    if (this.game.screenShake) this.game.screenShake(0.5, 0.2); // Bloody Tear deserves a shake
   }
 
   // Thousand Edge - knife storm
@@ -1405,18 +1455,14 @@ export class AutoWeaponSystem {
       dir.x += spread;
       dir.normalize();
 
-      const mesh = this.createKnifeMesh();
-      // Make it glow blue for evolved version
-      mesh.traverse((child) => {
-        if (child.material) {
-          child.material = child.material.clone();
-          child.material.color.setHex(0x88ccff);
-        }
-      });
-      mesh.scale.setScalar(1.5);
+      const mesh = this.createEvolvedKnifeMesh();
+      mesh.scale.setScalar(2.5);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
-      mesh.rotation.y = Math.atan2(dir.x, dir.z);
+
+      // Orient correctly along movement vector
+      mesh.rotation.x = Math.PI / 2;
+      mesh.rotation.z = Math.atan2(dir.x, dir.z);
 
       this.game.scene.add(mesh);
 
@@ -1444,18 +1490,33 @@ export class AutoWeaponSystem {
       const angle = (i / stats.projectileCount) * Math.PI * 2;
 
       const mesh = this.createAxeMesh();
-      mesh.scale.setScalar(2);
+      mesh.scale.setScalar(3); // Even bigger for evolved
 
-      // Add purple glow for evolved version
-      const glow = new THREE.Mesh(
-        new THREE.SphereGeometry(1.2, 8, 8),
+      // Massive dark magenta aura
+      const aura = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5, 16, 16),
         new THREE.MeshBasicMaterial({
-          color: 0x8800ff,
+          color: 0xaa00ff,
           transparent: true,
-          opacity: 0.4,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
         }),
       );
-      mesh.add(glow);
+      mesh.add(aura);
+
+      // Inner bright core
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.8, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xffaaff,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      mesh.add(core);
 
       mesh.position.copy(playerPos);
       mesh.position.x += Math.cos(angle) * orbitRadius;
@@ -1470,7 +1531,7 @@ export class AutoWeaponSystem {
         centerPos: playerPos.clone(),
         angle: angle,
         orbitRadius: orbitRadius,
-        orbitSpeed: 2,
+        orbitSpeed: 3, // Faster orbit
         damage: stats.damage,
         area: stats.area,
         duration: stats.duration,
@@ -1558,6 +1619,92 @@ export class AutoWeaponSystem {
     });
   }
 
+  // Create heaven sword mesh
+  createHeavenSwordMesh() {
+    if (this._heavenSwordMeshCache) return this._heavenSwordMeshCache.clone();
+
+    const group = new THREE.Group();
+
+    // Core blade (White hot)
+    const core = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 2.5, 0.4),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    group.add(core);
+
+    // Golden blade aura
+    const bladeGlow = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 2.8, 0.8),
+      new THREE.MeshBasicMaterial({
+        color: 0xffdd00,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    group.add(bladeGlow);
+
+    // Massive divine halo
+    const halo = new THREE.Mesh(
+      new THREE.RingGeometry(1.2, 1.5, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffaa,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    halo.rotation.x = Math.PI / 2;
+    group.add(halo);
+
+    // Divine glow sphere
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 16, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    group.add(glow);
+
+    // Wing decorations
+    const wingMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const leftWing = new THREE.Mesh(
+      new THREE.ConeGeometry(0.4, 1.2, 4),
+      wingMat,
+    );
+    leftWing.position.set(-0.6, 0.3, 0);
+    leftWing.rotation.z = Math.PI / 2;
+    group.add(leftWing);
+
+    const rightWing = new THREE.Mesh(
+      new THREE.ConeGeometry(0.4, 1.2, 4),
+      wingMat,
+    );
+    rightWing.position.set(0.6, 0.3, 0);
+    rightWing.rotation.z = -Math.PI / 2;
+    group.add(rightWing);
+
+    this._heavenSwordMeshCache = this.markShared(group);
+    return group.clone();
+  }
+
   // Heaven Sword - homing divine blades
   fireHeavenSword(stats, playerPos, zombies) {
     if (zombies.length === 0) return;
@@ -1570,50 +1717,13 @@ export class AutoWeaponSystem {
       direction.y = 0;
       direction.normalize();
 
-      const group = new THREE.Group();
-
-      // Golden sword blade
-      const blade = new THREE.Mesh(
-        new THREE.BoxGeometry(0.15, 2, 0.4),
-        new THREE.MeshBasicMaterial({ color: 0xffdd00 }),
-      );
-      group.add(blade);
-
-      // Divine glow
-      const glow = new THREE.Mesh(
-        new THREE.SphereGeometry(0.8, 8, 8),
-        new THREE.MeshBasicMaterial({
-          color: 0xffffaa,
-          transparent: true,
-          opacity: 0.4,
-        }),
-      );
-      group.add(glow);
-
-      // Wing decorations
-      const wingMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.8,
-      });
-      const leftWing = new THREE.Mesh(
-        new THREE.ConeGeometry(0.3, 0.8, 4),
-        wingMat,
-      );
-      leftWing.position.set(-0.4, 0.3, 0);
-      leftWing.rotation.z = Math.PI / 2;
-      group.add(leftWing);
-
-      const rightWing = new THREE.Mesh(
-        new THREE.ConeGeometry(0.3, 0.8, 4),
-        wingMat,
-      );
-      rightWing.position.set(0.4, 0.3, 0);
-      rightWing.rotation.z = -Math.PI / 2;
-      group.add(rightWing);
+      const group = this.createHeavenSwordMesh();
 
       group.position.copy(playerPos);
-      group.position.y = 1;
+      group.position.y = 1.5;
+
+      // Orient towards target
+      group.rotation.x = Math.PI / 2; // Lie flat initially
       group.rotation.z = Math.atan2(direction.x, direction.z);
 
       this.game.scene.add(group);
@@ -1650,11 +1760,25 @@ export class AutoWeaponSystem {
         targetPos.z += Math.sin(angle) * 8;
       }
 
-      // Create meteor falling from sky
+      // Create massive meteor falling from sky
       const mesh = this.createFireballMesh();
-      mesh.scale.setScalar(2);
+      mesh.scale.setScalar(4); // Huge meteor
+
+      // Add extra black/dark red hellish aura
+      const darkAura = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      mesh.add(darkAura);
+
       mesh.position.copy(targetPos);
-      mesh.position.y = 20; // Start from high above
+      mesh.position.y = 30; // Start from very high above
 
       this.game.scene.add(mesh);
 
@@ -1662,10 +1786,10 @@ export class AutoWeaponSystem {
         type: "hellfire",
         mesh: mesh,
         targetPos: targetPos,
-        startY: 20,
-        fallSpeed: 30,
+        startY: 30,
+        fallSpeed: 40,
         damage: stats.damage,
-        explosionRadius: stats.explosionRadius,
+        explosionRadius: stats.explosionRadius * 1.5, // Larger explosion
         elapsed: 0,
         duration: 3,
       });
@@ -1717,16 +1841,37 @@ export class AutoWeaponSystem {
         const tubeGeometry = new THREE.TubeGeometry(
           curve,
           segments * 2,
-          0.1,
+          0.3, // Thicker outer glow
           8,
           false,
         );
         const tubeMaterial = new THREE.MeshBasicMaterial({
-          color: 0x88ffff,
+          color: 0x0088ff,
           transparent: true,
-          opacity: 1,
+          opacity: 0.6,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
         });
         const bolt = new THREE.Mesh(tubeGeometry, tubeMaterial);
+
+        // Inner white hot core
+        const coreGeometry = new THREE.TubeGeometry(
+          curve,
+          segments * 2,
+          0.1, // Thinner core
+          8,
+          false,
+        );
+        const coreMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.9,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        bolt.add(core);
+
         this.game.scene.add(bolt);
 
         // Damage target
@@ -1740,8 +1885,11 @@ export class AutoWeaponSystem {
             this.game.scene.remove(bolt);
             tubeGeometry.dispose();
             tubeMaterial.dispose();
+            coreGeometry.dispose();
+            coreMaterial.dispose();
           } else {
-            tubeMaterial.opacity = opacity;
+            tubeMaterial.opacity = opacity * 0.6;
+            coreMaterial.opacity = opacity * 0.9;
             requestAnimationFrame(fadeOut);
           }
         };
@@ -1778,54 +1926,79 @@ export class AutoWeaponSystem {
     this.game.audioManager.playSound("lightning");
   }
 
+  // Create No Future Mesh
+  createNoFutureMesh() {
+    if (this._noFutureMeshCache) return this._noFutureMeshCache.clone();
+
+    const group = new THREE.Group();
+
+    // Bright white core
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 12, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    group.add(core);
+
+    // Glowing purple inner aura
+    const innerAura = new THREE.Mesh(
+      new THREE.SphereGeometry(0.8, 16, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xaa00ff,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    group.add(innerAura);
+
+    // Massive dark purple outer aura
+    const outerAura = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 16, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xff00ff,
+        transparent: true,
+        opacity: 0.4,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    group.add(outerAura);
+
+    // Laser lines crossing the orb
+    const lineGeo = new THREE.CylinderGeometry(0.05, 0.05, 3.5, 8);
+    const lineMat = new THREE.MeshBasicMaterial({
+      color: 0xffaaff,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const line1 = new THREE.Mesh(lineGeo, lineMat);
+    line1.rotation.x = Math.PI / 4;
+    line1.rotation.z = Math.PI / 4;
+    group.add(line1);
+
+    const line2 = new THREE.Mesh(lineGeo, lineMat);
+    line2.rotation.x = -Math.PI / 4;
+    line2.rotation.z = -Math.PI / 4;
+    group.add(line2);
+
+    this._noFutureMeshCache = this.markShared(group);
+    return group.clone();
+  }
+
   // NO FUTURE - exploding bouncing doom orb
   fireNoFuture(stats, playerPos) {
     for (let i = 0; i < stats.projectileCount; i++) {
       const angle = (i / stats.projectileCount) * Math.PI * 2;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
-      const group = new THREE.Group();
-
-      // Dark core
-      const core = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0x220022 }),
-      );
-      group.add(core);
-
-      // Glowing purple aura
-      const aura = new THREE.Mesh(
-        new THREE.SphereGeometry(0.8, 12, 12),
-        new THREE.MeshBasicMaterial({
-          color: 0x8800ff,
-          transparent: true,
-          opacity: 0.6,
-        }),
-      );
-      group.add(aura);
-
-      // Skull decoration
-      const skull = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      );
-      skull.position.z = 0.5;
-      group.add(skull);
-
-      // Eye sockets
-      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      const leftEye = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 6, 6),
-        eyeMat,
-      );
-      leftEye.position.set(-0.1, 0.05, 0.75);
-      group.add(leftEye);
-      const rightEye = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 6, 6),
-        eyeMat,
-      );
-      rightEye.position.set(0.1, 0.05, 0.75);
-      group.add(rightEye);
+      const group = this.createNoFutureMesh();
 
       group.position.copy(playerPos);
       group.position.y = 1;
@@ -1864,20 +2037,39 @@ export class AutoWeaponSystem {
         targetPos.z += Math.cos(angle) * 5;
       }
 
-      // Create large water pool
+      // Create massive bright cyan plasma pool
       const group = new THREE.Group();
 
-      // Main pool
-      const poolGeometry = new THREE.CircleGeometry(stats.area, 32);
-      const poolMaterial = new THREE.MeshBasicMaterial({
-        color: 0x0066ff,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide,
-      });
-      const pool = new THREE.Mesh(poolGeometry, poolMaterial);
-      pool.rotation.x = -Math.PI / 2;
-      group.add(pool);
+      // Main inner plasma core
+      const poolCore = new THREE.Mesh(
+        new THREE.CircleGeometry(stats.area * 0.7, 32),
+        new THREE.MeshBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
+      poolCore.rotation.x = -Math.PI / 2;
+      group.add(poolCore);
+
+      // Outer plasma aura
+      const poolAura = new THREE.Mesh(
+        new THREE.CircleGeometry(stats.area, 32),
+        new THREE.MeshBasicMaterial({
+          color: 0x0044ff,
+          transparent: true,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
+      poolAura.rotation.x = -Math.PI / 2;
+      poolAura.position.y = -0.01;
+      group.add(poolAura);
 
       // Ripple rings
       for (let r = 0; r < 3; r++) {
@@ -1890,8 +2082,10 @@ export class AutoWeaponSystem {
           new THREE.MeshBasicMaterial({
             color: 0x88ccff,
             transparent: true,
-            opacity: 0.5,
+            opacity: 0.7,
+            blending: THREE.AdditiveBlending,
             side: THREE.DoubleSide,
+            depthWrite: false,
           }),
         );
         ring.rotation.x = -Math.PI / 2;
@@ -1899,24 +2093,32 @@ export class AutoWeaponSystem {
         group.add(ring);
       }
 
-      // Bubbles
-      for (let b = 0; b < 10; b++) {
+      // Plasma Bubbles (rising)
+      const bubbles = [];
+      for (let b = 0; b < 12; b++) {
         const bubble = new THREE.Mesh(
-          new THREE.SphereGeometry(0.15, 6, 6),
+          new THREE.SphereGeometry(0.2, 8, 8),
           new THREE.MeshBasicMaterial({
-            color: 0xaaddff,
+            color: 0xffffff,
             transparent: true,
-            opacity: 0.6,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
           }),
         );
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.random() * stats.area * 0.8;
         bubble.position.set(
           Math.cos(angle) * dist,
-          0.2 + Math.random() * 0.3,
+          0.2 + Math.random() * 0.5,
           Math.sin(angle) * dist,
         );
         group.add(bubble);
+        bubbles.push({
+          mesh: bubble,
+          startY: bubble.position.y,
+          speed: 0.5 + Math.random(),
+        });
       }
 
       group.position.copy(targetPos);
@@ -1926,6 +2128,7 @@ export class AutoWeaponSystem {
       this.effects.push({
         type: "laBorra",
         mesh: group,
+        bubbles: bubbles, // Add bubbles to animate later if we want
         position: targetPos.clone(),
         damage: stats.damage,
         area: stats.area,
@@ -1992,112 +2195,60 @@ export class AutoWeaponSystem {
       const pos = attackPositions[i];
       const dir = i === 0 ? playerDir.clone() : playerDir.clone().negate();
 
-      // Create firewall effect with level scaling
+      // Create massive energy slash effect
       const width = 4 * stats.area * scale;
       const group = new THREE.Group();
 
-      // Create multiple fire pillars along the whip path
-      const numPillars = 8;
-      for (let p = 0; p < numPillars; p++) {
-        const t = p / (numPillars - 1);
-        const pillarX = t * width;
+      // Huge central plasma slash
+      const slashMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const slash = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, 2.0),
+        slashMat,
+      );
+      slash.position.set(width / 2, 1.0, 0);
+      slash.rotation.y = Math.PI; // Face the right way
+      group.add(slash);
 
-        // Fire pillar group
-        const pillar = new THREE.Group();
-
-        // White-hot core
-        const coreGeometry = new THREE.CylinderGeometry(0.15, 0.2, 1.5, 8);
-        const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const core = new THREE.Mesh(coreGeometry, coreMaterial);
-        core.position.y = 0.75;
-        pillar.add(core);
-
-        // Yellow inner flame
-        const yellowGeometry = new THREE.ConeGeometry(0.35, 2, 8);
-        const yellowMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffff00,
-          transparent: true,
-          opacity: 0.9,
-        });
-        const yellow = new THREE.Mesh(yellowGeometry, yellowMaterial);
-        yellow.position.y = 1;
-        pillar.add(yellow);
-
-        // Orange middle flame
-        const orangeGeometry = new THREE.ConeGeometry(0.5, 2.5, 8);
-        const orangeMaterial = new THREE.MeshBasicMaterial({
-          color: 0xff6600,
-          transparent: true,
-          opacity: 0.7,
-        });
-        const orange = new THREE.Mesh(orangeGeometry, orangeMaterial);
-        orange.position.y = 0.8;
-        pillar.add(orange);
-
-        // Red outer flame
-        const redGeometry = new THREE.ConeGeometry(0.7, 3, 8);
-        const redMaterial = new THREE.MeshBasicMaterial({
-          color: 0xff2200,
-          transparent: true,
-          opacity: 0.5,
-        });
-        const red = new THREE.Mesh(redGeometry, redMaterial);
-        red.position.y = 0.5;
-        pillar.add(red);
-
-        // Flickering flame tips
-        for (let f = 0; f < 3; f++) {
-          const tipGeometry = new THREE.ConeGeometry(0.15, 0.8, 6);
-          const tipMaterial = new THREE.MeshBasicMaterial({
-            color: f === 0 ? 0xffaa00 : 0xff4400,
-            transparent: true,
-            opacity: 0.8,
-          });
-          const tip = new THREE.Mesh(tipGeometry, tipMaterial);
-          tip.position.set(
-            (Math.random() - 0.5) * 0.4,
-            1.8 + Math.random() * 0.5,
-            (Math.random() - 0.5) * 0.4,
-          );
-          tip.rotation.z = (Math.random() - 0.5) * 0.5;
-          pillar.add(tip);
-        }
-
-        pillar.position.x = pillarX;
-        pillar.position.y = -1; // Ground level
-        group.add(pillar);
-      }
-
-      // Ground fire glow - long burning strip
-      const groundGeometry = new THREE.PlaneGeometry(width, 1.5);
-      const groundMaterial = new THREE.MeshBasicMaterial({
+      // Outer wide fire glow
+      const glowMat = new THREE.MeshBasicMaterial({
         color: 0xff4400,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const glow = new THREE.Mesh(
+        new THREE.PlaneGeometry(width * 1.2, 4.0),
+        glowMat,
+      );
+      glow.position.set(width / 2, 1.0, 0);
+      group.add(glow);
+
+      // Ground fire fissure
+      const groundGeometry = new THREE.PlaneGeometry(width, 2.0);
+      const groundMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
       });
       const ground = new THREE.Mesh(groundGeometry, groundMaterial);
       ground.rotation.x = -Math.PI / 2;
       ground.position.set(width / 2, 0.05, 0);
       group.add(ground);
 
-      // Embers floating up
-      for (let e = 0; e < 12; e++) {
-        const emberGeometry = new THREE.SphereGeometry(0.08, 4, 4);
-        const emberMaterial = new THREE.MeshBasicMaterial({
-          color: e % 2 === 0 ? 0xffaa00 : 0xff6600,
-        });
-        const ember = new THREE.Mesh(emberGeometry, emberMaterial);
-        ember.position.set(
-          Math.random() * width,
-          Math.random() * 2,
-          (Math.random() - 0.5) * 0.8,
-        );
-        group.add(ember);
-      }
-
       group.position.copy(pos);
-      group.position.y = 1;
+      group.position.y = 0.1;
       group.rotation.y = Math.atan2(dir.x, dir.z);
 
       this.game.scene.add(group);
@@ -2191,50 +2342,51 @@ export class AutoWeaponSystem {
 
   // Garlic - damage aura around player
   fireGarlic(stats, playerPos, scale = 1) {
-    // Create expanding ring effect - LARGER & MORE VIBRANT
+    // Create expanding magical aura effect - DIVINE/TOXIC RUNE FIELD
     const group = new THREE.Group();
 
-    // Inner bright ring
-    const innerGeometry = new THREE.RingGeometry(
-      stats.area * 0.5,
-      stats.area * 0.8,
-      32,
+    // Runic inner circle
+    const innerRing = new THREE.Mesh(
+      new THREE.RingGeometry(stats.area * 0.5, stats.area * 0.7, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x88ff88,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
     );
-    const innerMaterial = new THREE.MeshBasicMaterial({
-      color: 0xaaffaa,
-      transparent: true,
-      opacity: 0.8,
-      side: THREE.DoubleSide,
-    });
-    const innerRing = new THREE.Mesh(innerGeometry, innerMaterial);
     innerRing.rotation.x = -Math.PI / 2;
     group.add(innerRing);
 
-    // Outer glow ring
-    const outerGeometry = new THREE.RingGeometry(
-      stats.area * 0.2,
-      stats.area * 1.2,
-      32,
+    // Thick outer glow
+    const outerRing = new THREE.Mesh(
+      new THREE.RingGeometry(stats.area * 0.8, stats.area * 1.2, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
     );
-    const outerMaterial = new THREE.MeshBasicMaterial({
-      color: 0x44ff44,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide,
-    });
-    const outerRing = new THREE.Mesh(outerGeometry, outerMaterial);
     outerRing.rotation.x = -Math.PI / 2;
     group.add(outerRing);
 
-    // Center circle fill
-    const fillGeometry = new THREE.CircleGeometry(stats.area * 0.5, 32);
-    const fillMaterial = new THREE.MeshBasicMaterial({
-      color: 0x88ff88,
-      transparent: true,
-      opacity: 0.3,
-      side: THREE.DoubleSide,
-    });
-    const fill = new THREE.Mesh(fillGeometry, fillMaterial);
+    // Central pulsing energy field
+    const fill = new THREE.Mesh(
+      new THREE.CircleGeometry(stats.area, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x44ff44,
+        transparent: true,
+        opacity: 0.2,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
     fill.rotation.x = -Math.PI / 2;
     group.add(fill);
 
@@ -2390,52 +2542,37 @@ export class AutoWeaponSystem {
       // Create thick glowing bolt using tube geometry
       const curve = new THREE.CatmullRomCurve3(points);
 
-      // Core bolt - bright white/cyan
-      const coreGeometry = new THREE.TubeGeometry(
-        curve,
-        segments * 2,
-        0.15 * scale,
-        8,
-        false,
+      // Core bolt - pure white/cyan
+      const coreBolt = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, segments * 2, 0.2 * scale, 8, false),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
       );
-      const coreMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 1,
-      });
-      const coreBolt = new THREE.Mesh(coreGeometry, coreMaterial);
       boltGroup.add(coreBolt);
 
-      // Outer glow - cyan
-      const glowGeometry = new THREE.TubeGeometry(
-        curve,
-        segments * 2,
-        0.4 * scale,
-        8,
-        false,
+      // Intense cyan glow
+      const glowBolt = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, segments * 2, 0.6 * scale, 8, false),
+        new THREE.MeshBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
       );
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0x44ffff,
-        transparent: true,
-        opacity: 0.6,
-      });
-      const glowBolt = new THREE.Mesh(glowGeometry, glowMaterial);
       boltGroup.add(glowBolt);
 
-      // Outer aura - larger, more transparent
-      const auraGeometry = new THREE.TubeGeometry(
-        curve,
-        segments * 2,
-        0.8 * scale,
-        8,
-        false,
+      // Massive outer aura
+      const auraBolt = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, segments * 2, 1.5 * scale, 8, false),
+        new THREE.MeshBasicMaterial({
+          color: 0x0055ff,
+          transparent: true,
+          opacity: 0.4,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
       );
-      const auraMaterial = new THREE.MeshBasicMaterial({
-        color: 0x0088ff,
-        transparent: true,
-        opacity: 0.3,
-      });
-      const auraBolt = new THREE.Mesh(auraGeometry, auraMaterial);
       boltGroup.add(auraBolt);
 
       // Add branching bolts for more dramatic effect
@@ -2642,6 +2779,10 @@ export class AutoWeaponSystem {
     const visualScale = (config.scale || 1) * (config.area || 1);
     mesh.scale.setScalar(visualScale);
     mesh.position.copy(config.position);
+
+    if (config.direction) {
+      mesh.rotation.y = Math.atan2(config.direction.x, config.direction.z);
+    }
 
     this.game.scene.add(mesh);
 
@@ -3058,25 +3199,62 @@ export class AutoWeaponSystem {
   }
 
   createHolyWaterPool(proj) {
-    // Create blue pool effect
-    const geometry = new THREE.CircleGeometry(proj.area, 16);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x0088ff,
-      transparent: true,
-      opacity: 0.6,
-      side: THREE.DoubleSide,
-    });
+    // Create bright burning holy plasma pool
+    const group = new THREE.Group();
 
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(proj.targetPos);
-    mesh.position.y = 0.1;
-    mesh.rotation.x = -Math.PI / 2;
+    // Hot center
+    const core = new THREE.Mesh(
+      new THREE.CircleGeometry(proj.area * 0.6, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    core.rotation.x = -Math.PI / 2;
+    group.add(core);
 
-    this.game.scene.add(mesh);
+    // Main pool
+    const pool = new THREE.Mesh(
+      new THREE.CircleGeometry(proj.area, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x00aaff,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    pool.rotation.x = -Math.PI / 2;
+    group.add(pool);
+
+    // Glowing border
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(proj.area * 0.9, proj.area * 1.2, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x0055ff,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    group.add(ring);
+
+    group.position.copy(proj.targetPos);
+    group.position.y = 0.1;
+
+    this.game.scene.add(group);
 
     this.effects.push({
       type: "holyWaterPool",
-      mesh: mesh,
+      mesh: group,
       position: proj.targetPos.clone(),
       damage: proj.damage,
       area: proj.area,
@@ -3098,6 +3276,7 @@ export class AutoWeaponSystem {
       if (effect.elapsed >= effect.duration) {
         if (effect.mesh) {
           this.game.scene.remove(effect.mesh);
+          this.disposeObject(effect.mesh);
         }
         this.effects.splice(i, 1);
         continue;
@@ -3139,10 +3318,13 @@ export class AutoWeaponSystem {
           // Fade out (handle group with multiple meshes)
           const fadeProgress = 1 - effect.elapsed / effect.duration;
           effect.mesh.traverse((child) => {
-            if (child.isMesh && child.material) {
-              if (child.material.transparent) {
-                child.material.opacity = 0.8 * fadeProgress;
-              }
+            if (
+              child.isMesh &&
+              child.material &&
+              !Array.isArray(child.material) &&
+              child.material.transparent
+            ) {
+              child.material.opacity = 0.8 * fadeProgress;
             }
           });
           break;
@@ -3151,9 +3333,20 @@ export class AutoWeaponSystem {
         case "lightning":
         case "lightningImpact":
           // Just fade out
-          if (effect.mesh.material) {
-            effect.mesh.material.opacity =
-              0.8 * (1 - effect.elapsed / effect.duration);
+          const fadeAmount = 0.8 * (1 - effect.elapsed / effect.duration);
+          if (effect.mesh.traverse) {
+            effect.mesh.traverse((child) => {
+              if (
+                child.isMesh &&
+                child.material &&
+                !Array.isArray(child.material) &&
+                child.material.transparent
+              ) {
+                child.material.opacity = fadeAmount;
+              }
+            });
+          } else if (effect.mesh.material && !Array.isArray(effect.mesh.material)) {
+            effect.mesh.material.opacity = fadeAmount;
           }
           break;
 
@@ -3179,8 +3372,29 @@ export class AutoWeaponSystem {
 
           // Pulsing effect
           const pulse = 0.8 + Math.sin(effect.elapsed * 5) * 0.2;
-          effect.mesh.material.opacity =
-            pulse * (1 - effect.elapsed / effect.duration);
+          const waterFade = 1 - effect.elapsed / effect.duration;
+
+          if (effect.mesh.traverse) {
+            effect.mesh.traverse((child) => {
+              if (
+                child.isMesh &&
+                child.material &&
+                !Array.isArray(child.material) &&
+                child.material.transparent
+              ) {
+                // Determine base opacity from initial value (stored on creation or using a rough estimate)
+                const baseOpacity = child.userData?.baseOpacity || 0.6;
+                if (!child.userData?.baseOpacity) {
+                  child.userData = child.userData || {};
+                  child.userData.baseOpacity = child.material.opacity;
+                }
+                child.material.opacity =
+                  child.userData.baseOpacity * pulse * waterFade;
+              }
+            });
+          } else if (effect.mesh.material && !Array.isArray(effect.mesh.material)) {
+            effect.mesh.material.opacity = pulse * waterFade;
+          }
           break;
 
         case "firewall":
@@ -3290,39 +3504,51 @@ export class AutoWeaponSystem {
           // Fade effect
           const bloodFade = 1 - effect.elapsed / effect.duration;
           effect.mesh.traverse((child) => {
-            if (child.isMesh && child.material && child.material.transparent) {
+            if (
+              child.isMesh &&
+              child.material &&
+              !Array.isArray(child.material) &&
+              child.material.transparent
+            ) {
               child.material.opacity = 0.8 * bloodFade;
             }
           });
           break;
 
         case "soulEater":
-          // Animate wisps rotating
-          let wispIndex = 0;
+          // Rotate the entire aura group slowly
+          effect.mesh.rotation.y = effect.elapsed * 0.5;
+
+          // Animate wisps rotating and bobbing
+          if (effect.wisps) {
+            effect.wisps.forEach((wispData, index) => {
+              const { mesh, angle } = wispData;
+              const currentAngle = angle + effect.elapsed * 4;
+              const radius = effect.radius * 0.7;
+
+              mesh.position.x = Math.cos(currentAngle) * radius;
+              mesh.position.z = Math.sin(currentAngle) * radius;
+              mesh.position.y =
+                1.0 + Math.sin(effect.elapsed * 5 + index) * 0.5;
+
+              // Rotate tail to face movement direction
+              mesh.rotation.y = -currentAngle;
+            });
+          }
+
+          // Fade out towards the end
+          const soulFade = 1 - effect.elapsed / effect.duration;
           effect.mesh.traverse((child) => {
             if (
               child.isMesh &&
               child.material &&
-              child.material.color.getHex() === 0x88ff88
+              !Array.isArray(child.material) &&
+              child.material.transparent
             ) {
-              // It's a wisp
-              const angle = effect.elapsed * 3 + (wispIndex * Math.PI * 2) / 8;
-              const radius =
-                (effect.mesh.children[0].geometry.parameters.outerRadius || 3) *
-                0.7;
-              child.position.x = Math.cos(angle) * radius;
-              child.position.z = Math.sin(angle) * radius;
-              child.position.y =
-                0.5 + Math.sin(effect.elapsed * 5 + wispIndex) * 0.2;
-              wispIndex++;
-            }
-          });
-
-          // Fade
-          const soulFade = 1 - effect.elapsed / effect.duration;
-          effect.mesh.traverse((child) => {
-            if (child.isMesh && child.material && child.material.transparent) {
-              child.material.opacity *= soulFade;
+              child.material.opacity =
+                (child.material.opacity /
+                  (soulFade === 0 ? 1 : soulFade + 0.001)) *
+                soulFade;
             }
           });
           break;
@@ -3369,23 +3595,48 @@ export class AutoWeaponSystem {
           effect.mesh.traverse((child) => {
             if (child.isMesh && child.material) {
               if (child.material.transparent) {
-                child.material.opacity = poolPulse * poolFade * 0.7;
-              }
-              // Animate bubbles rising
-              if (
-                child.geometry.type === "SphereGeometry" &&
-                child.geometry.parameters.radius < 0.2
-              ) {
-                child.position.y += 0.01;
-                if (child.position.y > 1) {
-                  child.position.y = 0.2;
-                }
+                // Don't fully overwrite opacity, multiply by original so bubbles stay bright
+                const baseOpacity =
+                  child.material.opacity / (poolPulse * poolFade * 0.7 + 0.01);
+                child.material.opacity = Math.min(
+                  1.0,
+                  baseOpacity * poolPulse * poolFade,
+                );
               }
             }
           });
+
+          if (effect.bubbles) {
+            effect.bubbles.forEach((bubbleData) => {
+              bubbleData.mesh.position.y += 0.02 * bubbleData.speed;
+              if (bubbleData.mesh.position.y > 2.0) {
+                bubbleData.mesh.position.y = bubbleData.startY;
+              }
+            });
+          }
           break;
       }
     }
+  }
+
+  disposeObject(obj) {
+    if (!obj) return;
+    obj.traverse((child) => {
+      if (child.isMesh) {
+        if (child.geometry && !child.geometry.userData?.shared) {
+          child.geometry.dispose();
+        }
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach((mat) => {
+              if (!mat.userData?.shared) mat.dispose();
+            });
+          } else {
+            if (!child.material.userData?.shared) child.material.dispose();
+          }
+        }
+      }
+    });
   }
 
   removeProjectile(index, explode = false) {
@@ -3406,6 +3657,7 @@ export class AutoWeaponSystem {
     }
 
     this.game.scene.remove(proj.mesh);
+    this.disposeObject(proj.mesh);
     this.projectiles.splice(index, 1);
   }
 
@@ -3532,6 +3784,8 @@ export class AutoWeaponSystem {
       if (opacity <= 0) {
         this.game.scene.remove(explosionGroup);
         this.game.scene.remove(light);
+        this.disposeObject(explosionGroup);
+        light.dispose();
       } else {
         // Scale up the fire layers
         core.scale.setScalar(scale * 0.8);
@@ -3828,51 +4082,66 @@ export class AutoWeaponSystem {
 
   // Pentagram - screen clear
   firePentagram(stats, playerPos, scale = 1) {
-    // Create pentagram visual effect
+    // Create massive glowing pentagram effect
     const group = new THREE.Group();
 
-    // Draw pentagram
+    // Base glowing circle
+    const circle = new THREE.Mesh(
+      new THREE.RingGeometry(stats.area * 0.9, stats.area, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xff0044,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    circle.rotation.x = -Math.PI / 2;
+    group.add(circle);
+
+    // Inner filled glow
+    const glow = new THREE.Mesh(
+      new THREE.CircleGeometry(stats.area, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xff0022,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    glow.rotation.x = -Math.PI / 2;
+    group.add(glow);
+
+    // Draw the 5-pointed star lines using tube geometry for thickness
     const points = [];
     for (let i = 0; i < 5; i++) {
       const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
       points.push(
-        new THREE.Vector3(Math.cos(angle) * 8, 0, Math.sin(angle) * 8),
+        new THREE.Vector3(
+          Math.cos(angle) * stats.area,
+          0,
+          Math.sin(angle) * stats.area,
+        ),
       );
     }
-
-    // Create star lines
-    const lineMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const starOrder = [0, 2, 4, 1, 3, 0];
     const linePoints = starOrder.map((i) => points[i]);
-    const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
-    const star = new THREE.Line(lineGeometry, lineMat);
-    group.add(star);
+    const curve = new THREE.CatmullRomCurve3(linePoints, false, "chordal");
 
-    // Create outer circle
-    const circlePoints = [];
-    for (let i = 0; i <= 32; i++) {
-      const angle = (i / 32) * Math.PI * 2;
-      circlePoints.push(
-        new THREE.Vector3(Math.cos(angle) * 8, 0, Math.sin(angle) * 8),
-      );
-    }
-    const circleGeometry = new THREE.BufferGeometry().setFromPoints(
-      circlePoints,
+    const starLine = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 64, 0.5, 8, false),
+      new THREE.MeshBasicMaterial({
+        color: 0xff0055,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
     );
-    const circle = new THREE.Line(circleGeometry, lineMat);
-    group.add(circle);
-
-    // Inner glow
-    const glowGeometry = new THREE.CircleGeometry(10, 32);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.3,
-      side: THREE.DoubleSide,
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.rotation.x = -Math.PI / 2;
-    group.add(glow);
+    group.add(starLine);
 
     group.position.copy(playerPos);
     group.position.y = 0.1;
@@ -3885,38 +4154,36 @@ export class AutoWeaponSystem {
     for (const zombie of zombies) {
       const dist = zombie.mesh.position.distanceTo(playerPos);
       if (dist < stats.area) {
-        this.game.zombieManager.damageZombie(zombie, stats.damage);
+        this.game.zombieManager.damageZombie(zombie, stats.damage, null, true);
       }
     }
 
     // Screen effects
-    this.game.screenShake(1.0, 0.5);
-    this.game.pulseBloom(0.5, 3);
+    if (this.game.screenShake) this.game.screenShake(1.5, 0.6);
+    if (this.game.pulseBloom) this.game.pulseBloom(0.6, 4);
 
     // Animate expansion and fade
     let groupScale = 0.1;
-    let opacity = 0.5;
+    let opacity = 1.0;
     const animate = () => {
-      groupScale += 0.15;
-      opacity -= 0.03;
+      groupScale += 0.1;
+      opacity -= 0.02;
 
       if (opacity <= 0) {
         this.game.scene.remove(group);
+        this.disposeObject(group);
       } else {
         group.scale.setScalar(groupScale);
-        glowMaterial.opacity = opacity;
-        lineMat.opacity = opacity * 2;
+        circle.material.opacity = opacity * 0.8;
+        glow.material.opacity = opacity * 0.3;
+        starLine.material.opacity = opacity * 0.9;
+        group.rotation.y += 0.05;
         requestAnimationFrame(animate);
       }
     };
     requestAnimationFrame(animate);
 
     this.game.audioManager.playSound("explosion");
-
-    // Add screen shake
-    if (this.game.screenShake) {
-      this.game.screenShake(0.4, 0.2);
-    }
   }
 
   // Clock Lancet - freeze enemies
