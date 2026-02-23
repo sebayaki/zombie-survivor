@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { findSpawnPosition } from "./utils.js";
+import { findSpawnPosition, shuffleArray } from "./utils.js";
 
 // Treasure chest system - spawns periodically and gives rewards
 export class TreasureChestSystem {
@@ -142,16 +142,18 @@ export class TreasureChestSystem {
   }
 
   findSpawnPosition() {
-    return findSpawnPosition({
-      minDist: 10,
-      maxDist: this.game.arenaSize - 5,
-      arenaSize: this.game.arenaSize,
-      obstacles: this.game.obstacles,
-      avoid: this.chests.map(c => ({ position: c.position })),
-      avoidDist: 5,
-      origin: this.game.player.getPosition(),
-      maxAttempts: 50,
-    }) || new THREE.Vector3(0, 0, 10);
+    return (
+      findSpawnPosition({
+        minDist: 10,
+        maxDist: this.game.arenaSize - 5,
+        arenaSize: this.game.arenaSize,
+        obstacles: this.game.obstacles,
+        avoid: this.chests.map((c) => ({ position: c.position })),
+        avoidDist: 5,
+        origin: this.game.player.getPosition(),
+        maxAttempts: 50,
+      }) || new THREE.Vector3(0, 0, 10)
+    );
   }
 
   determineRarity() {
@@ -182,17 +184,19 @@ export class TreasureChestSystem {
   playOpenAnimation(chest) {
     if (this.game.particleSystem) {
       const count = chest.rarity === "legendary" ? 30 : 15;
-      this.game.particleSystem.spawn(chest.mesh.position, "treasure", { count });
+      this.game.particleSystem.spawn(chest.mesh.position, "treasure", {
+        count,
+      });
     }
   }
 
   giveRewards(rarity) {
     // XP gems based on rarity
     const xpAmounts = {
-      common: [3, 3, 3, 5, 5],
-      uncommon: [5, 5, 10, 10, 25],
-      rare: [10, 10, 25, 25, 25],
-      legendary: [25, 25, 25, 25, 50],
+      common: [10, 10, 10, 15, 15],
+      uncommon: [15, 15, 25, 25, 50],
+      rare: [25, 25, 50, 50, 50],
+      legendary: [50, 50, 50, 50, 100],
     };
 
     const amounts = xpAmounts[rarity] || xpAmounts.common;
@@ -211,41 +215,108 @@ export class TreasureChestSystem {
       }, i * 50);
     }
 
-    // Chance to give extra upgrade based on rarity
-    const upgradeChance = {
-      common: 0,
-      uncommon: 0.1,
-      rare: 0.3,
-      legendary: 0.5,
-    };
-
-    if (Math.random() < upgradeChance[rarity]) {
-      // Give a free level up!
-      setTimeout(() => {
-        this.game.ui.showMessage("Bonus Upgrade!");
-        this.game.showUpgradeSelection();
-      }, 500);
-    }
-
     // Heal player based on rarity
     const healAmounts = {
-      common: 10,
-      uncommon: 20,
-      rare: 30,
-      legendary: 50,
+      common: 20,
+      uncommon: 30,
+      rare: 50,
+      legendary: 100,
+    };
+    this.game.player.heal(healAmounts[rarity] || 20);
+
+    // Gold based on rarity
+    const goldAmounts = {
+      common: 50,
+      uncommon: 100,
+      rare: 250,
+      legendary: 1000,
     };
 
-    this.game.player.heal(healAmounts[rarity] || 10);
+    let actualGold = 0;
+    if (this.game.powerUpSystem) {
+      actualGold = this.game.powerUpSystem.addGold(goldAmounts[rarity] || 50);
+      this.game.gold += actualGold;
+      this.game.ui.updateScore();
+    }
+
+    // Determine items count based on rarity
+    let numItems = 1;
+    if (rarity === "uncommon" && Math.random() < 0.3) numItems = 3;
+    else if (rarity === "rare") numItems = Math.random() < 0.5 ? 3 : 5;
+    else if (rarity === "legendary") numItems = 5;
+
+    // Get all available upgrades
+    this.game.evolutionSystem.checkEvolutions();
+    const evolutionUpgrades = this.game.evolutionSystem.getPendingEvolutions();
+    const weaponUpgrades = this.game.autoWeaponSystem.getAvailableUpgrades();
+    const passiveUpgrades = this.game.passiveItemSystem.getAvailableUpgrades();
+
+    // We only want upgrades that the player already HAS to be highly weighted,
+    // but for simplicity we can just pick from all available, or filter out new items
+    // unless they have empty slots. `getAvailableUpgrades` handles slot limits if implemented,
+    // otherwise it returns all valid.
+    let allUpgrades = [
+      ...(evolutionUpgrades || []),
+      ...(weaponUpgrades || []),
+      ...(passiveUpgrades || []),
+    ];
+
+    // If no upgrades available, maybe just give gold? We always give gold anyway.
+    let selectedItems = [];
+    if (allUpgrades.length > 0) {
+      // Pick random items
+      // Evolutions have higher priority or are just added to the pool
+      let shuffled = shuffleArray(allUpgrades);
+
+      // Ensure we don't pick more than what's available
+      numItems = Math.min(numItems, shuffled.length);
+
+      for (let i = 0; i < numItems; i++) {
+        const choice = shuffled[i];
+        selectedItems.push(choice);
+
+        // Apply the upgrade immediately!
+        if (choice.type === "evolution") {
+          this.game.evolutionSystem.evolve(choice.id);
+        } else if (choice.type === "weapon") {
+          this.game.autoWeaponSystem.addWeapon(choice.id);
+        } else {
+          this.game.passiveItemSystem.addItem(choice.id);
+        }
+      }
+    } else {
+        // Fallback for chest if all items maxed out
+        selectedItems.push({
+          type: "fallback",
+          name: "Floor Chicken",
+          rarity: "common",
+          icon: '<i class="fa-solid fa-drumstick-bite"></i>',
+          description: "Heal 50 HP",
+          currentLevel: 0
+        });
+        this.game.player.heal(50);
+    }
 
     // Show message
     const messages = {
-      common: "Common Chest!",
-      uncommon: "Uncommon Chest!",
-      rare: "Rare Chest!",
-      legendary: "LEGENDARY CHEST!",
+      common: "Common Chest! (+20 HP)",
+      uncommon: "Uncommon Chest! (+30 HP)",
+      rare: "Rare Chest! (+50 HP)",
+      legendary: "LEGENDARY CHEST! (+100 HP)",
     };
-
     this.game.ui.showMessage(messages[rarity] || "Treasure!");
+
+    // Show chest UI with the results
+    setTimeout(() => {
+      this.game.upgradeQueue = this.game.upgradeQueue || [];
+      this.game.upgradeQueue.push({
+        type: "chest",
+        items: selectedItems,
+        rarity: rarity,
+        gold: actualGold,
+      });
+      this.game.triggerNextUpgrade();
+    }, 500);
   }
 
   // Force spawn a chest (for boss kills, etc.)

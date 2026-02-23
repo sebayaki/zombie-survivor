@@ -1,208 +1,238 @@
 // PowerUps System - Permanent upgrades purchased with gold (Vampire Survivors style)
 // These persist between runs and provide permanent stat bonuses
+// All stat-based upgrades are UNLIMITED with escalating costs
 
 export const POWER_UPS = {
-  // Might - increases all damage
   might: {
     id: "might",
     name: "Might",
-    description: "Increases base damage by 5%",
+    description: "Increases base damage",
     icon: "💪",
-    maxLevel: 5,
-    costPerLevel: [100, 300, 600, 1000, 2000],
-    bonusPerLevel: 0.05, // 5% per level
+    maxLevel: Infinity,
+    costPerLevel: [100, 250, 500, 900, 1500],
+    costScaling: 1.45,
+    bonusPerLevel: 0.8,
+    bonusUnit: "%",
+    bonusDisplay: 8,
     stat: "might",
   },
 
-  // Armor - damage reduction
   armor: {
     id: "armor",
     name: "Armor",
-    description: "Reduces incoming damage by 1",
+    description: "Reduces incoming damage",
     icon: '<i class="fa-solid fa-shield-halved"></i>',
-    maxLevel: 3,
-    costPerLevel: [200, 500, 1000],
+    maxLevel: Infinity,
+    costPerLevel: [200, 500, 1000, 2000, 4000],
+    costScaling: 1.6,
     bonusPerLevel: 1,
+    bonusUnit: "",
+    bonusDisplay: 1,
     stat: "armor",
   },
 
-  // Max Health - increases maximum HP
   maxHealth: {
     id: "maxHealth",
     name: "Max Health",
-    description: "Increases max HP by 10%",
+    description: "Increases max HP",
     icon: '<i class="fa-solid fa-heart"></i>',
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [100, 250, 500, 800, 1500],
-    bonusPerLevel: 0.1,
+    costScaling: 1.45,
+    bonusPerLevel: 0.5,
+    bonusUnit: "%",
+    bonusDisplay: 10,
     stat: "maxHealth",
   },
 
-  // Recovery - HP regeneration
   recovery: {
     id: "recovery",
     name: "Recovery",
-    description: "Increases HP recovery by 0.1/s",
+    description: "Increases HP recovery",
     icon: "💚",
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [150, 350, 600, 900, 1500],
-    bonusPerLevel: 0.1,
+    costScaling: 1.45,
+    bonusPerLevel: 0.75,
+    bonusUnit: "/s",
+    bonusDisplay: 0.15,
     stat: "recovery",
   },
 
-  // Cooldown - weapon cooldown reduction
   cooldown: {
     id: "cooldown",
     name: "Cooldown",
-    description: "Reduces weapon cooldown by 2.5%",
+    description: "Reduces weapon cooldown",
     icon: "⏱️",
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [200, 400, 700, 1200, 2000],
-    bonusPerLevel: 0.025,
+    costScaling: 1.5,
+    bonusPerLevel: 0.8,
+    bonusUnit: "%",
+    bonusDisplay: 4,
     stat: "cooldown",
   },
 
-  // Area - increases area of effect
   area: {
     id: "area",
     name: "Area",
-    description: "Increases AoE by 5%",
+    description: "Increases AoE",
     icon: "🔵",
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [150, 350, 600, 1000, 1800],
-    bonusPerLevel: 0.05,
+    costScaling: 1.45,
+    bonusPerLevel: 0.8,
+    bonusUnit: "%",
+    bonusDisplay: 8,
     stat: "area",
   },
 
-  // Speed - movement speed
   speed: {
     id: "speed",
     name: "Speed",
-    description: "Increases movement speed by 5%",
+    description: "Increases movement speed",
     icon: "👟",
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [100, 250, 450, 700, 1200],
-    bonusPerLevel: 0.05,
+    costScaling: 1.4,
+    bonusPerLevel: 0.5,
+    bonusUnit: "%",
+    bonusDisplay: 5,
     stat: "moveSpeed",
   },
 
-  // Duration - effect duration
   duration: {
     id: "duration",
     name: "Duration",
-    description: "Increases effect duration by 5%",
+    description: "Increases effect duration",
     icon: "⏰",
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [150, 300, 500, 800, 1400],
-    bonusPerLevel: 0.05,
+    costScaling: 1.45,
+    bonusPerLevel: 0.8,
+    bonusUnit: "%",
+    bonusDisplay: 8,
     stat: "duration",
   },
 
-  // Amount - extra projectiles
   amount: {
     id: "amount",
     name: "Amount",
-    description: "Fires 1 more projectile",
+    description: "Fires extra projectile",
     icon: "✨",
-    maxLevel: 3,
-    costPerLevel: [500, 1500, 5000],
+    maxLevel: 5,
+    costPerLevel: [500, 1500, 5000, 15000, 50000],
     bonusPerLevel: 1,
+    bonusUnit: "",
+    bonusDisplay: 1,
     stat: "amount",
   },
 
-  // Growth - bonus XP
   growth: {
     id: "growth",
     name: "Growth",
-    description: "Increases XP gain by 5%",
+    description: "Increases XP gain",
     icon: "📈",
-    maxLevel: 5,
-    costPerLevel: [100, 300, 600, 1000, 2000],
-    bonusPerLevel: 0.05,
+    maxLevel: Infinity,
+    costPerLevel: [100, 250, 500, 900, 1500],
+    costScaling: 1.45,
+    bonusPerLevel: 1.0,
+    bonusUnit: "%",
+    bonusDisplay: 8,
     stat: "growth",
   },
 
-  // Greed - bonus gold
   greed: {
     id: "greed",
     name: "Greed",
-    description: "Increases gold gain by 10%",
+    description: "Increases gold gain",
     icon: '<i class="fa-solid fa-sack-dollar"></i>',
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [200, 500, 1000, 2000, 4000],
-    bonusPerLevel: 0.1,
+    costScaling: 1.5,
+    bonusPerLevel: 1.0,
+    bonusUnit: "%",
+    bonusDisplay: 10,
     stat: "greed",
   },
 
-  // Luck - better drops
   luck: {
     id: "luck",
     name: "Luck",
-    description: "Increases luck by 10%",
+    description: "Increases luck",
     icon: '<i class="fa-solid fa-clover"></i>',
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [150, 350, 700, 1200, 2500],
-    bonusPerLevel: 0.1,
+    costScaling: 1.5,
+    bonusPerLevel: 1.0,
+    bonusUnit: "%",
+    bonusDisplay: 10,
     stat: "luck",
   },
 
-  // Magnet - pickup range
   magnet: {
     id: "magnet",
     name: "Magnet",
-    description: "Increases pickup range by 25%",
+    description: "Increases pickup range",
     icon: '<i class="fa-solid fa-magnet"></i>',
-    maxLevel: 5,
+    maxLevel: Infinity,
     costPerLevel: [100, 200, 400, 700, 1200],
-    bonusPerLevel: 0.25,
+    costScaling: 1.4,
+    bonusPerLevel: 0.75,
+    bonusUnit: "%",
+    bonusDisplay: 25,
     stat: "magnet",
   },
 
-  // Revival - extra lives
   revival: {
     id: "revival",
     name: "Revival",
     description: "Revive once per run with 50% HP",
     icon: "👼",
-    maxLevel: 3,
-    costPerLevel: [1000, 3000, 10000],
+    maxLevel: 5,
+    costPerLevel: [1000, 3000, 10000, 30000, 100000],
     bonusPerLevel: 1,
+    bonusUnit: "",
+    bonusDisplay: 1,
     stat: "revival",
   },
 
-  // Reroll - level up rerolls
   reroll: {
     id: "reroll",
     name: "Reroll",
     description: "+1 reroll per run",
     icon: "🎲",
-    maxLevel: 5,
-    costPerLevel: [200, 400, 800, 1500, 3000],
+    maxLevel: 10,
+    costPerLevel: [200, 400, 800, 1500, 3000, 5000, 8000, 12000, 18000, 30000],
     bonusPerLevel: 1,
+    bonusUnit: "",
+    bonusDisplay: 1,
     stat: "reroll",
   },
 
-  // Skip - level up skips
   skip: {
     id: "skip",
     name: "Skip",
     description: "+1 skip per run",
     icon: "⏭️",
-    maxLevel: 3,
-    costPerLevel: [300, 800, 2000],
+    maxLevel: 5,
+    costPerLevel: [300, 800, 2000, 5000, 15000],
     bonusPerLevel: 1,
+    bonusUnit: "",
+    bonusDisplay: 1,
     stat: "skip",
   },
 
-  // Banish - banish unwanted options
   banish: {
     id: "banish",
     name: "Banish",
     description: "+1 banish per run",
     icon: "🚫",
-    maxLevel: 3,
-    costPerLevel: [400, 1000, 3000],
+    maxLevel: 5,
+    costPerLevel: [400, 1000, 3000, 8000, 20000],
     bonusPerLevel: 1,
+    bonusUnit: "",
+    bonusDisplay: 1,
     stat: "banish",
   },
 };
@@ -261,7 +291,7 @@ export class PowerUpSystem {
     return total;
   }
 
-  // Get cost for next level of a power-up
+  // Get cost for next level of a power-up (supports unlimited scaling)
   getCost(powerUpId) {
     const def = POWER_UPS[powerUpId];
     if (!def) return Infinity;
@@ -269,7 +299,14 @@ export class PowerUpSystem {
     const currentLevel = this.getLevel(powerUpId);
     if (currentLevel >= def.maxLevel) return Infinity;
 
-    return def.costPerLevel[currentLevel];
+    if (currentLevel < def.costPerLevel.length) {
+      return def.costPerLevel[currentLevel];
+    }
+
+    const lastCost = def.costPerLevel[def.costPerLevel.length - 1];
+    const extraLevels = currentLevel - def.costPerLevel.length + 1;
+    const scaling = def.costScaling || 1.5;
+    return Math.floor(lastCost * Math.pow(scaling, extraLevels));
   }
 
   // Check if a power-up can be purchased
@@ -296,7 +333,8 @@ export class PowerUpSystem {
 
   // Add gold (called when collecting gold in-game)
   addGold(amount) {
-    const greedBonus = 1 + this.getStatBonus("greed");
+    const greedStat = (this.game.playerStats && this.game.playerStats.greed) || 0;
+    const greedBonus = 1 + greedStat * 0.1;
     const finalAmount = Math.floor(amount * greedBonus);
     this.currentGold += finalAmount;
     this.totalGoldEarned += finalAmount;
@@ -306,57 +344,66 @@ export class PowerUpSystem {
 
   // Get all power-ups with current status for UI
   getAllPowerUps() {
-    return Object.entries(POWER_UPS).map(([id, def]) => ({
-      ...def,
-      currentLevel: this.getLevel(id),
-      nextCost: this.getCost(id),
-      canPurchase: this.canPurchase(id),
-      isMaxed: this.getLevel(id) >= def.maxLevel,
-    }));
+    return Object.entries(POWER_UPS).map(([id, def]) => {
+      const level = this.getLevel(id);
+      const totalBonus = def.bonusPerLevel * level;
+      return {
+        ...def,
+        currentLevel: level,
+        nextCost: this.getCost(id),
+        canPurchase: this.canPurchase(id),
+        isMaxed: level >= def.maxLevel,
+        isUnlimited: def.maxLevel === Infinity,
+        totalBonus,
+        totalBonusDisplay: def.bonusDisplay * level,
+      };
+    });
   }
 
-  // Apply power-up bonuses to player stats at game start
-  applyBonuses() {
-    const stats = {};
-
+  // Get summary of active power-up bonuses for in-game HUD
+  getActiveBonusSummary() {
+    const active = [];
     for (const [id, def] of Object.entries(POWER_UPS)) {
       const level = this.getLevel(id);
       if (level > 0) {
-        const bonus = def.bonusPerLevel * level;
-        stats[def.stat] = (stats[def.stat] || 0) + bonus;
+        const totalDisplay = def.bonusDisplay * level;
+        let formatted;
+        if (def.bonusUnit === "%") {
+          formatted = `+${totalDisplay}%`;
+        } else if (def.bonusUnit === "/s") {
+          formatted = `+${totalDisplay.toFixed(2)}/s`;
+        } else {
+          formatted = `+${totalDisplay}`;
+        }
+        active.push({
+          id,
+          name: def.name,
+          icon: def.icon,
+          level,
+          bonus: formatted,
+          stat: def.stat,
+        });
       }
     }
+    return active;
+  }
 
-    // Merge with game's player stats
-    if (!this.game.playerStats) {
-      this.game.playerStats = {};
-    }
-
-    for (const [stat, value] of Object.entries(stats)) {
-      this.game.playerStats[stat] = (this.game.playerStats[stat] || 0) + value;
-    }
-
-    // Apply immediate effects
-    if (this.game.player) {
-      // Max health
-      const healthBonus = this.getStatBonus("maxHealth");
-      if (healthBonus > 0) {
-        const newMax = Math.floor(100 * (1 + healthBonus));
-        this.game.player.maxHealth = newMax;
-        this.game.player.health = newMax;
-      }
-
-      // Movement speed
-      const speedBonus = this.getStatBonus("moveSpeed");
-      if (speedBonus > 0) {
-        this.game.player.speed = 8 * (1 + speedBonus);
+  // Get all stat bonuses from purchased power-ups as a dict
+  getAllStatBonuses() {
+    const stats = {};
+    for (const [id, def] of Object.entries(POWER_UPS)) {
+      const level = this.getLevel(id);
+      if (level > 0) {
+        stats[def.stat] = (stats[def.stat] || 0) + def.bonusPerLevel * level;
       }
     }
+    return stats;
+  }
 
-    // Magnet range
-    if (this.game.xpSystem) {
-      const magnetBonus = this.getStatBonus("magnet");
-      this.game.xpSystem.magnetRadius = 3 * (1 + magnetBonus);
+  // Apply power-up bonuses at game start (triggers full stat recalculation)
+  applyBonuses() {
+    if (this.game.passiveItemSystem) {
+      this.game.passiveItemSystem.updatePlayerStats();
     }
   }
 

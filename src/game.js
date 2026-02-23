@@ -10,6 +10,7 @@ import { XPSystem } from "./xp.js";
 import { AutoWeaponSystem } from "./autoWeapons.js";
 import { PassiveItemSystem } from "./passiveItems.js";
 import { UpgradeUI } from "./upgradeUI.js";
+import { ChestUI } from "./chestUI.js";
 import { TreasureChestSystem } from "./treasureChest.js";
 import { EvolutionSystem } from "./evolutionSystem.js";
 import { PostProcessingManager } from "./postProcessing.js";
@@ -145,6 +146,7 @@ export class Game {
     this.autoWeaponSystem = new AutoWeaponSystem(this);
     this.passiveItemSystem = new PassiveItemSystem(this);
     this.upgradeUI = new UpgradeUI(this);
+    this.chestUI = new ChestUI(this);
     this.treasureChestSystem = new TreasureChestSystem(this);
     this.evolutionSystem = new EvolutionSystem(this);
     this.postProcessing = new PostProcessingManager(this);
@@ -603,6 +605,7 @@ export class Game {
     document.getElementById("final-wave").textContent = this.wave;
     document.getElementById("final-score").textContent = this.score;
     document.getElementById("final-kills").textContent = this.kills;
+    document.getElementById("final-gold").textContent = (this.gold || 0).toLocaleString();
     document.getElementById("game-over-screen").classList.remove("hidden");
 
     this.audioManager.stopMusic();
@@ -708,9 +711,30 @@ export class Game {
   }
 
   // Show upgrade selection (called on level up)
-  showUpgradeSelection() {
+  showUpgradeSelection(level = null) {
     this.isPaused = true;
-    this.upgradeUI.show(this.xpSystem.level);
+    this.upgradeUI.show(level || this.xpSystem.level);
+  }
+
+  // Handle bonus upgrades (e.g., from chests) without changing the level
+  showBonusUpgradeSelection() {
+    this.isPaused = true;
+    this.upgradeUI.show(this.xpSystem.level, true); // true = isBonus
+  }
+
+  // Safely trigger the next upgrade in the queue
+  triggerNextUpgrade() {
+    if ((this.upgradeUI && this.upgradeUI.isOpen) || (this.chestUI && this.chestUI.isOpen)) return; // Wait for current to finish
+    if (this.upgradeQueue && this.upgradeQueue.length > 0) {
+       const nextUpgrade = this.upgradeQueue.shift();
+       if (nextUpgrade.type === 'bonus') {
+           this.showBonusUpgradeSelection();
+       } else if (nextUpgrade.type === 'chest') {
+           this.chestUI.show(nextUpgrade.items, nextUpgrade.rarity, nextUpgrade.gold);
+       } else {
+           this.showUpgradeSelection(nextUpgrade.level);
+       }
+    }
   }
 
   addScore(points) {

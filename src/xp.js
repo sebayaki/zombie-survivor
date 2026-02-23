@@ -12,21 +12,22 @@ const XP_THRESHOLDS = [
   28, // Level 8
   38, // Level 9
   50, // Level 10
-  65, // Level 11
-  82, // Level 12
-  100, // Level 13
-  120, // Level 14
-  145, // Level 15
-  175, // Level 16
-  210, // Level 17
-  250, // Level 18
-  300, // Level 19
-  360, // Level 20
+  60, // Level 11 (was 65)
+  75, // Level 12 (was 82)
+  90, // Level 13 (was 100)
+  105, // Level 14 (was 120)
+  120, // Level 15 (was 145)
+  140, // Level 16 (was 175)
+  160, // Level 17 (was 210)
+  185, // Level 18 (was 250)
+  210, // Level 19 (was 300)
+  240, // Level 20 (was 360)
 ];
 
-// Generate more levels (slower growth after 20)
-for (let i = XP_THRESHOLDS.length; i < 100; i++) {
-  XP_THRESHOLDS.push(Math.floor(XP_THRESHOLDS[i - 1] * 1.12));
+// Generate more levels (slower growth after 20 to keep leveling fun!)
+// We pre-generate up to level 200 so there's no hard limit!
+for (let i = XP_THRESHOLDS.length; i < 200; i++) {
+  XP_THRESHOLDS.push(Math.floor(XP_THRESHOLDS[i - 1] * 1.06)); // Was 1.12
 }
 
 export class XPSystem {
@@ -89,7 +90,13 @@ export class XPSystem {
   // Get XP needed for next level
   getXPForNextLevel() {
     if (this.level >= XP_THRESHOLDS.length) {
-      return XP_THRESHOLDS[XP_THRESHOLDS.length - 1];
+      // If beyond the defined array, extrapolate based on previous scale
+      const lastIndex = XP_THRESHOLDS.length - 1;
+      const lastThreshold = XP_THRESHOLDS[lastIndex];
+      const secondLast = XP_THRESHOLDS[lastIndex - 1];
+      const ratio = lastThreshold / secondLast;
+      
+      return Math.floor(lastThreshold * Math.pow(ratio, this.level - lastIndex));
     }
     return XP_THRESHOLDS[this.level];
   }
@@ -166,8 +173,14 @@ export class XPSystem {
     // Show level up UI
     this.game.ui.showLevelUp(this.level);
 
-    // Trigger upgrade selection
-    this.game.showUpgradeSelection();
+    // Queue upgrade selection
+    this.game.upgradeQueue = this.game.upgradeQueue || [];
+    this.game.upgradeQueue.push({ type: "levelUp", level: this.level });
+
+    // Attempt to trigger (will only show if UI is not already open)
+    setTimeout(() => {
+      this.game.triggerNextUpgrade();
+    }, 500);
   }
 
   update(delta) {

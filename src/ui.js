@@ -39,19 +39,77 @@ export class UI {
 
       #inventory-container { position: absolute; top: 60px; left: 20px; display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
       #weapon-icons { display: flex; gap: 8px; flex-wrap: wrap; }
-      .weapon-icon-box { width: 48px; height: 48px; background: rgba(0,0,0,0.7); border: 2px solid #0088ff; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      .weapon-icon-box { width: 48px; height: 48px; background: rgba(0,0,0,0.7); border: 2px solid #555; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      .weapon-icon-box.rarity-common { border-color: #555; }
+      .weapon-icon-box.rarity-uncommon { border-color: #00aa00; }
+      .weapon-icon-box.rarity-rare { border-color: #0088ff; }
+      .weapon-icon-box.rarity-legendary { border-color: #ffaa00; }
       .weapon-icon-box .icon { font-size: 24px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5)); }
       .weapon-icon-box .level { position: absolute; bottom: 2px; right: 2px; font-size: 10px; font-weight: bold; color: #ffcc00; text-shadow: 1px 1px 1px #000; }
-      .weapon-icon-box.max-level { border-color: #ffcc00; box-shadow: 0 0 10px rgba(255,204,0,0.5); }
+      .weapon-icon-box.max-level { border-color: #ffcc00 !important; box-shadow: 0 0 10px rgba(255,204,0,0.5); }
 
       #passive-items { display: flex; gap: 6px; flex-wrap: wrap; }
-      .passive-item-box { width: 36px; height: 36px; background: rgba(0,0,0,0.7); border: 2px solid #00ff88; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      .passive-item-box { width: 36px; height: 36px; background: rgba(0,0,0,0.7); border: 2px solid #555; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      .passive-item-box.rarity-common { border-color: #555; }
+      .passive-item-box.rarity-uncommon { border-color: #00aa00; }
+      .passive-item-box.rarity-rare { border-color: #0088ff; }
+      .passive-item-box.rarity-legendary { border-color: #ffaa00; }
       .passive-item-box .icon { font-size: 18px; }
       .passive-item-box .level { position: absolute; bottom: 1px; right: 1px; font-size: 9px; font-weight: bold; color: #ffcc00; text-shadow: 1px 1px 1px #000; }
-      .passive-item-box.max-level { border-color: #ffcc00; }
+      .passive-item-box.max-level { border-color: #ffcc00 !important; }
 
       #gold-display { position: absolute; top: 55px; right: 20px; display: flex; align-items: center; gap: 5px; font-size: 20px; color: #ffcc00; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
       .gold-icon { font-size: 24px; }
+
+      #powerup-stats-panel {
+        position: absolute;
+        top: 85px;
+        right: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        max-width: 220px;
+        justify-content: flex-end;
+      }
+
+      .powerup-stat-badge {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 204, 0, 0.3);
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 11px;
+        color: #ffcc00;
+        white-space: nowrap;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      }
+
+      .powerup-stat-badge .badge-icon {
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      .powerup-stat-badge .badge-value {
+        font-weight: bold;
+        color: #ffdd44;
+      }
+
+      @media (max-width: 768px), (pointer: coarse) {
+        #powerup-stats-panel {
+          top: 80px;
+          right: 10px;
+          max-width: 160px;
+          gap: 3px;
+        }
+        .powerup-stat-badge {
+          font-size: 9px;
+          padding: 1px 4px;
+          gap: 2px;
+        }
+        .powerup-stat-badge .badge-icon { font-size: 10px; }
+      }
     `, "hud-styles");
   }
 
@@ -73,6 +131,9 @@ export class UI {
 
     // Gold/coins display
     this.createGoldDisplay();
+
+    // Power-up stats panel (shows permanent bonuses from shop)
+    this.createPowerUpStatsPanel();
   }
 
   createXPBar() {
@@ -147,6 +208,41 @@ export class UI {
     this.elements.goldValue = document.getElementById("gold-value");
   }
 
+  createPowerUpStatsPanel() {
+    const panel = document.createElement("div");
+    panel.id = "powerup-stats-panel";
+    document.getElementById("hud").appendChild(panel);
+
+    this.elements.powerUpStats = panel;
+  }
+
+  updatePowerUpStats() {
+    if (!this.elements.powerUpStats || !this.game.powerUpSystem) return;
+
+    const bonuses = this.game.powerUpSystem.getActiveBonusSummary();
+    this.elements.powerUpStats.innerHTML = "";
+
+    if (bonuses.length === 0) return;
+
+    for (const b of bonuses) {
+      const badge = document.createElement("div");
+      badge.className = "powerup-stat-badge";
+      badge.title = `${b.name} Lv.${b.level}`;
+
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "badge-icon";
+      iconSpan.innerHTML = b.icon;
+      badge.appendChild(iconSpan);
+
+      const valueSpan = document.createElement("span");
+      valueSpan.className = "badge-value";
+      valueSpan.textContent = b.bonus;
+      badge.appendChild(valueSpan);
+
+      this.elements.powerUpStats.appendChild(badge);
+    }
+  }
+
   createDamageFlash() {
     this.damageFlashElement = document.createElement("div");
     this.damageFlashElement.id = "damage-flash";
@@ -163,6 +259,7 @@ export class UI {
     this.updateLevel();
     this.updateWeaponIcons();
     this.updatePassiveItems();
+    this.updatePowerUpStats();
   }
 
   updateHealth() {
@@ -192,7 +289,7 @@ export class UI {
 
     // Also update gold
     if (this.elements.goldValue) {
-      this.elements.goldValue.textContent = this.game.gold || 0;
+      this.elements.goldValue.textContent = (this.game.gold || 0).toLocaleString();
     }
   }
 
@@ -254,7 +351,8 @@ export class UI {
       if (!def) continue;
 
       const box = document.createElement("div");
-      box.className = "weapon-icon-box";
+      const rarityClass = def.rarity || "common";
+      box.className = `weapon-icon-box rarity-${rarityClass}`;
       if (weapon.level >= def.maxLevel) {
         box.classList.add("max-level");
       }
@@ -288,7 +386,8 @@ export class UI {
       if (!def) continue;
 
       const box = document.createElement("div");
-      box.className = "passive-item-box";
+      const rarityClass = def.rarity || "common";
+      box.className = `passive-item-box rarity-${rarityClass}`;
       if (item.level >= def.maxLevel) {
         box.classList.add("max-level");
       }

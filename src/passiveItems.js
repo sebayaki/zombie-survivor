@@ -3,6 +3,7 @@ export const PASSIVE_ITEMS = {
   spinach: {
     id: "spinach",
     name: "Spinach",
+    rarity: "common",
     description: "+10% Might (damage)",
     icon: '<i class="fa-solid fa-leaf"></i>',
     maxLevel: 5,
@@ -13,6 +14,7 @@ export const PASSIVE_ITEMS = {
   armor: {
     id: "armor",
     name: "Armor",
+    rarity: "common",
     description: "+1 Armor (damage reduction)",
     icon: '<i class="fa-solid fa-shield-halved"></i>',
     maxLevel: 5,
@@ -23,6 +25,7 @@ export const PASSIVE_ITEMS = {
   wings: {
     id: "wings",
     name: "Wings",
+    rarity: "common",
     description: "+10% Movement Speed",
     icon: '<i class="fa-solid fa-feather"></i>',
     maxLevel: 5,
@@ -33,6 +36,7 @@ export const PASSIVE_ITEMS = {
   hollowHeart: {
     id: "hollowHeart",
     name: "Hollow Heart",
+    rarity: "common",
     description: "+20% Max Health",
     icon: '<i class="fa-solid fa-heart"></i>',
     maxLevel: 5,
@@ -43,6 +47,7 @@ export const PASSIVE_ITEMS = {
   pummarola: {
     id: "pummarola",
     name: "Pummarola",
+    rarity: "uncommon",
     description: "+0.2 HP/s Recovery",
     icon: '<i class="fa-solid fa-apple-whole"></i>',
     maxLevel: 5,
@@ -53,6 +58,7 @@ export const PASSIVE_ITEMS = {
   emptyTome: {
     id: "emptyTome",
     name: "Empty Tome",
+    rarity: "rare",
     description: "-5% Cooldown",
     icon: '<i class="fa-solid fa-book"></i>',
     maxLevel: 5,
@@ -63,6 +69,7 @@ export const PASSIVE_ITEMS = {
   candelabrador: {
     id: "candelabrador",
     name: "Candelabrador",
+    rarity: "uncommon",
     description: "+10% Area",
     icon: '<i class="fa-solid fa-fire-flame-simple"></i>',
     maxLevel: 5,
@@ -73,6 +80,7 @@ export const PASSIVE_ITEMS = {
   bracer: {
     id: "bracer",
     name: "Bracer",
+    rarity: "common",
     description: "+10% Projectile Speed",
     icon: '<i class="fa-solid fa-hand-fist"></i>',
     maxLevel: 5,
@@ -83,6 +91,7 @@ export const PASSIVE_ITEMS = {
   spellbinder: {
     id: "spellbinder",
     name: "Spellbinder",
+    rarity: "uncommon",
     description: "+10% Duration",
     icon: '<i class="fa-solid fa-ring"></i>',
     maxLevel: 5,
@@ -93,6 +102,7 @@ export const PASSIVE_ITEMS = {
   duplicator: {
     id: "duplicator",
     name: "Duplicator",
+    rarity: "legendary",
     description: "+1 Amount (projectiles)",
     icon: '<i class="fa-solid fa-moon"></i>',
     maxLevel: 2,
@@ -103,6 +113,7 @@ export const PASSIVE_ITEMS = {
   attractorb: {
     id: "attractorb",
     name: "Attractorb",
+    rarity: "common",
     description: "+50% Pickup Range",
     icon: '<i class="fa-solid fa-magnet"></i>',
     maxLevel: 5,
@@ -113,6 +124,7 @@ export const PASSIVE_ITEMS = {
   clover: {
     id: "clover",
     name: "Clover",
+    rarity: "uncommon",
     description: "+10% Luck",
     icon: '<i class="fa-solid fa-clover"></i>',
     maxLevel: 5,
@@ -123,6 +135,7 @@ export const PASSIVE_ITEMS = {
   crown: {
     id: "crown",
     name: "Crown",
+    rarity: "rare",
     description: "+8% Growth (bonus XP)",
     icon: '<i class="fa-solid fa-crown"></i>',
     maxLevel: 5,
@@ -133,6 +146,7 @@ export const PASSIVE_ITEMS = {
   stoneMask: {
     id: "stoneMask",
     name: "Stone Mask",
+    rarity: "rare",
     description: "+10% Greed (bonus gold)",
     icon: '<i class="fa-solid fa-masks-theater"></i>',
     maxLevel: 5,
@@ -143,6 +157,7 @@ export const PASSIVE_ITEMS = {
   tiragisu: {
     id: "tiragisu",
     name: "Tiragisu",
+    rarity: "legendary",
     description: "+1 Revival",
     icon: '<i class="fa-solid fa-cake-candles"></i>',
     maxLevel: 3,
@@ -217,30 +232,36 @@ export class PassiveItemSystem {
     return total;
   }
 
-  // Update player stats based on all passive items
+  // Update player stats based on all passive items + permanent power-up bonuses
   updatePlayerStats() {
     const stats = {};
 
+    // Passive item bonuses (in-game)
     for (const item of this.items) {
       const def = PASSIVE_ITEMS[item.id];
       stats[def.stat] = (stats[def.stat] || 0) + def.bonusPerLevel * item.level;
+    }
+
+    // Merge permanent power-up bonuses (shop upgrades)
+    if (this.game.powerUpSystem) {
+      const puBonuses = this.game.powerUpSystem.getAllStatBonuses();
+      for (const [stat, value] of Object.entries(puBonuses)) {
+        stats[stat] = (stats[stat] || 0) + value;
+      }
     }
 
     this.game.playerStats = stats;
 
     // Apply direct stat changes to player
     if (this.game.player) {
-      // Movement speed
       const baseSpeed = 8;
       this.game.player.speed = baseSpeed * (1 + (stats.moveSpeed || 0) * 0.1);
 
-      // Max health
       const baseMaxHealth = 100;
       const newMaxHealth = Math.floor(
         baseMaxHealth * (1 + (stats.maxHealth || 0) * 0.2),
       );
       if (newMaxHealth > this.game.player.maxHealth) {
-        // Heal the difference when max health increases
         const diff = newMaxHealth - this.game.player.maxHealth;
         this.game.player.maxHealth = newMaxHealth;
         this.game.player.health = Math.min(
@@ -249,7 +270,6 @@ export class PassiveItemSystem {
         );
       }
 
-      // Magnet range
       if (this.game.xpSystem) {
         this.game.xpSystem.magnetRadius = 3 + (stats.magnet || 0);
       }
@@ -268,6 +288,7 @@ export class PassiveItemSystem {
           type: "passive",
           id: item.id,
           name: def.name,
+          rarity: def.rarity || "common",
           icon: def.icon,
           description: `Level ${item.level + 1}: ${def.description}`,
           currentLevel: item.level,
@@ -275,17 +296,21 @@ export class PassiveItemSystem {
       }
     }
 
-    // Add new items player doesn't have
-    for (const [id, def] of Object.entries(PASSIVE_ITEMS)) {
-      if (!this.hasItem(id)) {
-        upgrades.push({
-          type: "passive",
-          id: id,
-          name: def.name,
-          icon: def.icon,
-          description: def.description,
-          currentLevel: 0,
-        });
+    // Add new items player doesn't have, ONLY IF we haven't reached max slots (6)
+    const MAX_PASSIVE_SLOTS = 6;
+    if (this.items.length < MAX_PASSIVE_SLOTS) {
+      for (const [id, def] of Object.entries(PASSIVE_ITEMS)) {
+        if (!this.hasItem(id)) {
+          upgrades.push({
+            type: "passive",
+            id: id,
+            name: def.name,
+            rarity: def.rarity || "common",
+            icon: def.icon,
+            description: def.description,
+            currentLevel: 0,
+          });
+        }
       }
     }
 

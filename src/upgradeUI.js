@@ -1,4 +1,6 @@
 import { shuffleArray, injectCSS } from "./utils.js";
+import { AUTO_WEAPONS } from "./autoWeapons.js";
+import { PASSIVE_ITEMS } from "./passiveItems.js";
 
 export class UpgradeUI {
   constructor(game) {
@@ -43,7 +45,8 @@ export class UpgradeUI {
   }
 
   addStyles() {
-    injectCSS(`
+    injectCSS(
+      `
       .upgrade-overlay {
         position: fixed;
         top: 0;
@@ -120,13 +123,10 @@ export class UpgradeUI {
         overflow: hidden;
       }
 
-      .upgrade-choice.weapon {
-        border-color: #0088ff;
-      }
-
-      .upgrade-choice.passive {
-        border-color: #00ff88;
-      }
+      .upgrade-choice.common { border-color: #555; }
+      .upgrade-choice.uncommon { border-color: #00aa00; }
+      .upgrade-choice.rare { border-color: #0088ff; }
+      .upgrade-choice.legendary { border-color: #ffaa00; }
 
       .upgrade-choice.evolution {
         border-color: #ff00ff;
@@ -134,22 +134,44 @@ export class UpgradeUI {
         animation: evolutionGlow 1s ease-in-out infinite alternate;
       }
 
+      .upgrade-rarity-label {
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+        text-shadow: 0 0 2px #000;
+      }
+      .rarity-common { color: #aaa; }
+      .rarity-uncommon { color: #00ff88; }
+      .rarity-rare { color: #00aaff; }
+      .rarity-legendary { color: #ffcc00; }
+      .rarity-evolution { color: #ff00ff; }
+
       /* Hover effects ONLY for devices with hover capability (not touch) */
       @media (hover: hover) and (pointer: fine) {
         .upgrade-choice:hover {
           transform: translateY(-5px);
+          box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .upgrade-choice.common:hover {
+          border-color: #888;
+          box-shadow: 0 10px 30px rgba(136, 136, 136, 0.3);
+        }
+
+        .upgrade-choice.uncommon:hover {
+          border-color: #00ff88;
+          box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .upgrade-choice.rare:hover {
+          border-color: #00aaff;
+          box-shadow: 0 10px 30px rgba(0, 170, 255, 0.3);
+        }
+
+        .upgrade-choice.legendary:hover {
           border-color: #ffcc00;
           box-shadow: 0 10px 30px rgba(255, 204, 0, 0.3);
-        }
-
-        .upgrade-choice.weapon:hover {
-          border-color: #00aaff;
-          box-shadow: 0 10px 30px rgba(0, 136, 255, 0.3);
-        }
-
-        .upgrade-choice.passive:hover {
-          border-color: #00ffaa;
-          box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
         }
 
         .upgrade-choice.evolution:hover {
@@ -352,20 +374,29 @@ export class UpgradeUI {
           top: -10px;
         }
       }
-    `, "upgrade-ui-styles");
+    `,
+      "upgrade-ui-styles",
+    );
   }
 
-  show(level) {
+  show(level, isBonus = false) {
     // Generate choices
     this.generateChoices();
 
     if (this.choices.length === 0) {
-      // No upgrades available, just close
+      // No upgrades available, just hide
+      this.hide();
       return;
     }
 
     // Update level display
-    this.levelDisplay.textContent = `Level ${level}`;
+    if (isBonus) {
+      this.title.textContent = "CHEST BONUS!";
+      this.levelDisplay.textContent = "Bonus Upgrade";
+    } else {
+      this.title.textContent = "LEVEL UP!";
+      this.levelDisplay.textContent = `Level ${level}`;
+    }
 
     // Clear previous choices
     this.choicesContainer.innerHTML = "";
@@ -389,11 +420,37 @@ export class UpgradeUI {
     // Get all available upgrades
     const weaponUpgrades = this.game.autoWeaponSystem.getAvailableUpgrades();
     const passiveUpgrades = this.game.passiveItemSystem.getAvailableUpgrades();
+// Combine all arrays safely handling undefined ones
     const allUpgrades = [
-      ...evolutionUpgrades,
-      ...weaponUpgrades,
-      ...passiveUpgrades,
+      ...(evolutionUpgrades || []),
+      ...(weaponUpgrades || []),
+      ...(passiveUpgrades || []),
     ];
+
+    if (allUpgrades.length === 0) {
+      // Provide fallback choices when everything is maxed out
+      this.choices = [
+        {
+          type: "fallback",
+          id: "gold",
+          name: "Gold Bag",
+          rarity: "uncommon",
+          icon: '<i class="fa-solid fa-sack-dollar"></i>',
+          description: "Gain +100 Gold",
+          currentLevel: 1, // Non-zero to avoid "NEW" tag
+        },
+        {
+          type: "fallback",
+          id: "health",
+          name: "Floor Chicken",
+          rarity: "common",
+          icon: '<i class="fa-solid fa-drumstick-bite"></i>',
+          description: "Heal 30 HP",
+          currentLevel: 1,
+        }
+      ];
+      return;
+    }
 
     // Shuffle and pick 3-4
     const shuffled = shuffleArray(allUpgrades);
@@ -438,11 +495,20 @@ export class UpgradeUI {
 
   createChoiceElement(choice, index) {
     const element = document.createElement("div");
-    element.className = `upgrade-choice ${choice.type}`;
+    
+    // Determine rarity class (evolutions are implicitly legendary)
+    const rarityClass = choice.type === "evolution" ? "evolution" : (choice.rarity || "common");
+    element.className = `upgrade-choice ${choice.type} ${rarityClass}`;
 
     if (choice.currentLevel === 0) {
       element.classList.add("new");
     }
+
+    // Rarity label
+    const rarityLabel = document.createElement("div");
+    rarityLabel.className = `upgrade-rarity-label rarity-${rarityClass}`;
+    rarityLabel.textContent = rarityClass === "evolution" ? "EVOLUTION" : rarityClass.toUpperCase();
+    element.appendChild(rarityLabel);
 
     // Icon
     const icon = document.createElement("div");
@@ -475,25 +541,28 @@ export class UpgradeUI {
 
     // Level pips
     const maxLevel =
-      choice.type === "weapon"
-        ? this.game.autoWeaponSystem.constructor.name === "AutoWeaponSystem"
-          ? 8
-          : 5
-        : 5;
-    const levelDisplay = document.createElement("div");
-    levelDisplay.className = "upgrade-level-display";
+      choice.type === "fallback" 
+        ? 0
+        : choice.type === "weapon"
+          ? (AUTO_WEAPONS && AUTO_WEAPONS[choice.id] ? AUTO_WEAPONS[choice.id].maxLevel : 8)
+          : (PASSIVE_ITEMS && PASSIVE_ITEMS[choice.id] ? PASSIVE_ITEMS[choice.id].maxLevel : 5);
+    
+    if (choice.type !== "fallback") {
+      const levelDisplay = document.createElement("div");
+      levelDisplay.className = "upgrade-level-display";
 
-    for (let i = 0; i < maxLevel; i++) {
-      const pip = document.createElement("div");
-      pip.className = "level-pip";
-      if (i < choice.currentLevel) {
-        pip.classList.add("filled");
-      } else if (i === choice.currentLevel) {
-        pip.classList.add("next");
+      for (let i = 0; i < maxLevel; i++) {
+        const pip = document.createElement("div");
+        pip.className = "level-pip";
+        if (i < choice.currentLevel) {
+          pip.classList.add("filled");
+        } else if (i === choice.currentLevel) {
+          pip.classList.add("next");
+        }
+        levelDisplay.appendChild(pip);
       }
-      levelDisplay.appendChild(pip);
+      element.appendChild(levelDisplay);
     }
-    element.appendChild(levelDisplay);
 
     // Click/touch handler - use both for mobile compatibility
     const handleSelect = (e) => {
@@ -537,8 +606,18 @@ export class UpgradeUI {
       this.game.pulseBloom(0.5, 2.5);
     } else if (choice.type === "weapon") {
       this.game.autoWeaponSystem.addWeapon(choice.id);
-    } else {
+    } else if (choice.type === "passive") {
       this.game.passiveItemSystem.addItem(choice.id);
+    } else if (choice.type === "fallback") {
+      // Handle fallback rewards (Gold or Chicken) when everything is maxed
+      if (choice.id === "gold") {
+        if (this.game.powerUpSystem) {
+          this.game.gold += this.game.powerUpSystem.addGold(100);
+          this.game.ui.updateScore();
+        }
+      } else if (choice.id === "health") {
+        this.game.player.heal(30);
+      }
     }
 
     // Play sound
@@ -558,7 +637,14 @@ export class UpgradeUI {
     this.overlay.classList.add("hidden");
     this.isOpen = false;
 
-    // Resume game
-    this.game.isPaused = false;
+    // Check if there are queued upgrades before unpausing
+    if (this.game.upgradeQueue && this.game.upgradeQueue.length > 0) {
+      setTimeout(() => {
+        this.game.triggerNextUpgrade();
+      }, 500); // 500ms delay to make it feel better and allow messages to appear
+    } else {
+      // Resume game
+      this.game.isPaused = false;
+    }
   }
 }

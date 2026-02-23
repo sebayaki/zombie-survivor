@@ -81,14 +81,8 @@ export class PowerUpShopUI {
       }
 
       @keyframes shopSlideIn {
-        from {
-          opacity: 0;
-          transform: scale(0.9);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
       }
 
       .powerup-shop-header {
@@ -129,6 +123,7 @@ export class PowerUpShopUI {
         padding: 15px;
         cursor: pointer;
         transition: all 0.2s ease;
+        position: relative;
       }
 
       .powerup-shop-item:hover:not(.maxed):not(.cant-afford) {
@@ -147,11 +142,21 @@ export class PowerUpShopUI {
         background: linear-gradient(180deg, #1a3a2e 0%, #0a2a1e 100%);
       }
 
+      .powerup-shop-item.high-level {
+        border-color: #ff8800;
+        background: linear-gradient(180deg, #3a2a1e 0%, #2a1a0e 100%);
+      }
+
+      .powerup-shop-item.high-level:hover:not(.cant-afford) {
+        border-color: #ffaa33;
+        box-shadow: 0 5px 25px rgba(255, 136, 0, 0.3);
+      }
+
       .powerup-item-header {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
       }
 
       .powerup-item-icon {
@@ -168,19 +173,50 @@ export class PowerUpShopUI {
       .powerup-item-desc {
         font-size: 12px;
         color: #aaa;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         line-height: 1.4;
+      }
+
+      .powerup-item-bonus {
+        font-size: 16px;
+        font-weight: bold;
+        color: #ffcc00;
+        margin-bottom: 6px;
+        text-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+      }
+
+      .powerup-item-bonus .next-bonus {
+        font-size: 11px;
+        color: #88cc44;
+        font-weight: normal;
+      }
+
+      .powerup-item-level-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .powerup-item-level-num {
+        font-size: 13px;
+        color: #888;
+      }
+
+      .powerup-item-level-num strong {
+        color: #ffcc00;
+        font-size: 15px;
       }
 
       .powerup-item-level {
         display: flex;
-        gap: 4px;
+        gap: 3px;
         margin-bottom: 10px;
       }
 
       .powerup-level-pip {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         border-radius: 2px;
         background: #333;
         border: 1px solid #555;
@@ -190,6 +226,23 @@ export class PowerUpShopUI {
         background: #ffcc00;
         border-color: #ffcc00;
         box-shadow: 0 0 5px #ffcc00;
+      }
+
+      .powerup-level-pip.overflow {
+        background: #ff8800;
+        border-color: #ff8800;
+        box-shadow: 0 0 5px #ff8800;
+      }
+
+      .powerup-infinite-badge {
+        display: inline-block;
+        font-size: 10px;
+        color: #ff8800;
+        background: rgba(255, 136, 0, 0.15);
+        padding: 1px 6px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 136, 0, 0.3);
+        margin-left: 4px;
       }
 
       .powerup-item-cost {
@@ -221,23 +274,29 @@ export class PowerUpShopUI {
         border-color: #666;
       }
 
-      /* Custom scrollbar */
-      .powerup-shop-container::-webkit-scrollbar {
-        width: 8px;
-      }
+      .powerup-shop-container::-webkit-scrollbar { width: 8px; }
+      .powerup-shop-container::-webkit-scrollbar-track { background: #1a1a2e; border-radius: 4px; }
+      .powerup-shop-container::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+      .powerup-shop-container::-webkit-scrollbar-thumb:hover { background: #555; }
 
-      .powerup-shop-container::-webkit-scrollbar-track {
-        background: #1a1a2e;
-        border-radius: 4px;
-      }
-
-      .powerup-shop-container::-webkit-scrollbar-thumb {
-        background: #444;
-        border-radius: 4px;
-      }
-
-      .powerup-shop-container::-webkit-scrollbar-thumb:hover {
-        background: #555;
+      @media (max-width: 768px), (pointer: coarse) {
+        .powerup-shop-container {
+          padding: 15px;
+          max-height: 90vh;
+          border-radius: 10px;
+          width: 95%;
+        }
+        .powerup-shop-header h2 { font-size: 20px; }
+        .powerup-shop-gold { font-size: 18px; }
+        .powerup-shop-grid {
+          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          gap: 10px;
+        }
+        .powerup-shop-item { padding: 10px; }
+        .powerup-item-icon { font-size: 24px; }
+        .powerup-item-name { font-size: 13px; }
+        .powerup-item-desc { font-size: 10px; }
+        .powerup-item-bonus { font-size: 14px; }
       }
     `, "powerup-shop-styles");
   }
@@ -279,6 +338,11 @@ export class PowerUpShopUI {
       item.classList.add("cant-afford");
     }
 
+    const baseLevels = powerUp.costPerLevel ? powerUp.costPerLevel.length : 5;
+    if (powerUp.currentLevel >= baseLevels && !powerUp.isMaxed) {
+      item.classList.add("high-level");
+    }
+
     // Header (icon + name)
     const header = document.createElement("div");
     header.className = "powerup-item-header";
@@ -288,39 +352,111 @@ export class PowerUpShopUI {
     icon.innerHTML = powerUp.icon;
     header.appendChild(icon);
 
-    const name = document.createElement("span");
-    name.className = "powerup-item-name";
-    name.textContent = powerUp.name;
-    header.appendChild(name);
+    const nameContainer = document.createElement("span");
+    nameContainer.className = "powerup-item-name";
+    nameContainer.textContent = powerUp.name;
+    if (powerUp.isUnlimited) {
+      const badge = document.createElement("span");
+      badge.className = "powerup-infinite-badge";
+      badge.textContent = "∞";
+      nameContainer.appendChild(badge);
+    }
+    header.appendChild(nameContainer);
 
     item.appendChild(header);
 
-    // Description
+    // Description with per-level bonus
     const desc = document.createElement("div");
     desc.className = "powerup-item-desc";
-    desc.textContent = powerUp.description;
+    const perLevelText = powerUp.bonusUnit === "%"
+      ? `+${powerUp.bonusDisplay}% per level`
+      : powerUp.bonusUnit === "/s"
+        ? `+${powerUp.bonusDisplay}/s per level`
+        : `+${powerUp.bonusDisplay} per level`;
+    desc.textContent = `${powerUp.description} (${perLevelText})`;
     item.appendChild(desc);
 
-    // Level pips
-    const levelDiv = document.createElement("div");
-    levelDiv.className = "powerup-item-level";
-
-    for (let i = 0; i < powerUp.maxLevel; i++) {
-      const pip = document.createElement("div");
-      pip.className = "powerup-level-pip";
-      if (i < powerUp.currentLevel) {
-        pip.classList.add("filled");
+    // Total bonus display
+    if (powerUp.currentLevel > 0) {
+      const bonusDiv = document.createElement("div");
+      bonusDiv.className = "powerup-item-bonus";
+      let totalText;
+      if (powerUp.bonusUnit === "%") {
+        totalText = `+${powerUp.totalBonusDisplay}%`;
+      } else if (powerUp.bonusUnit === "/s") {
+        totalText = `+${powerUp.totalBonusDisplay.toFixed(2)}/s`;
+      } else {
+        totalText = `+${powerUp.totalBonusDisplay}`;
       }
-      levelDiv.appendChild(pip);
+
+      if (!powerUp.isMaxed) {
+        let nextAdd;
+        if (powerUp.bonusUnit === "%") {
+          nextAdd = `+${powerUp.bonusDisplay}%`;
+        } else if (powerUp.bonusUnit === "/s") {
+          nextAdd = `+${powerUp.bonusDisplay}/s`;
+        } else {
+          nextAdd = `+${powerUp.bonusDisplay}`;
+        }
+        bonusDiv.innerHTML = `${totalText} <span class="next-bonus">→ ${nextAdd}</span>`;
+      } else {
+        bonusDiv.textContent = totalText;
+      }
+      item.appendChild(bonusDiv);
     }
-    item.appendChild(levelDiv);
+
+    // Level display row
+    const levelRow = document.createElement("div");
+    levelRow.className = "powerup-item-level-row";
+
+    const levelNum = document.createElement("div");
+    levelNum.className = "powerup-item-level-num";
+    if (powerUp.isUnlimited) {
+      levelNum.innerHTML = `Lv. <strong>${powerUp.currentLevel}</strong>`;
+    } else {
+      levelNum.innerHTML = `Lv. <strong>${powerUp.currentLevel}</strong> / ${powerUp.maxLevel}`;
+    }
+    levelRow.appendChild(levelNum);
+    item.appendChild(levelRow);
+
+    // Level pips (show max 10 pips for finite, 5 base + extra glow for unlimited)
+    if (!powerUp.isUnlimited) {
+      const levelDiv = document.createElement("div");
+      levelDiv.className = "powerup-item-level";
+      for (let i = 0; i < powerUp.maxLevel; i++) {
+        const pip = document.createElement("div");
+        pip.className = "powerup-level-pip";
+        if (i < powerUp.currentLevel) pip.classList.add("filled");
+        levelDiv.appendChild(pip);
+      }
+      item.appendChild(levelDiv);
+    } else {
+      const levelDiv = document.createElement("div");
+      levelDiv.className = "powerup-item-level";
+      const showPips = Math.max(baseLevels, Math.min(powerUp.currentLevel + 1, 15));
+      for (let i = 0; i < showPips; i++) {
+        const pip = document.createElement("div");
+        pip.className = "powerup-level-pip";
+        if (i < powerUp.currentLevel) {
+          pip.classList.add(i < baseLevels ? "filled" : "overflow");
+        }
+        levelDiv.appendChild(pip);
+      }
+      if (powerUp.currentLevel >= 15) {
+        const more = document.createElement("span");
+        more.style.cssText = "color: #888; font-size: 11px; margin-left: 4px;";
+        more.textContent = `+${powerUp.currentLevel - 14}`;
+        levelDiv.appendChild(more);
+      }
+      item.appendChild(levelDiv);
+    }
 
     // Cost
     const cost = document.createElement("div");
     cost.className = "powerup-item-cost";
     if (powerUp.isMaxed) {
       cost.classList.add("maxed");
-      cost.textContent = "✓ MAXED";
+      cost.textContent = "✓ MAX";
     } else {
       cost.innerHTML = `<i class="fa-solid fa-sack-dollar"></i> ${powerUp.nextCost.toLocaleString()}`;
     }
