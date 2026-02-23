@@ -192,10 +192,10 @@ function createSidewalkTexture() {
 // ============================================================
 
 export function setupEnhancedLighting(game) {
-  const ambient = new THREE.AmbientLight(0x667799, 1.8);
+  const ambient = new THREE.AmbientLight(0x7788aa, 2.4);
   game.scene.add(ambient);
 
-  const moonLight = new THREE.DirectionalLight(0x8899cc, 2.5);
+  const moonLight = new THREE.DirectionalLight(0x8899cc, 2.8);
   moonLight.position.set(10, 60, 15);
   moonLight.castShadow = true;
   moonLight.shadow.mapSize.width = 2048;
@@ -249,7 +249,7 @@ export function createEnhancedArena(game) {
     map: asphaltMap,
     bumpMap: bumpMap,
     bumpScale: 0.3,
-    color: 0x333338,
+    color: 0x444448,
     roughness: 0.92,
     metalness: 0.05,
   });
@@ -284,7 +284,99 @@ export function createEnhancedArena(game) {
   game.obstacles = [];
   createEnhancedDecorations(game);
   createGroundDetails(game);
-  game.ambientParticles = createAmbientParticles(game);
+  createBoundaryFence(game);
+}
+
+// ============================================================
+// BOUNDARY FENCE
+// ============================================================
+
+function createBoundaryFence(game) {
+  const s = game.arenaSize - 1;
+  const postHeight = 1.8;
+  const postSpacing = 4;
+
+  const fenceMat = new THREE.MeshStandardMaterial({
+    color: 0x888899,
+    roughness: 0.4,
+    metalness: 0.7,
+  });
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0x4488ff,
+    transparent: true,
+    opacity: 0.35,
+  });
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0x6699cc,
+    transparent: true,
+    opacity: 0.25,
+  });
+
+  const sides = [
+    { x1: -s, z1: -s, x2: s, z2: -s, axis: "x" },
+    { x1: s, z1: -s, x2: s, z2: s, axis: "z" },
+    { x1: s, z1: s, x2: -s, z2: s, axis: "x" },
+    { x1: -s, z1: s, x2: -s, z2: -s, axis: "z" },
+  ];
+
+  for (const side of sides) {
+    const len = Math.abs(
+      side.axis === "x" ? side.x2 - side.x1 : side.z2 - side.z1,
+    );
+    const posts = Math.floor(len / postSpacing);
+
+    for (let i = 0; i <= posts; i++) {
+      const t = i / posts;
+      const px = side.x1 + (side.x2 - side.x1) * t;
+      const pz = side.z1 + (side.z2 - side.z1) * t;
+
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, postHeight, 6),
+        fenceMat,
+      );
+      post.position.set(px, postHeight / 2, pz);
+      post.castShadow = true;
+      game.scene.add(post);
+
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.1, 6, 6),
+        glowMat,
+      );
+      tip.position.set(px, postHeight, pz);
+      game.scene.add(tip);
+    }
+
+    const midX = (side.x1 + side.x2) / 2;
+    const midZ = (side.z1 + side.z2) / 2;
+
+    for (const h of [0.6, 1.2]) {
+      const wire = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          side.axis === "x" ? len : 0.02,
+          0.02,
+          side.axis === "z" ? len : 0.02,
+        ),
+        wireMat,
+      );
+      wire.position.set(midX, h, midZ);
+      game.scene.add(wire);
+    }
+
+    const groundGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(
+        side.axis === "x" ? len : 1.5,
+        side.axis === "z" ? len : 1.5,
+      ),
+      new THREE.MeshBasicMaterial({
+        color: 0x4488ff,
+        transparent: true,
+        opacity: 0.06,
+      }),
+    );
+    groundGlow.rotation.x = -Math.PI / 2;
+    groundGlow.position.set(midX, 0.04, midZ);
+    game.scene.add(groundGlow);
+  }
 }
 
 // ============================================================
@@ -540,7 +632,7 @@ function createEnhancedDecorations(game) {
   }
 
   // Cars
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 5; i++) {
     const pos = game.findValidObstaclePosition(12, 42, 5);
     if (!pos) continue;
     const car = createEnhancedCar();
@@ -556,7 +648,7 @@ function createEnhancedDecorations(game) {
   }
 
   // Street lamps with light pools
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 6; i++) {
     const pos = game.findValidObstaclePosition(15, 45, 4);
     if (!pos) continue;
     const lamp = createEnhancedStreetLamp();
@@ -571,7 +663,7 @@ function createEnhancedDecorations(game) {
   }
 
   // Varied small obstacles
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 6; i++) {
     const pos = game.findValidObstaclePosition(10, 40, 2);
     if (!pos) continue;
     const r = Math.random();
@@ -950,167 +1042,10 @@ function createFireHydrant() {
 // GROUND DETAILS (manholes, drains, blood, debris)
 // ============================================================
 
-function createGroundDetails(game) {
-  const arenaSize = game.arenaSize;
-
-  // Manhole covers
-  const manholeMat = new THREE.MeshStandardMaterial({
-    color: 0x3a3a3e,
-    roughness: 0.5,
-    metalness: 0.6,
-  });
-  const manholeRingMat = new THREE.MeshBasicMaterial({ color: 0x2a2a2e });
-  for (let i = 0; i < 6; i++) {
-    const mx = (Math.random() - 0.5) * arenaSize * 1.2;
-    const mz = (Math.random() - 0.5) * arenaSize * 1.2;
-    const mh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 0.04, 12),
-      manholeMat,
-    );
-    mh.position.set(mx, 0.02, mz);
-    game.scene.add(mh);
-    for (let r = 0; r < 2; r++) {
-      const line = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.06, 0.9),
-        manholeRingMat,
-      );
-      line.rotation.x = -Math.PI / 2;
-      line.rotation.z = (r * Math.PI) / 2;
-      line.position.set(mx, 0.045, mz);
-      game.scene.add(line);
-    }
-  }
-
-  // Drain grates along curbs
-  const grateMat = new THREE.MeshStandardMaterial({
-    color: 0x2a2a2e,
-    roughness: 0.4,
-    metalness: 0.7,
-  });
-  for (let i = 0; i < 10; i++) {
-    const side = Math.random() > 0.5;
-    const gx = side ? -arenaSize + 5.5 : arenaSize - 5.5;
-    const gz = (Math.random() - 0.5) * arenaSize * 1.4;
-    const grate = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.03, 0.4),
-      grateMat,
-    );
-    grate.position.set(gx, 0.015, gz);
-    game.scene.add(grate);
-  }
-
-  // Blood splatters
-  const bloodMat = new THREE.MeshBasicMaterial({
-    color: 0x440000,
-    transparent: true,
-    opacity: 0.3,
-  });
-  for (let i = 0; i < 10; i++) {
-    const bx = (Math.random() - 0.5) * arenaSize * 1.4;
-    const bz = (Math.random() - 0.5) * arenaSize * 1.4;
-    const bs = 0.5 + Math.random() * 1.8;
-    const splat = new THREE.Mesh(new THREE.CircleGeometry(bs, 8), bloodMat);
-    splat.rotation.x = -Math.PI / 2;
-    splat.position.set(bx, 0.03, bz);
-    game.scene.add(splat);
-  }
-
-  // Scattered debris
-  const debrisMats = [
-    new THREE.MeshLambertMaterial({ color: 0x8a8070 }),
-    new THREE.MeshLambertMaterial({ color: 0x606050 }),
-    new THREE.MeshLambertMaterial({ color: 0x705848 }),
-  ];
-  for (let i = 0; i < 25; i++) {
-    const dx = (Math.random() - 0.5) * arenaSize * 1.6;
-    const dz = (Math.random() - 0.5) * arenaSize * 1.6;
-    const debris = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        0.15 + Math.random() * 0.3,
-        0.02,
-        0.12 + Math.random() * 0.2,
-      ),
-      debrisMats[Math.floor(Math.random() * debrisMats.length)],
-    );
-    debris.position.set(dx, 0.01, dz);
-    debris.rotation.y = Math.random() * Math.PI * 2;
-    game.scene.add(debris);
-  }
-}
+function createGroundDetails() {}
 
 // ============================================================
 // AMBIENT PARTICLES (floating embers + dust)
 // ============================================================
 
-function createAmbientParticles(game) {
-  const count = game.isMobile ? 80 : 200;
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const velocities = [];
-
-  for (let i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 80;
-    positions[i * 3 + 1] = 1 + Math.random() * 15;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 80;
-
-    if (Math.random() > 0.6) {
-      colors[i * 3] = 1.0;
-      colors[i * 3 + 1] = 0.5 + Math.random() * 0.4;
-      colors[i * 3 + 2] = 0.1 + Math.random() * 0.2;
-    } else {
-      const v = 0.4 + Math.random() * 0.3;
-      colors[i * 3] = v;
-      colors[i * 3 + 1] = v;
-      colors[i * 3 + 2] = v + 0.1;
-    }
-
-    velocities.push({
-      x: (Math.random() - 0.5) * 0.3,
-      y: 0.1 + Math.random() * 0.3,
-      z: (Math.random() - 0.5) * 0.3,
-      phase: Math.random() * Math.PI * 2,
-    });
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-
-  const mat = new THREE.PointsMaterial({
-    size: 0.15,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.6,
-    sizeAttenuation: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-
-  const points = new THREE.Points(geo, mat);
-  game.scene.add(points);
-
-  return { points, velocities, time: 0 };
-}
-
-export function updateAmbientParticles(particles, delta) {
-  if (!particles) return;
-  particles.time += delta;
-  const pos = particles.points.geometry.attributes.position.array;
-  const count = pos.length / 3;
-
-  for (let i = 0; i < count; i++) {
-    const v = particles.velocities[i];
-    const t = particles.time + v.phase;
-    pos[i * 3] += (v.x + Math.sin(t * 0.5) * 0.1) * delta;
-    pos[i * 3 + 1] += v.y * delta;
-    pos[i * 3 + 2] += (v.z + Math.cos(t * 0.7) * 0.1) * delta;
-
-    if (pos[i * 3 + 1] > 18) {
-      pos[i * 3] = (Math.random() - 0.5) * 80;
-      pos[i * 3 + 1] = 0.5;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 80;
-    }
-  }
-
-  particles.points.geometry.attributes.position.needsUpdate = true;
-}
+export function updateAmbientParticles() {}

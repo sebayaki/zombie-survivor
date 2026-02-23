@@ -39,7 +39,7 @@ const VignetteShader = {
 const ColorGradingShader = {
   uniforms: {
     tDiffuse: { value: null },
-    contrast: { value: 1.08 },
+    contrast: { value: 1.04 },
     saturation: { value: 1.05 },
   },
   vertexShader: `
@@ -59,8 +59,8 @@ const ColorGradingShader = {
       color.rgb = (color.rgb - 0.5) * contrast + 0.5;
       float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
       color.rgb = mix(vec3(gray), color.rgb, saturation);
-      vec3 coolTint = vec3(0.88, 0.92, 1.08);
-      vec3 warmTint = vec3(1.06, 1.01, 0.93);
+      vec3 coolTint = vec3(0.93, 0.95, 1.05);
+      vec3 warmTint = vec3(1.04, 1.01, 0.96);
       color.rgb *= mix(coolTint, warmTint, gray);
       gl_FragColor = color;
     }
@@ -167,20 +167,14 @@ export class PostProcessingManager {
     );
     this.composer.addPass(this.bloomPass);
 
-    this.colorGradingPass = new ShaderPass(ColorGradingShader);
-    this.composer.addPass(this.colorGradingPass);
-
     this.vignettePass = new ShaderPass(VignetteShader);
     this.vignettePass.uniforms.offset.value = 1.0;
-    this.vignettePass.uniforms.darkness.value = 0.55;
+    this.vignettePass.uniforms.darkness.value = 0.15;
     this.composer.addPass(this.vignettePass);
 
     this.chromaticPass = new ShaderPass(ChromaticAberrationShader);
     this.chromaticPass.uniforms.amount.value = 0;
     this.composer.addPass(this.chromaticPass);
-
-    this.filmGrainPass = new ShaderPass(FilmGrainShader);
-    this.composer.addPass(this.filmGrainPass);
 
     const outputPass = new OutputPass();
     this.composer.addPass(outputPass);
@@ -197,7 +191,7 @@ export class PostProcessingManager {
   damageFlash(intensity = 1.0) {
     this.damageFlashIntensity = intensity;
     this.chromaticPass.uniforms.amount.value = intensity * 2;
-    this.vignettePass.uniforms.darkness.value = 0.5 + intensity * 0.5;
+    this.vignettePass.uniforms.darkness.value = 0.15 + intensity * 0.4;
   }
 
   // Time slow for dramatic effects (boss death, evolution, etc.)
@@ -253,12 +247,7 @@ export class PostProcessingManager {
       }
       this.chromaticPass.uniforms.amount.value = this.damageFlashIntensity * 2;
       this.vignettePass.uniforms.darkness.value =
-        0.5 + this.damageFlashIntensity * 0.3;
-    }
-
-    // Update film grain
-    if (this.filmGrainPass) {
-      this.filmGrainPass.uniforms.time.value += delta;
+        0.15 + this.damageFlashIntensity * 0.3;
     }
 
     // Update time slow

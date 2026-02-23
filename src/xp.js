@@ -1,33 +1,30 @@
 import * as THREE from "three";
 
-// XP thresholds for each level - faster early game for dynamic upgrades
 const XP_THRESHOLDS = [
   0, // Level 1
-  2, // Level 2 - very fast first upgrade
-  4, // Level 3
-  7, // Level 4
-  10, // Level 5
-  15, // Level 6
-  20, // Level 7
-  28, // Level 8
-  38, // Level 9
-  50, // Level 10
-  60, // Level 11 (was 65)
-  75, // Level 12 (was 82)
-  90, // Level 13 (was 100)
-  105, // Level 14 (was 120)
-  120, // Level 15 (was 145)
-  140, // Level 16 (was 175)
-  160, // Level 17 (was 210)
-  185, // Level 18 (was 250)
-  210, // Level 19 (was 300)
-  240, // Level 20 (was 360)
+  6, // Level 2
+  14, // Level 3
+  24, // Level 4
+  36, // Level 5
+  50, // Level 6
+  68, // Level 7
+  90, // Level 8
+  115, // Level 9
+  145, // Level 10
+  180, // Level 11
+  220, // Level 12
+  265, // Level 13
+  315, // Level 14
+  370, // Level 15
+  435, // Level 16
+  510, // Level 17
+  595, // Level 18
+  690, // Level 19
+  800, // Level 20
 ];
 
-// Generate more levels (slower growth after 20 to keep leveling fun!)
-// We pre-generate up to level 200 so there's no hard limit!
 for (let i = XP_THRESHOLDS.length; i < 200; i++) {
-  XP_THRESHOLDS.push(Math.floor(XP_THRESHOLDS[i - 1] * 1.06)); // Was 1.12
+  XP_THRESHOLDS.push(Math.floor(XP_THRESHOLDS[i - 1] * 1.12));
 }
 
 export class XPSystem {
@@ -174,14 +171,17 @@ export class XPSystem {
     // Show level up UI
     this.game.ui.showLevelUp(this.level);
 
-    // Queue upgrade selection
     this.game.upgradeQueue = this.game.upgradeQueue || [];
-    this.game.upgradeQueue.push({ type: "levelUp", level: this.level });
+    const pendingLevelUps = this.game.upgradeQueue.filter(
+      (q) => q.type === "levelUp",
+    ).length;
+    if (pendingLevelUps < 3) {
+      this.game.upgradeQueue.push({ type: "levelUp", level: this.level });
 
-    // Attempt to trigger (will only show if UI is not already open)
-    setTimeout(() => {
-      this.game.triggerNextUpgrade();
-    }, 500);
+      setTimeout(() => {
+        this.game.triggerNextUpgrade();
+      }, 500);
+    }
   }
 
   update(delta) {

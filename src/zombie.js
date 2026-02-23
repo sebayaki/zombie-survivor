@@ -1184,9 +1184,8 @@ export class ZombieManager {
 
     // Drop XP gem (Vampire Survivors style)
     if (this.game.dropXPGem) {
-      // XP scales with enemy type multiplier
-      const xpMult = zombie.typeDef?.xpMult || 1;
-      const baseXP = Math.max(1, Math.floor((zombie.maxHealth / 30) * xpMult));
+      const xpMult = Math.min(zombie.typeDef?.xpMult || 1, 5);
+      const baseXP = Math.max(1, Math.ceil(Math.sqrt(zombie.maxHealth / 25) * xpMult));
       this.game.dropXPGem(zombie.mesh.position.clone(), baseXP);
 
       // Bosses drop multiple gems

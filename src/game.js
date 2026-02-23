@@ -81,16 +81,16 @@ export class Game {
 
     // Continuous spawning settings
     this.spawnTimer = 0;
-    this.baseSpawnInterval = 1.08; // Slightly faster early spawns
-    this.minSpawnInterval = 0.23; // Cap late-game spawn rate
+    this.baseSpawnInterval = 0.54; // 2x faster spawns
+    this.minSpawnInterval = 0.12; // 2x faster cap
     this.zombiesPerSpawn = 1; // Start with 1 zombie per spawn
   }
 
   async init() {
     // Create scene - NYC night atmosphere
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x06080f);
-    this.scene.fog = new THREE.Fog(0x06080f, 30, 80);
+    this.scene.background = new THREE.Color(0x111a2a);
+    this.scene.fog = new THREE.Fog(0x111a2a, 50, 100);
 
     // Create camera - top-down orthographic for VS-style view
     const viewSize = 20; // How much of the world to show
@@ -311,8 +311,8 @@ export class Game {
     // Number of zombies per spawn increases gradually
     this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.9);
 
-    // Zombie stats scale with time
-    const zombieHealth = 33 + timeMinutes * 10;
+    // Zombie stats scale with time (3x HP)
+    const zombieHealth = 99 + timeMinutes * 30;
     const zombieSpeed = 1.5 + timeMinutes * 0.08;
 
     if (this.spawnTimer >= spawnInterval) {
@@ -338,7 +338,7 @@ export class Game {
             if (this.isPlaying) {
               this.zombieManager.spawnZombie(
                 zombieSpeed * 1.2,
-                zombieHealth * 1.5,
+                zombieHealth * 1.8,
               );
             }
           }, i * 100);
