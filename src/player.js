@@ -322,7 +322,6 @@ export class Player {
 
   reset() {
     this.health = this.maxHealth;
-    // Start facing forward (-Z direction, away from camera)
     this.rotation = Math.PI;
     this.targetRotation = Math.PI;
     this.aimTarget = null;
@@ -330,6 +329,8 @@ export class Player {
     this.invulnerableTime = 0;
     this.isAttacking = false;
     this.attackEndTime = 0;
+    this._laurelOnCooldown = false;
+    this._revivalsUsed = 0;
 
     if (this.mesh) {
       this.mesh.position.set(0, 0, 0);
@@ -678,6 +679,24 @@ export class Player {
     this.invulnerableTime = 0.5;
 
     if (this.health <= 0) {
+      // Laurel shield: grants invincibility instead of dying
+      if (this.game.autoWeaponSystem?.hasWeapon("laurel") && !this._laurelOnCooldown) {
+        const stats = this.game.autoWeaponSystem.getWeaponStats(
+          "laurel",
+          this.game.autoWeaponSystem.getWeaponLevel("laurel")
+        );
+        this.health = 1;
+        this.invulnerable = true;
+        this.invulnerableTime = stats.shieldDuration || 1.0;
+        this._laurelOnCooldown = true;
+        setTimeout(() => { this._laurelOnCooldown = false; }, (stats.cooldown || 60) * 1000);
+        this.game.ui.showMessage("Laurel Shield!");
+        this.game.pulseBloom?.(0.3, 1.5);
+        this.game.audioManager.playSound("pickup");
+        this.game.ui.updateHealth();
+        return;
+      }
+
       this.health = 0;
       this.die();
     }
@@ -690,6 +709,23 @@ export class Player {
   }
 
   die() {
+    // Check for revival charges (Tiragisu passive + shop revival power-up)
+    const revivalStat = (this.game.playerStats?.revival || 0) +
+      (this.game.powerUpSystem?.getRevivals?.() || 0);
+    if (revivalStat > 0 && !this._revivalsUsed) this._revivalsUsed = 0;
+
+    if (revivalStat > this._revivalsUsed) {
+      this._revivalsUsed = (this._revivalsUsed || 0) + 1;
+      this.health = Math.floor(this.maxHealth * 0.5);
+      this.invulnerable = true;
+      this.invulnerableTime = 2.0;
+      this.game.ui.showMessage(`Revival! (${revivalStat - this._revivalsUsed} left)`);
+      this.game.pulseBloom?.(0.5, 2.5);
+      this.game.audioManager.playSound("pickup");
+      this.game.ui.updateHealth();
+      return;
+    }
+
     this.setAnimation("death");
     this.game.gameOver();
   }

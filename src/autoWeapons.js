@@ -9,6 +9,7 @@ export const AUTO_WEAPONS = {
     name: "Magic Wand",
     rarity: "common",
     description: "Fires at the nearest enemy",
+    iconColor: "#00ccff",
     icon: `<i class="fa-solid fa-wand-magic-sparkles"></i>`,
     maxLevel: 8,
     baseStats: {
@@ -38,6 +39,7 @@ export const AUTO_WEAPONS = {
     name: "Whip",
     rarity: "common",
     description: "Attacks horizontally, passes through enemies",
+    iconColor: "#cc4444",
     icon: '<i class="fa-solid fa-bolt"></i>',
     maxLevel: 8,
     baseStats: {
@@ -66,6 +68,7 @@ export const AUTO_WEAPONS = {
     name: "Knife",
     rarity: "common",
     description: "Throws knives in facing direction",
+    iconColor: "#88aaff",
     icon: '<i class="fa-solid fa-khanda"></i>',
     maxLevel: 8,
     baseStats: {
@@ -95,6 +98,7 @@ export const AUTO_WEAPONS = {
     name: "Axe",
     rarity: "uncommon",
     description: "High damage, passes through enemies",
+    iconColor: "#ff4444",
     icon: '<i class="fa-solid fa-gavel"></i>',
     maxLevel: 8,
     baseStats: {
@@ -124,6 +128,7 @@ export const AUTO_WEAPONS = {
     name: "Garlic",
     rarity: "uncommon",
     description: "Damages nearby enemies and knocks them back",
+    iconColor: "#88cc44",
     icon: '<i class="fa-solid fa-shield-cat"></i>',
     maxLevel: 8,
     baseStats: {
@@ -151,6 +156,7 @@ export const AUTO_WEAPONS = {
     name: "Cross",
     rarity: "rare",
     description: "Boomerangs around, deals damage on the way back",
+    iconColor: "#ffcc00",
     icon: '<i class="fa-solid fa-cross"></i>',
     maxLevel: 8,
     baseStats: {
@@ -180,6 +186,7 @@ export const AUTO_WEAPONS = {
     name: "Fire Wand",
     rarity: "uncommon",
     description: "Fires explosive projectiles",
+    iconColor: "#ff6600",
     icon: '<i class="fa-solid fa-fire"></i>',
     maxLevel: 8,
     baseStats: {
@@ -209,6 +216,7 @@ export const AUTO_WEAPONS = {
     name: "Lightning Ring",
     rarity: "rare",
     description: "Strikes random enemies in range",
+    iconColor: "#ffdd00",
     icon: '<i class="fa-solid fa-bolt"></i>',
     maxLevel: 8,
     baseStats: {
@@ -236,6 +244,7 @@ export const AUTO_WEAPONS = {
     name: "Runetracer",
     rarity: "rare",
     description: "Bouncing projectile that lasts a long time",
+    iconColor: "#ff44ff",
     icon: '<i class="fa-solid fa-gem"></i>',
     maxLevel: 8,
     baseStats: {
@@ -265,6 +274,7 @@ export const AUTO_WEAPONS = {
     name: "Holy Water",
     rarity: "uncommon",
     description: "Throws bottles that create damaging pools",
+    iconColor: "#44aaff",
     icon: '<i class="fa-solid fa-droplet"></i>',
     maxLevel: 8,
     baseStats: {
@@ -295,6 +305,7 @@ export const AUTO_WEAPONS = {
     name: "Bone",
     rarity: "common",
     description: "Bounces between enemies, hitting multiple times",
+    iconColor: "#ddccaa",
     icon: '<i class="fa-solid fa-bone"></i>',
     maxLevel: 8,
     baseStats: {
@@ -324,6 +335,7 @@ export const AUTO_WEAPONS = {
     name: "Magic Missile",
     rarity: "common",
     description: "Slow but relentless homing missiles",
+    iconColor: "#ff88ff",
     icon: '<i class="fa-solid fa-star"></i>',
     maxLevel: 8,
     baseStats: {
@@ -355,6 +367,7 @@ export const AUTO_WEAPONS = {
     name: "Peachone",
     rarity: "rare",
     description: "A bird that orbits around you, dealing damage",
+    iconColor: "#ffaadd",
     icon: '<i class="fa-solid fa-dove"></i>',
     maxLevel: 8,
     baseStats: {
@@ -383,6 +396,7 @@ export const AUTO_WEAPONS = {
     name: "Ebony Wings",
     rarity: "rare",
     description: "A dark bird that orbits opposite to Peachone",
+    iconColor: "#aa88ff",
     icon: '<i class="fa-solid fa-crow"></i>',
     maxLevel: 8,
     baseStats: {
@@ -411,6 +425,7 @@ export const AUTO_WEAPONS = {
     name: "Pentagram",
     rarity: "legendary",
     description: "Periodically erases all enemies on screen",
+    iconColor: "#ff4444",
     icon: '<i class="fa-solid fa-star-of-david"></i>',
     maxLevel: 8,
     baseStats: {
@@ -437,6 +452,7 @@ export const AUTO_WEAPONS = {
     name: "Clock Lancet",
     rarity: "rare",
     description: "Freezes enemies in place temporarily",
+    iconColor: "#88ddff",
     icon: '<i class="fa-solid fa-clock"></i>',
     maxLevel: 8,
     baseStats: {
@@ -464,6 +480,7 @@ export const AUTO_WEAPONS = {
     name: "Laurel",
     rarity: "rare",
     description: "Grants brief invincibility when taking fatal damage",
+    iconColor: "#44cc44",
     icon: '<i class="fa-solid fa-leaf"></i>',
     maxLevel: 8,
     baseStats: {
@@ -1025,9 +1042,10 @@ export class AutoWeaponSystem {
     const playerStats = this.game.playerStats || {};
     if (playerStats.might) stats.damage *= 1 + playerStats.might * 0.1;
     if (playerStats.area) stats.area *= 1 + playerStats.area * 0.1;
-    if (playerStats.speed) stats.projectileSpeed *= 1 + playerStats.speed * 0.1;
-    if (playerStats.duration) stats.duration *= 1 + playerStats.duration * 0.1;
+    if (playerStats.speed && stats.projectileSpeed) stats.projectileSpeed *= 1 + playerStats.speed * 0.1;
+    if (playerStats.duration && stats.duration) stats.duration *= 1 + playerStats.duration * 0.1;
     if (playerStats.cooldown) stats.cooldown *= 1 - playerStats.cooldown * 0.05;
+    if (playerStats.amount && stats.projectileCount) stats.projectileCount += playerStats.amount;
 
     return stats;
   }
@@ -1082,6 +1100,7 @@ export class AutoWeaponSystem {
           name: def.name,
           rarity: def.rarity || "common",
           icon: def.icon,
+          iconColor: def.iconColor,
           description: `Level ${weapon.level + 1}: ${this.getUpgradeDescription(weapon.id, weapon.level + 1)}`,
           currentLevel: weapon.level,
         });
@@ -1093,14 +1112,13 @@ export class AutoWeaponSystem {
     if (this.equippedWeapons.length < MAX_WEAPON_SLOTS) {
       for (const [id, def] of Object.entries(AUTO_WEAPONS)) {
         if (!this.hasWeapon(id)) {
-          // If this is an evolution-only weapon, skip it (they can't be picked normally)
-          // Evolution weapons shouldn't be in AUTO_WEAPONS but just in case
           upgrades.push({
             type: "weapon",
             id: id,
             name: def.name,
             rarity: def.rarity || "common",
             icon: def.icon,
+            iconColor: def.iconColor,
             description: def.description,
             currentLevel: 0,
           });

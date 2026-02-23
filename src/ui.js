@@ -360,6 +360,9 @@ export class UI {
       const icon = document.createElement("span");
       icon.className = "icon";
       icon.innerHTML = def.icon;
+      if (def.iconColor) {
+        icon.style.color = def.iconColor;
+      }
       box.appendChild(icon);
 
       const level = document.createElement("span");
@@ -367,7 +370,6 @@ export class UI {
       level.textContent = weapon.level;
       box.appendChild(level);
 
-      // Tooltip on hover
       box.title = `${def.name} Lv.${weapon.level}`;
 
       this.elements.weaponIcons.appendChild(box);
@@ -395,6 +397,9 @@ export class UI {
       const icon = document.createElement("span");
       icon.className = "icon";
       icon.innerHTML = def.icon;
+      if (def.iconColor) {
+        icon.style.color = def.iconColor;
+      }
       box.appendChild(icon);
 
       const level = document.createElement("span");
@@ -402,7 +407,6 @@ export class UI {
       level.textContent = item.level;
       box.appendChild(level);
 
-      // Tooltip
       box.title = `${def.name} Lv.${item.level}`;
 
       this.elements.passiveItems.appendChild(box);

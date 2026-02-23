@@ -180,10 +180,7 @@ export class UpgradeUI {
           transform: translateY(-8px) scale(1.02);
         }
 
-        .upgrade-choice.new:hover {
-          border-color: #ffaa00;
-          box-shadow: 0 10px 30px rgba(255, 136, 0, 0.3);
-        }
+
       }
 
       @keyframes evolutionGlow {
@@ -207,7 +204,6 @@ export class UpgradeUI {
       }
 
       .upgrade-choice.new {
-        border-color: #ff8800;
       }
 
       .upgrade-choice.new::after {
@@ -420,7 +416,7 @@ export class UpgradeUI {
     // Get all available upgrades
     const weaponUpgrades = this.game.autoWeaponSystem.getAvailableUpgrades();
     const passiveUpgrades = this.game.passiveItemSystem.getAvailableUpgrades();
-// Combine all arrays safely handling undefined ones
+    // Combine all arrays safely handling undefined ones
     const allUpgrades = [
       ...(evolutionUpgrades || []),
       ...(weaponUpgrades || []),
@@ -436,8 +432,9 @@ export class UpgradeUI {
           name: "Gold Bag",
           rarity: "uncommon",
           icon: '<i class="fa-solid fa-sack-dollar"></i>',
+          iconColor: "#ffcc00",
           description: "Gain +100 Gold",
-          currentLevel: 1, // Non-zero to avoid "NEW" tag
+          currentLevel: 1,
         },
         {
           type: "fallback",
@@ -445,15 +442,28 @@ export class UpgradeUI {
           name: "Floor Chicken",
           rarity: "common",
           icon: '<i class="fa-solid fa-drumstick-bite"></i>',
+          iconColor: "#ff8844",
           description: "Heal 30 HP",
           currentLevel: 1,
-        }
+        },
       ];
       return;
     }
 
-    // Shuffle and pick 3-4
-    const shuffled = shuffleArray(allUpgrades);
+    // Luck influences rarity weighting: higher luck = higher rarity items appear more
+    const luck = this.game.playerStats?.luck || 0;
+    const rarityWeight = { common: 1, uncommon: 1.5, rare: 2, legendary: 3 };
+    const weightedShuffle = (arr) => {
+      return arr
+        .map((item) => ({
+          item,
+          score: Math.random() * (rarityWeight[item.rarity] || 1) * (1 + luck * 0.1),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .map((e) => e.item);
+    };
+
+    const shuffled = weightedShuffle(allUpgrades);
     const numChoices = Math.min(4, shuffled.length);
 
     // Prefer showing evolutions first if available
@@ -495,9 +505,10 @@ export class UpgradeUI {
 
   createChoiceElement(choice, index) {
     const element = document.createElement("div");
-    
+
     // Determine rarity class (evolutions are implicitly legendary)
-    const rarityClass = choice.type === "evolution" ? "evolution" : (choice.rarity || "common");
+    const rarityClass =
+      choice.type === "evolution" ? "evolution" : choice.rarity || "common";
     element.className = `upgrade-choice ${choice.type} ${rarityClass}`;
 
     if (choice.currentLevel === 0) {
@@ -507,13 +518,18 @@ export class UpgradeUI {
     // Rarity label
     const rarityLabel = document.createElement("div");
     rarityLabel.className = `upgrade-rarity-label rarity-${rarityClass}`;
-    rarityLabel.textContent = rarityClass === "evolution" ? "EVOLUTION" : rarityClass.toUpperCase();
+    rarityLabel.textContent =
+      rarityClass === "evolution" ? "EVOLUTION" : rarityClass.toUpperCase();
     element.appendChild(rarityLabel);
 
     // Icon
     const icon = document.createElement("div");
     icon.className = "upgrade-icon";
     icon.innerHTML = choice.icon;
+    if (choice.iconColor) {
+      icon.style.color = choice.iconColor;
+      icon.style.filter = `drop-shadow(0 0 10px ${choice.iconColor}80)`;
+    }
     element.appendChild(icon);
 
     // Name
@@ -541,12 +557,16 @@ export class UpgradeUI {
 
     // Level pips
     const maxLevel =
-      choice.type === "fallback" 
+      choice.type === "fallback"
         ? 0
         : choice.type === "weapon"
-          ? (AUTO_WEAPONS && AUTO_WEAPONS[choice.id] ? AUTO_WEAPONS[choice.id].maxLevel : 8)
-          : (PASSIVE_ITEMS && PASSIVE_ITEMS[choice.id] ? PASSIVE_ITEMS[choice.id].maxLevel : 5);
-    
+          ? AUTO_WEAPONS && AUTO_WEAPONS[choice.id]
+            ? AUTO_WEAPONS[choice.id].maxLevel
+            : 8
+          : PASSIVE_ITEMS && PASSIVE_ITEMS[choice.id]
+            ? PASSIVE_ITEMS[choice.id].maxLevel
+            : 5;
+
     if (choice.type !== "fallback") {
       const levelDisplay = document.createElement("div");
       levelDisplay.className = "upgrade-level-display";
