@@ -3,111 +3,114 @@ import * as THREE from "three";
 
 // Particle presets for different effects
 const PARTICLE_PRESETS = {
-  // XP gem collection sparkles
   xpCollect: {
-    count: 12,
+    count: 6,
     colors: [0x00aaff, 0x00ffff, 0xffffff],
-    size: { min: 0.05, max: 0.15 },
-    speed: { min: 2, max: 5 },
+    size: { min: 0.04, max: 0.1 },
+    speed: { min: 2, max: 4 },
     gravity: -5,
-    lifetime: 0.6,
-    spread: 0.5,
+    lifetime: 0.5,
+    spread: 0.4,
     upward: true,
   },
 
-  // Level up celebration
   levelUp: {
-    count: 50,
+    count: 25,
     colors: [0xffcc00, 0xffffff, 0xff8800],
-    size: { min: 0.1, max: 0.25 },
-    speed: { min: 3, max: 8 },
+    size: { min: 0.08, max: 0.18 },
+    speed: { min: 3, max: 6 },
     gravity: -3,
-    lifetime: 1.5,
-    spread: 3,
+    lifetime: 1.2,
+    spread: 2.5,
     upward: true,
     ring: true,
   },
 
-  // Enemy death particles
   enemyDeath: {
-    count: 20,
+    count: 8,
     colors: [0x44ff44, 0x228822, 0x115511],
-    size: { min: 0.08, max: 0.2 },
-    speed: { min: 3, max: 7 },
+    size: { min: 0.06, max: 0.14 },
+    speed: { min: 2, max: 5 },
     gravity: 15,
-    lifetime: 0.8,
-    spread: 1.5,
+    lifetime: 0.5,
+    spread: 1.0,
     upward: false,
   },
 
-  // Boss death explosion
   bossDeath: {
-    count: 100,
+    count: 40,
     colors: [0xff0088, 0x8800ff, 0xffffff, 0x000000],
-    size: { min: 0.15, max: 0.4 },
-    speed: { min: 5, max: 15 },
+    size: { min: 0.1, max: 0.3 },
+    speed: { min: 4, max: 12 },
     gravity: 10,
-    lifetime: 2.0,
-    spread: 5,
+    lifetime: 1.5,
+    spread: 4,
     upward: false,
   },
 
-  // Fire/explosion particles
   fire: {
-    count: 30,
+    count: 12,
     colors: [0xffffff, 0xffff00, 0xff8800, 0xff4400, 0xff0000],
-    size: { min: 0.1, max: 0.3 },
-    speed: { min: 2, max: 6 },
-    gravity: -8, // Rise up
-    lifetime: 0.8,
-    spread: 1,
+    size: { min: 0.06, max: 0.18 },
+    speed: { min: 2, max: 5 },
+    gravity: -8,
+    lifetime: 0.6,
+    spread: 0.8,
     upward: true,
     fadeToBlack: true,
   },
 
-  // Electric/lightning sparks
   electric: {
-    count: 25,
+    count: 10,
     colors: [0xffffff, 0x88ffff, 0x0088ff],
-    size: { min: 0.05, max: 0.12 },
-    speed: { min: 8, max: 15 },
+    size: { min: 0.04, max: 0.08 },
+    speed: { min: 6, max: 12 },
     gravity: 0,
-    lifetime: 0.3,
-    spread: 2,
+    lifetime: 0.25,
+    spread: 1.5,
     upward: false,
     streak: true,
   },
 
-  // Heal effect
   heal: {
-    count: 15,
+    count: 8,
     colors: [0x00ff00, 0x88ff88, 0xffffff],
-    size: { min: 0.1, max: 0.2 },
+    size: { min: 0.08, max: 0.15 },
     speed: { min: 1, max: 3 },
     gravity: -3,
-    lifetime: 1.0,
-    spread: 1,
+    lifetime: 0.8,
+    spread: 0.8,
     upward: true,
   },
 
-  // Blood splatter
   blood: {
-    count: 15,
+    count: 8,
     colors: [0xff0000, 0xaa0000, 0x880000],
-    size: { min: 0.08, max: 0.18 },
-    speed: { min: 3, max: 8 },
+    size: { min: 0.05, max: 0.12 },
+    speed: { min: 2, max: 6 },
     gravity: 20,
-    lifetime: 0.6,
-    spread: 1.5,
+    lifetime: 0.4,
+    spread: 1.0,
     upward: false,
   },
 
-  // Hit spark particles
   hitSpark: {
-    count: 6,
+    count: 4,
     colors: [0xffffff, 0xffffaa, 0xffcc00],
-    size: { min: 0.05, max: 0.15 },
-    speed: { min: 5, max: 12 },
+    size: { min: 0.04, max: 0.1 },
+    speed: { min: 4, max: 10 },
+    gravity: 8,
+    lifetime: 0.2,
+    spread: 1.5,
+    upward: false,
+    streak: true,
+  },
+
+  critSpark: {
+    count: 8,
+    colors: [0xffffff, 0xffaa00, 0xff4400],
+    size: { min: 0.06, max: 0.18 },
+    speed: { min: 8, max: 15 },
     gravity: 8,
     lifetime: 0.3,
     spread: 2,
@@ -115,41 +118,26 @@ const PARTICLE_PRESETS = {
     streak: true,
   },
 
-  // Crit spark particles
-  critSpark: {
-    count: 15,
-    colors: [0xffffff, 0xffaa00, 0xff4400],
-    size: { min: 0.1, max: 0.3 },
-    speed: { min: 10, max: 20 },
-    gravity: 8,
-    lifetime: 0.4,
-    spread: 3,
-    upward: false,
-    streak: true,
-  },
-
-  // Evolution sparkles
   evolution: {
-    count: 80,
+    count: 35,
     colors: [0xffdd00, 0xffffff, 0xff00ff, 0x00ffff],
-    size: { min: 0.1, max: 0.3 },
-    speed: { min: 2, max: 8 },
+    size: { min: 0.08, max: 0.2 },
+    speed: { min: 2, max: 6 },
     gravity: -2,
-    lifetime: 2.0,
-    spread: 3,
+    lifetime: 1.5,
+    spread: 2.5,
     upward: true,
     spiral: true,
   },
 
-  // Treasure chest opening
   treasure: {
-    count: 40,
+    count: 18,
     colors: [0xffdd00, 0xffffff, 0xff8800],
-    size: { min: 0.08, max: 0.2 },
-    speed: { min: 4, max: 10 },
+    size: { min: 0.06, max: 0.15 },
+    speed: { min: 3, max: 8 },
     gravity: 5,
-    lifetime: 1.2,
-    spread: 2,
+    lifetime: 1.0,
+    spread: 1.5,
     upward: true,
   },
 };
@@ -345,9 +333,8 @@ export class ParticleSystem {
         trail.lastSpawn = now;
         const pos = trail.getPosition();
         if (pos) {
-          // Spawn reduced count for trails
-          for (let j = 0; j < 3; j++) {
-            const particle = this.createParticle(trail.preset, pos, 0.5, j, 3);
+          for (let j = 0; j < 2; j++) {
+            const particle = this.createParticle(trail.preset, pos, 0.4, j, 2);
             this.particles.push(particle);
             this.game.scene.add(particle.mesh);
           }
@@ -479,24 +466,22 @@ export class ParticleSystem {
     requestAnimationFrame(animate);
   }
 
-  // Special effect: Impact flash
   createImpactFlash(position, color = 0xffffff, size = 1) {
-    const geometry = new THREE.SphereGeometry(size, 8, 8);
+    const geometry = new THREE.SphereGeometry(size * 0.6, 6, 6);
     const material = new THREE.MeshBasicMaterial({
       color: color,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.7,
     });
     const flash = new THREE.Mesh(geometry, material);
     flash.position.copy(position);
 
     this.game.scene.add(flash);
 
-    // Quick flash and fade
     let scale = 1;
     const animate = () => {
-      scale += 0.3;
-      material.opacity -= 0.15;
+      scale += 0.25;
+      material.opacity -= 0.18;
 
       if (material.opacity <= 0) {
         this.game.scene.remove(flash);

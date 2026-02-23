@@ -13,23 +13,23 @@ export const AUTO_WEAPONS = {
     icon: `<i class="fa-solid fa-wand-magic-sparkles"></i>`,
     maxLevel: 8,
     baseStats: {
-      damage: 8,
-      cooldown: 0.15, // Machine gun fast!
+      damage: 10,
+      cooldown: 0.5,
       projectileCount: 1,
-      projectileSpeed: 40, // Super fast projectile
+      projectileSpeed: 35,
       pierce: 0,
       area: 1.0,
       duration: 1.5,
     },
     levelBonuses: [
-      {}, // Level 1 (base)
-      { damage: 2 }, // Level 2
-      { projectileCount: 1 }, // Level 3
-      { damage: 3 }, // Level 4
-      { projectileCount: 1, pierce: 1 }, // Level 5
-      { damage: 5, cooldown: -0.02 }, // Level 6
-      { projectileCount: 1 }, // Level 7
-      { damage: 5, projectileCount: 1 }, // Level 8
+      {},
+      { damage: 3 },
+      { projectileCount: 1, cooldown: -0.05 },
+      { damage: 4 },
+      { pierce: 1, cooldown: -0.05 },
+      { damage: 5, projectileCount: 1 },
+      { cooldown: -0.05 },
+      { damage: 5, projectileCount: 1 },
     ],
   },
 
@@ -72,8 +72,8 @@ export const AUTO_WEAPONS = {
     icon: '<i class="fa-solid fa-khanda"></i>',
     maxLevel: 8,
     baseStats: {
-      damage: 8,
-      cooldown: 0.4,
+      damage: 9,
+      cooldown: 0.55,
       projectileCount: 1,
       projectileSpeed: 25,
       pierce: 0,
@@ -82,13 +82,13 @@ export const AUTO_WEAPONS = {
     },
     levelBonuses: [
       {},
+      { damage: 3, projectileSpeed: 3 },
       { projectileCount: 1 },
-      { damage: 3, projectileSpeed: 5 },
-      { projectileCount: 1 },
-      { damage: 5, pierce: 1 },
-      { projectileCount: 1 },
+      { damage: 4 },
+      { pierce: 1, projectileCount: 1 },
       { damage: 5, cooldown: -0.05 },
-      { projectileCount: 2, damage: 5 },
+      { projectileCount: 1 },
+      { damage: 5, projectileCount: 1 },
     ],
   },
 
@@ -228,13 +228,13 @@ export const AUTO_WEAPONS = {
     },
     levelBonuses: [
       {},
-      { damage: 5, projectileCount: 1 },
-      { area: 1.0 },
-      { projectileCount: 1, damage: 5 },
-      { area: 1.0, damage: 5 },
+      { damage: 5 },
+      { area: 1.0, projectileCount: 1 },
+      { damage: 5 },
+      { area: 1.0, projectileCount: 1 },
+      { damage: 8, cooldown: -0.1 },
       { projectileCount: 1 },
-      { damage: 10, cooldown: -0.1 },
-      { projectileCount: 2, damage: 10 },
+      { damage: 10, projectileCount: 1 },
     ],
   },
 
@@ -340,24 +340,24 @@ export const AUTO_WEAPONS = {
     maxLevel: 8,
     baseStats: {
       damage: 15,
-      cooldown: 2.5,
-      projectileCount: 2,
+      cooldown: 2.8,
+      projectileCount: 1,
       projectileSpeed: 6,
       pierce: 0,
       area: 1.0,
-      duration: 6.0,
+      duration: 5.0,
       homing: true,
       homingStrength: 2,
     },
     levelBonuses: [
       {},
-      { damage: 5, homingStrength: 0.5 },
-      { projectileCount: 1 },
-      { damage: 5, projectileSpeed: 1 },
-      { projectileCount: 1 },
-      { damage: 8 },
-      { projectileCount: 1, cooldown: -0.3 },
-      { damage: 10, projectileCount: 2 },
+      { damage: 5, projectileCount: 1 },
+      { homingStrength: 0.5 },
+      { damage: 5, projectileCount: 1 },
+      { projectileSpeed: 1, cooldown: -0.3 },
+      { damage: 8, projectileCount: 1 },
+      { cooldown: -0.3 },
+      { damage: 10, projectileCount: 1 },
     ],
   },
 
@@ -616,28 +616,26 @@ export class AutoWeaponSystem {
 
     const group = new THREE.Group();
 
-    // Solid bright core
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.2, 1.8, 4),
+      new THREE.CylinderGeometry(0.04, 0.15, 1.2, 4),
       new THREE.MeshBasicMaterial({ color: 0xffffff }),
     );
     core.rotation.x = Math.PI / 2;
-    core.position.z = 0.5;
+    core.position.z = 0.4;
     group.add(core);
 
-    // Glowing energy aura (Additive)
     const aura = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.2, 0.4, 2.2, 4),
+      new THREE.CylinderGeometry(0.1, 0.22, 1.4, 4),
       new THREE.MeshBasicMaterial({
         color: 0x0088ff,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.6,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
     );
     aura.rotation.x = Math.PI / 2;
-    aura.position.z = 0.6;
+    aura.position.z = 0.45;
     group.add(aura);
 
     this._knifeMeshCache = this.markShared(group);
@@ -651,71 +649,67 @@ export class AutoWeaponSystem {
     const group = new THREE.Group();
 
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.2, 1.8, 4),
+      new THREE.CylinderGeometry(0.05, 0.18, 1.4, 4),
       new THREE.MeshBasicMaterial({ color: 0x88ccff }),
     );
     core.rotation.x = Math.PI / 2;
-    core.position.z = 0.5;
+    core.position.z = 0.45;
     group.add(core);
 
     const aura = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.2, 0.4, 2.2, 4),
+      new THREE.CylinderGeometry(0.12, 0.28, 1.6, 4),
       new THREE.MeshBasicMaterial({
         color: 0x0044ff,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.6,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
     );
     aura.rotation.x = Math.PI / 2;
-    aura.position.z = 0.6;
+    aura.position.z = 0.5;
     group.add(aura);
 
     this._evolvedKnifeMeshCache = this.markShared(group);
     return group.clone();
   }
 
-  // Create a detailed axe mesh - SPINNING ENERGY SCYTHES
   createAxeMesh() {
     if (this._axeMeshCache) return this._axeMeshCache.clone();
 
     const group = new THREE.Group();
 
-    // Core
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.4, 16, 16),
+      new THREE.SphereGeometry(0.25, 8, 8),
       new THREE.MeshBasicMaterial({ color: 0xffffff }),
     );
     group.add(core);
 
-    // 4 scythe blades using additive blending
     const bladeMat = new THREE.MeshBasicMaterial({
       color: 0xff0044,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.85,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
 
-    const bladeGeo = new THREE.PlaneGeometry(2.0, 0.8);
+    const bladeGeo = new THREE.PlaneGeometry(1.2, 0.5);
     for (let i = 0; i < 4; i++) {
       const blade = new THREE.Mesh(bladeGeo, bladeMat);
       blade.rotation.x = Math.PI / 2;
-      blade.position.x = Math.cos((i * Math.PI) / 2) * 1.0;
-      blade.position.z = Math.sin((i * Math.PI) / 2) * 1.0;
+      blade.position.x = Math.cos((i * Math.PI) / 2) * 0.6;
+      blade.position.z = Math.sin((i * Math.PI) / 2) * 0.6;
       blade.rotation.y = (-i * Math.PI) / 2;
       group.add(blade);
     }
 
-    // Outer spinning ring
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(1.6, 2.0, 32),
+      new THREE.RingGeometry(1.0, 1.2, 16),
       new THREE.MeshBasicMaterial({
         color: 0xff00aa,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.4,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         side: THREE.DoubleSide,
@@ -728,28 +722,25 @@ export class AutoWeaponSystem {
     return group.clone();
   }
 
-  // Create magic orb - SMALL FAST BLASTER SHOT
   createMagicOrbMesh(color) {
     if (!this._orbMeshCaches) this._orbMeshCaches = {};
     if (this._orbMeshCaches[color]) return this._orbMeshCaches[color].clone();
 
     const group = new THREE.Group();
 
-    // Hot inner core
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8),
+      new THREE.CylinderGeometry(0.06, 0.06, 0.8, 6),
       new THREE.MeshBasicMaterial({ color: 0xffffff }),
     );
     core.rotation.x = Math.PI / 2;
     group.add(core);
 
-    // Primary laser glow
     const glow1 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.18, 1.6, 8),
+      new THREE.CylinderGeometry(0.12, 0.12, 1.0, 6),
       new THREE.MeshBasicMaterial({
         color: color || 0x00ffff,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.7,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
@@ -757,25 +748,10 @@ export class AutoWeaponSystem {
     glow1.rotation.x = Math.PI / 2;
     group.add(glow1);
 
-    // Outer laser aura
-    const glow2 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.35, 0.35, 2.0, 8),
-      new THREE.MeshBasicMaterial({
-        color: color || 0x0088ff,
-        transparent: true,
-        opacity: 0.3,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    glow2.rotation.x = Math.PI / 2;
-    group.add(glow2);
-
     this._orbMeshCaches[color] = this.markShared(group);
     return group.clone();
   }
 
-  // Create cross/boomerang mesh - GLOWING HOLY BOOMERANG
   createCrossMesh() {
     if (this._crossMeshCache) return this._crossMeshCache.clone();
 
@@ -785,126 +761,43 @@ export class AutoWeaponSystem {
     const glowMat = new THREE.MeshBasicMaterial({
       color: 0xffaa00,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.6,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
 
-    // Vertical
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 2.0), coreMat));
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 2.4), glowMat));
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 1.4), coreMat));
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 1.6), glowMat));
 
-    // Horizontal
-    const hCore = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 0.2), coreMat);
-    hCore.position.z = -0.3;
+    const hCore = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.15, 0.15), coreMat);
+    hCore.position.z = -0.2;
     group.add(hCore);
 
-    const hGlow = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 0.6), glowMat);
-    hGlow.position.z = -0.3;
+    const hGlow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.35), glowMat);
+    hGlow.position.z = -0.2;
     group.add(hGlow);
-
-    // Huge spherical holy aura
-    const aura = new THREE.Mesh(
-      new THREE.SphereGeometry(2.0, 16, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xffcc00,
-        transparent: true,
-        opacity: 0.2,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(aura);
 
     this._crossMeshCache = this.markShared(group);
     return group.clone();
   }
 
-  // Create fireball mesh - MASSIVE METEOR
   createFireballMesh() {
     if (this._fireballMeshCache) return this._fireballMeshCache.clone();
 
     const group = new THREE.Group();
 
-    // Hot white core
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(0.6, 16, 16),
+        new THREE.SphereGeometry(0.3, 8, 8),
         new THREE.MeshBasicMaterial({ color: 0xffffff }),
       ),
     );
 
-    // Intense inner flame
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(1.2, 16, 16),
+        new THREE.SphereGeometry(0.6, 8, 8),
         new THREE.MeshBasicMaterial({
           color: 0xff8800,
-          transparent: true,
-          opacity: 0.9,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    );
-
-    // Long fire trail (cone pointing backward)
-    const trail = new THREE.Mesh(
-      new THREE.ConeGeometry(2.0, 5.0, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xff2200,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    trail.rotation.x = Math.PI / 2;
-    trail.position.z = 1.5;
-    group.add(trail);
-
-    // Outer heat aura
-    group.add(
-      new THREE.Mesh(
-        new THREE.SphereGeometry(2.5, 16, 16),
-        new THREE.MeshBasicMaterial({
-          color: 0xff0000,
-          transparent: true,
-          opacity: 0.2,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    );
-
-    // Intense point light
-    const light = new THREE.PointLight(0xff4400, 3, 15);
-    group.add(light);
-
-    this._fireballMeshCache = this.markShared(group);
-    return group.clone();
-  }
-
-  // Create runetracer mesh - BOUNCING NEON LASER ORB
-  createRunetracerMesh() {
-    if (this._runeMeshCache) return this._runeMeshCache.clone();
-
-    const group = new THREE.Group();
-
-    // Bright core
-    group.add(
-      new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.8, 0),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      ),
-    );
-
-    // Inner glowing diamond
-    group.add(
-      new THREE.Mesh(
-        new THREE.OctahedronGeometry(1.6, 0),
-        new THREE.MeshBasicMaterial({
-          color: 0xff00ff,
           transparent: true,
           opacity: 0.8,
           blending: THREE.AdditiveBlending,
@@ -913,14 +806,43 @@ export class AutoWeaponSystem {
       ),
     );
 
-    // Massive outer aura
+    const trail = new THREE.Mesh(
+      new THREE.ConeGeometry(0.8, 2.0, 8),
+      new THREE.MeshBasicMaterial({
+        color: 0xff2200,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    trail.rotation.x = Math.PI / 2;
+    trail.position.z = 0.8;
+    group.add(trail);
+
+    this._fireballMeshCache = this.markShared(group);
+    return group.clone();
+  }
+
+  createRunetracerMesh() {
+    if (this._runeMeshCache) return this._runeMeshCache.clone();
+
+    const group = new THREE.Group();
+
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(2.5, 16, 16),
+        new THREE.OctahedronGeometry(0.35, 0),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      ),
+    );
+
+    group.add(
+      new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.7, 0),
         new THREE.MeshBasicMaterial({
-          color: 0xaa00ff,
+          color: 0xff00ff,
           transparent: true,
-          opacity: 0.3,
+          opacity: 0.7,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
@@ -931,56 +853,38 @@ export class AutoWeaponSystem {
     return group.clone();
   }
 
-  // Create holy water bottle - DIVINE EXPLOSIVE VIAL
   createHolyWaterMesh() {
     if (this._bottleMeshCache) return this._bottleMeshCache.clone();
 
     const group = new THREE.Group();
 
-    // Bright cyan core
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 12, 12),
+        new THREE.SphereGeometry(0.25, 8, 8),
         new THREE.MeshBasicMaterial({ color: 0xffffff }),
       ),
     );
 
-    // Intense liquid glow
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(1.0, 12, 12),
+        new THREE.SphereGeometry(0.5, 8, 8),
         new THREE.MeshBasicMaterial({
           color: 0x00aaff,
           transparent: true,
-          opacity: 0.8,
+          opacity: 0.7,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
       ),
     );
 
-    // Outer holy aura
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(1.6, 12, 12),
-        new THREE.MeshBasicMaterial({
-          color: 0x0055ff,
-          transparent: true,
-          opacity: 0.4,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      ),
-    );
-
-    // Bottle outline (shadow)
-    group.add(
-      new THREE.Mesh(
-        new THREE.CylinderGeometry(0.6, 0.8, 1.2, 8),
+        new THREE.CylinderGeometry(0.3, 0.4, 0.7, 6),
         new THREE.MeshBasicMaterial({
           color: 0x000000,
           transparent: true,
-          opacity: 0.5,
+          opacity: 0.4,
           wireframe: true,
         }),
       ),
@@ -1198,9 +1102,8 @@ export class AutoWeaponSystem {
     this.updateEffects(delta);
   }
 
-  // Calculate visual scale based on weapon level (level 1 = 0.5, level 8 = 1.2)
   getLevelScale(level) {
-    return 0.5 + (level - 1) * 0.1;
+    return 0.5 + (level - 1) * 0.08;
   }
 
   fireWeapon(weaponId, stats, playerPos, playerDir, zombies, level = 1) {
@@ -1304,15 +1207,13 @@ export class AutoWeaponSystem {
     }
   }
 
-  // Create holy wand projectile
   createHolyWandMesh() {
     if (this._holyWandMeshCache) return this._holyWandMeshCache.clone();
 
     const group = new THREE.Group();
 
-    // Core white light
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8),
+      new THREE.CylinderGeometry(0.07, 0.07, 1.0, 6),
       new THREE.MeshBasicMaterial({
         color: 0xffffff,
         blending: THREE.AdditiveBlending,
@@ -1322,13 +1223,12 @@ export class AutoWeaponSystem {
     core.rotation.x = Math.PI / 2;
     group.add(core);
 
-    // Golden laser aura
     const glow = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.3, 0.3, 2.0, 8),
+      new THREE.CylinderGeometry(0.18, 0.18, 1.3, 6),
       new THREE.MeshBasicMaterial({
         color: 0xffaa00,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.6,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
@@ -1336,19 +1236,15 @@ export class AutoWeaponSystem {
     glow.rotation.x = Math.PI / 2;
     group.add(glow);
 
-    // Holy rings
-    for (let r = -0.5; r <= 0.5; r += 0.5) {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.4, 0.05, 8, 16),
-        new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      );
-      ring.position.z = r;
-      group.add(ring);
-    }
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.25, 0.03, 6, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    group.add(ring);
 
     this._holyWandMeshCache = this.markShared(group);
     return group.clone();
@@ -1400,13 +1296,12 @@ export class AutoWeaponSystem {
       const group = new THREE.Group();
       const width = 8 * stats.area;
 
-      // Massive Crimson Plasma Slash
       const slash = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1, 1.2, width, 16),
+        new THREE.CylinderGeometry(0.08, 0.7, width, 8),
         new THREE.MeshBasicMaterial({
           color: 0xff0000,
           transparent: true,
-          opacity: 0.9,
+          opacity: 0.85,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
@@ -1415,13 +1310,12 @@ export class AutoWeaponSystem {
       slash.position.x = width / 2;
       group.add(slash);
 
-      // Dark red inner aura
       const aura = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.5, 2.0, width * 0.9, 16),
+        new THREE.CylinderGeometry(0.3, 1.0, width * 0.9, 8),
         new THREE.MeshBasicMaterial({
           color: 0x880000,
           transparent: true,
-          opacity: 0.6,
+          opacity: 0.4,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
@@ -1430,37 +1324,19 @@ export class AutoWeaponSystem {
       aura.position.x = width / 2;
       group.add(aura);
 
-      // Bloody ground fissure
-      const groundFissure = new THREE.Mesh(
-        new THREE.PlaneGeometry(width * 1.2, 3),
-        new THREE.MeshBasicMaterial({
-          color: 0xff0022,
-          transparent: true,
-          opacity: 0.8,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      );
-      groundFissure.rotation.x = -Math.PI / 2;
-      groundFissure.position.set(width / 2, -0.9, 0);
-      group.add(groundFissure);
-
-      // Dripping blood particles
-      for (let d = 0; d < 12; d++) {
+      for (let d = 0; d < 5; d++) {
         const drip = new THREE.Mesh(
-          new THREE.SphereGeometry(0.2, 6, 6),
+          new THREE.SphereGeometry(0.12, 4, 4),
           new THREE.MeshBasicMaterial({
             color: 0xff0000,
             transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
+            opacity: 0.7,
           }),
         );
         drip.position.set(
           Math.random() * width,
           -0.3,
-          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.4,
         );
         group.add(drip);
       }
@@ -1499,7 +1375,7 @@ export class AutoWeaponSystem {
       dir.normalize();
 
       const mesh = this.createEvolvedKnifeMesh();
-      mesh.scale.setScalar(2.5);
+      mesh.scale.setScalar(1.5);
       mesh.position.copy(playerPos);
       mesh.position.y = 1;
 
@@ -1533,33 +1409,19 @@ export class AutoWeaponSystem {
       const angle = (i / stats.projectileCount) * Math.PI * 2;
 
       const mesh = this.createAxeMesh();
-      mesh.scale.setScalar(3); // Even bigger for evolved
+      mesh.scale.setScalar(1.8);
 
-      // Massive dark magenta aura
       const aura = new THREE.Mesh(
-        new THREE.SphereGeometry(1.5, 16, 16),
+        new THREE.SphereGeometry(0.6, 8, 8),
         new THREE.MeshBasicMaterial({
           color: 0xaa00ff,
           transparent: true,
-          opacity: 0.5,
+          opacity: 0.35,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
       );
       mesh.add(aura);
-
-      // Inner bright core
-      const core = new THREE.Mesh(
-        new THREE.SphereGeometry(0.8, 16, 16),
-        new THREE.MeshBasicMaterial({
-          color: 0xffaaff,
-          transparent: true,
-          opacity: 0.8,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      );
-      mesh.add(core);
 
       mesh.position.copy(playerPos);
       mesh.position.x += Math.cos(angle) * orbitRadius;
@@ -1603,21 +1465,20 @@ export class AutoWeaponSystem {
     aura.rotation.x = -Math.PI / 2;
     group.add(aura);
 
-    // Ghostly wisps
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 4; i++) {
       const wisp = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 6, 6),
+        new THREE.SphereGeometry(0.2, 4, 4),
         new THREE.MeshBasicMaterial({
           color: 0x88ff88,
           transparent: true,
-          opacity: 0.7,
+          opacity: 0.5,
         }),
       );
-      const angle = (i / 8) * Math.PI * 2;
+      const angle = (i / 4) * Math.PI * 2;
       wisp.position.set(
-        Math.cos(angle) * stats.area * 0.7,
-        0.5,
-        Math.sin(angle) * stats.area * 0.7,
+        Math.cos(angle) * stats.area * 0.6,
+        0.4,
+        Math.sin(angle) * stats.area * 0.6,
       );
       group.add(wisp);
     }
@@ -1662,15 +1523,13 @@ export class AutoWeaponSystem {
     });
   }
 
-  // Create heaven sword mesh
   createHeavenSwordMesh() {
     if (this._heavenSwordMeshCache) return this._heavenSwordMeshCache.clone();
 
     const group = new THREE.Group();
 
-    // Core blade (White hot)
     const core = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 2.5, 0.4),
+      new THREE.BoxGeometry(0.08, 1.8, 0.3),
       new THREE.MeshBasicMaterial({
         color: 0xffffff,
         blending: THREE.AdditiveBlending,
@@ -1679,26 +1538,24 @@ export class AutoWeaponSystem {
     );
     group.add(core);
 
-    // Golden blade aura
     const bladeGlow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 2.8, 0.8),
+      new THREE.BoxGeometry(0.2, 2.0, 0.5),
       new THREE.MeshBasicMaterial({
         color: 0xffdd00,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.5,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
     );
     group.add(bladeGlow);
 
-    // Massive divine halo
     const halo = new THREE.Mesh(
-      new THREE.RingGeometry(1.2, 1.5, 32),
+      new THREE.RingGeometry(0.6, 0.75, 16),
       new THREE.MeshBasicMaterial({
         color: 0xffffaa,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.6,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
@@ -1707,40 +1564,26 @@ export class AutoWeaponSystem {
     halo.rotation.x = Math.PI / 2;
     group.add(halo);
 
-    // Divine glow sphere
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(1.5, 16, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xffaa00,
-        transparent: true,
-        opacity: 0.3,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(glow);
-
-    // Wing decorations
     const wingMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.7,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
     const leftWing = new THREE.Mesh(
-      new THREE.ConeGeometry(0.4, 1.2, 4),
+      new THREE.ConeGeometry(0.25, 0.8, 4),
       wingMat,
     );
-    leftWing.position.set(-0.6, 0.3, 0);
+    leftWing.position.set(-0.4, 0.2, 0);
     leftWing.rotation.z = Math.PI / 2;
     group.add(leftWing);
 
     const rightWing = new THREE.Mesh(
-      new THREE.ConeGeometry(0.4, 1.2, 4),
+      new THREE.ConeGeometry(0.25, 0.8, 4),
       wingMat,
     );
-    rightWing.position.set(0.6, 0.3, 0);
+    rightWing.position.set(0.4, 0.2, 0);
     rightWing.rotation.z = -Math.PI / 2;
     group.add(rightWing);
 
@@ -1803,22 +1646,8 @@ export class AutoWeaponSystem {
         targetPos.z += Math.sin(angle) * 8;
       }
 
-      // Create massive meteor falling from sky
       const mesh = this.createFireballMesh();
-      mesh.scale.setScalar(4); // Huge meteor
-
-      // Add extra black/dark red hellish aura
-      const darkAura = new THREE.Mesh(
-        new THREE.SphereGeometry(1.5, 16, 16),
-        new THREE.MeshBasicMaterial({
-          color: 0xff0000,
-          transparent: true,
-          opacity: 0.5,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      );
-      mesh.add(darkAura);
+      mesh.scale.setScalar(2.5);
 
       mesh.position.copy(targetPos);
       mesh.position.y = 30; // Start from very high above
@@ -1884,31 +1713,30 @@ export class AutoWeaponSystem {
         const tubeGeometry = new THREE.TubeGeometry(
           curve,
           segments * 2,
-          0.3, // Thicker outer glow
-          8,
+          0.18,
+          6,
           false,
         );
         const tubeMaterial = new THREE.MeshBasicMaterial({
           color: 0x0088ff,
           transparent: true,
-          opacity: 0.6,
+          opacity: 0.5,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
         const bolt = new THREE.Mesh(tubeGeometry, tubeMaterial);
 
-        // Inner white hot core
         const coreGeometry = new THREE.TubeGeometry(
           curve,
           segments * 2,
-          0.1, // Thinner core
-          8,
+          0.06,
+          6,
           false,
         );
         const coreMaterial = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.9,
+          opacity: 0.8,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
@@ -1969,15 +1797,13 @@ export class AutoWeaponSystem {
     this.game.audioManager.playSound("lightning");
   }
 
-  // Create No Future Mesh
   createNoFutureMesh() {
     if (this._noFutureMeshCache) return this._noFutureMeshCache.clone();
 
     const group = new THREE.Group();
 
-    // Bright white core
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.5, 12, 12),
+      new THREE.SphereGeometry(0.3, 8, 8),
       new THREE.MeshBasicMaterial({
         color: 0xffffff,
         blending: THREE.AdditiveBlending,
@@ -1986,38 +1812,23 @@ export class AutoWeaponSystem {
     );
     group.add(core);
 
-    // Glowing purple inner aura
     const innerAura = new THREE.Mesh(
-      new THREE.SphereGeometry(0.8, 16, 16),
+      new THREE.SphereGeometry(0.55, 8, 8),
       new THREE.MeshBasicMaterial({
         color: 0xaa00ff,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.6,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
     );
     group.add(innerAura);
 
-    // Massive dark purple outer aura
-    const outerAura = new THREE.Mesh(
-      new THREE.SphereGeometry(1.5, 16, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xff00ff,
-        transparent: true,
-        opacity: 0.4,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(outerAura);
-
-    // Laser lines crossing the orb
-    const lineGeo = new THREE.CylinderGeometry(0.05, 0.05, 3.5, 8);
+    const lineGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.8, 6);
     const lineMat = new THREE.MeshBasicMaterial({
       color: 0xffaaff,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.7,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -2114,46 +1925,41 @@ export class AutoWeaponSystem {
       poolAura.position.y = -0.01;
       group.add(poolAura);
 
-      // Ripple rings
-      for (let r = 0; r < 3; r++) {
-        const ring = new THREE.Mesh(
-          new THREE.RingGeometry(
-            stats.area * (0.3 + r * 0.25),
-            stats.area * (0.35 + r * 0.25),
-            32,
-          ),
-          new THREE.MeshBasicMaterial({
-            color: 0x88ccff,
-            transparent: true,
-            opacity: 0.7,
-            blending: THREE.AdditiveBlending,
-            side: THREE.DoubleSide,
-            depthWrite: false,
-          }),
-        );
-        ring.rotation.x = -Math.PI / 2;
-        ring.position.y = 0.02 * r;
-        group.add(ring);
-      }
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(
+          stats.area * 0.5,
+          stats.area * 0.6,
+          16,
+        ),
+        new THREE.MeshBasicMaterial({
+          color: 0x88ccff,
+          transparent: true,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      group.add(ring);
 
-      // Plasma Bubbles (rising)
       const bubbles = [];
-      for (let b = 0; b < 12; b++) {
+      for (let b = 0; b < 4; b++) {
         const bubble = new THREE.Mesh(
-          new THREE.SphereGeometry(0.2, 8, 8),
+          new THREE.SphereGeometry(0.12, 6, 6),
           new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
-            opacity: 0.9,
+            opacity: 0.7,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           }),
         );
         const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * stats.area * 0.8;
+        const dist = Math.random() * stats.area * 0.6;
         bubble.position.set(
           Math.cos(angle) * dist,
-          0.2 + Math.random() * 0.5,
+          0.2 + Math.random() * 0.3,
           Math.sin(angle) * dist,
         );
         group.add(bubble);
@@ -2238,49 +2044,45 @@ export class AutoWeaponSystem {
       const pos = attackPositions[i];
       const dir = i === 0 ? playerDir.clone() : playerDir.clone().negate();
 
-      // Create massive energy slash effect
-      const width = 4 * stats.area * scale;
+      const width = 3 * stats.area * scale;
       const group = new THREE.Group();
 
-      // Huge central plasma slash
       const slashMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      });
-      const slash = new THREE.Mesh(
-        new THREE.PlaneGeometry(width, 2.0),
-        slashMat,
-      );
-      slash.position.set(width / 2, 1.0, 0);
-      slash.rotation.y = Math.PI; // Face the right way
-      group.add(slash);
-
-      // Outer wide fire glow
-      const glowMat = new THREE.MeshBasicMaterial({
-        color: 0xff4400,
         transparent: true,
         opacity: 0.8,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
       });
+      const slash = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, 1.2),
+        slashMat,
+      );
+      slash.position.set(width / 2, 1.0, 0);
+      slash.rotation.y = Math.PI;
+      group.add(slash);
+
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xff4400,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
       const glow = new THREE.Mesh(
-        new THREE.PlaneGeometry(width * 1.2, 4.0),
+        new THREE.PlaneGeometry(width * 1.1, 2.0),
         glowMat,
       );
       glow.position.set(width / 2, 1.0, 0);
       group.add(glow);
 
-      // Ground fire fissure
-      const groundGeometry = new THREE.PlaneGeometry(width, 2.0);
+      const groundGeometry = new THREE.PlaneGeometry(width, 1.2);
       const groundMaterial = new THREE.MeshBasicMaterial({
         color: 0xffaa00,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.4,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
@@ -2388,13 +2190,12 @@ export class AutoWeaponSystem {
     // Create expanding magical aura effect - DIVINE/TOXIC RUNE FIELD
     const group = new THREE.Group();
 
-    // Runic inner circle
     const innerRing = new THREE.Mesh(
-      new THREE.RingGeometry(stats.area * 0.5, stats.area * 0.7, 32),
+      new THREE.RingGeometry(stats.area * 0.5, stats.area * 0.65, 16),
       new THREE.MeshBasicMaterial({
         color: 0x88ff88,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.6,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
@@ -2403,28 +2204,12 @@ export class AutoWeaponSystem {
     innerRing.rotation.x = -Math.PI / 2;
     group.add(innerRing);
 
-    // Thick outer glow
-    const outerRing = new THREE.Mesh(
-      new THREE.RingGeometry(stats.area * 0.8, stats.area * 1.2, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0x00ff00,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      }),
-    );
-    outerRing.rotation.x = -Math.PI / 2;
-    group.add(outerRing);
-
-    // Central pulsing energy field
     const fill = new THREE.Mesh(
-      new THREE.CircleGeometry(stats.area, 32),
+      new THREE.CircleGeometry(stats.area * 0.8, 16),
       new THREE.MeshBasicMaterial({
         color: 0x44ff44,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.15,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
@@ -2585,41 +2370,25 @@ export class AutoWeaponSystem {
       // Create thick glowing bolt using tube geometry
       const curve = new THREE.CatmullRomCurve3(points);
 
-      // Core bolt - pure white/cyan
       const coreBolt = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, segments * 2, 0.2 * scale, 8, false),
+        new THREE.TubeGeometry(curve, segments * 2, 0.12 * scale, 6, false),
         new THREE.MeshBasicMaterial({ color: 0xffffff }),
       );
       boltGroup.add(coreBolt);
 
-      // Intense cyan glow
       const glowBolt = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, segments * 2, 0.6 * scale, 8, false),
+        new THREE.TubeGeometry(curve, segments * 2, 0.3 * scale, 6, false),
         new THREE.MeshBasicMaterial({
           color: 0x00ffff,
           transparent: true,
-          opacity: 0.8,
+          opacity: 0.7,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
       );
       boltGroup.add(glowBolt);
 
-      // Massive outer aura
-      const auraBolt = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, segments * 2, 1.5 * scale, 8, false),
-        new THREE.MeshBasicMaterial({
-          color: 0x0055ff,
-          transparent: true,
-          opacity: 0.4,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
-      );
-      boltGroup.add(auraBolt);
-
-      // Add branching bolts for more dramatic effect
-      for (let b = 0; b < 2; b++) {
+      for (let b = 0; b < 1; b++) {
         const branchStart = Math.floor(Math.random() * (segments - 2)) + 1;
         const branchPoints = [points[branchStart].clone()];
         const branchLength = 3;
@@ -2655,69 +2424,29 @@ export class AutoWeaponSystem {
       // Damage enemy
       this.game.zombieManager.damageZombie(target, stats.damage);
 
-      // Create LARGE ground impact with multiple rings
       const impactGroup = new THREE.Group();
 
-      // Inner bright flash
-      const flashGeometry = new THREE.CircleGeometry(1.5 * scale, 16);
+      const flashGeometry = new THREE.CircleGeometry(0.8 * scale, 12);
       const flashMaterial = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.8,
         side: THREE.DoubleSide,
       });
       const flash = new THREE.Mesh(flashGeometry, flashMaterial);
       flash.rotation.x = -Math.PI / 2;
       impactGroup.add(flash);
 
-      // Electric ring 1
-      const ring1Geometry = new THREE.RingGeometry(1.2 * scale, 2 * scale, 16);
+      const ring1Geometry = new THREE.RingGeometry(0.7 * scale, 1.1 * scale, 12);
       const ring1Material = new THREE.MeshBasicMaterial({
         color: 0x44ffff,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.6,
         side: THREE.DoubleSide,
       });
       const ring1 = new THREE.Mesh(ring1Geometry, ring1Material);
       ring1.rotation.x = -Math.PI / 2;
       impactGroup.add(ring1);
-
-      // Electric ring 2 - outer
-      const ring2Geometry = new THREE.RingGeometry(
-        1.8 * scale,
-        2.5 * scale,
-        16,
-      );
-      const ring2Material = new THREE.MeshBasicMaterial({
-        color: 0x0088ff,
-        transparent: true,
-        opacity: 0.5,
-        side: THREE.DoubleSide,
-      });
-      const ring2 = new THREE.Mesh(ring2Geometry, ring2Material);
-      ring2.rotation.x = -Math.PI / 2;
-      impactGroup.add(ring2);
-
-      // Electric sparks radiating outward
-      for (let s = 0; s < 6; s++) {
-        const sparkAngle = (s / 6) * Math.PI * 2;
-        const sparkLength = 1.5 * scale;
-        const sparkGeometry = new THREE.BoxGeometry(
-          sparkLength,
-          0.1,
-          0.15 * scale,
-        );
-        const sparkMaterial = new THREE.MeshBasicMaterial({
-          color: 0x88ffff,
-          transparent: true,
-          opacity: 0.9,
-        });
-        const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
-        spark.position.x = Math.cos(sparkAngle) * sparkLength * 0.5;
-        spark.position.z = Math.sin(sparkAngle) * sparkLength * 0.5;
-        spark.rotation.y = sparkAngle;
-        impactGroup.add(spark);
-      }
 
       impactGroup.position.copy(endPos);
       impactGroup.position.y = 0.15;
@@ -2816,10 +2545,8 @@ export class AutoWeaponSystem {
 
   // Create a generic projectile (magic orb style)
   createProjectile(config) {
-    // Create detailed magic orb mesh
     const mesh = this.createMagicOrbMesh(config.color);
-    // Scale based on level (config.scale) and area stat
-    const visualScale = (config.scale || 1) * (config.area || 1);
+    const visualScale = (config.scale || 1) * Math.min(1.5, Math.sqrt(config.area || 1));
     mesh.scale.setScalar(visualScale);
     mesh.position.copy(config.position);
 

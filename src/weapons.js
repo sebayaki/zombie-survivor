@@ -210,14 +210,13 @@ export class WeaponSystem {
 
     this.game.scene.add(mesh);
 
-    // Add glow effect
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: weapon.projectileColor,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.4,
     });
     const glow = new THREE.Mesh(this.projectileGeometry, glowMaterial);
-    glow.scale.setScalar(weapon.projectileSize * 2);
+    glow.scale.setScalar(weapon.projectileSize * 1.3);
     mesh.add(glow);
 
     // Store projectile data

@@ -76,9 +76,9 @@ export class Game {
 
     // Continuous spawning settings
     this.spawnTimer = 0;
-    this.baseSpawnInterval = 0.8; // Start spawning every 0.8 seconds (faster early game)
-    this.minSpawnInterval = 0.15; // Minimum spawn interval
-    this.zombiesPerSpawn = 2; // Start with more zombies
+    this.baseSpawnInterval = 1.8; // Gentle start, ramps up over time
+    this.minSpawnInterval = 0.3; // Cap late-game spawn rate
+    this.zombiesPerSpawn = 1; // Start with 1 zombie per spawn
   }
 
   async init() {
@@ -665,18 +665,18 @@ export class Game {
     // Calculate current spawn rate based on game time
     const timeMinutes = this.gameTime / 60;
 
-    // Spawn rate increases over time
+    // Spawn rate increases over time (gradual ramp)
     const spawnInterval = Math.max(
       this.minSpawnInterval,
-      this.baseSpawnInterval - timeMinutes * 0.15,
+      this.baseSpawnInterval - timeMinutes * 0.1,
     );
 
-    // Number of zombies per spawn also increases
-    this.zombiesPerSpawn = Math.floor(2 + timeMinutes * 1.5);
+    // Number of zombies per spawn increases gradually
+    this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.7);
 
     // Zombie stats scale with time
-    const zombieHealth = 30 + timeMinutes * 10;
-    const zombieSpeed = 1.5 + timeMinutes * 0.1;
+    const zombieHealth = 25 + timeMinutes * 8;
+    const zombieSpeed = 1.5 + timeMinutes * 0.08;
 
     if (this.spawnTimer >= spawnInterval) {
       this.spawnTimer = 0;
@@ -695,7 +695,7 @@ export class Game {
         this.ui.announceWave(this.wave);
 
         // Spawn wave burst
-        const waveBurst = 5 + this.wave * 3;
+        const waveBurst = 3 + this.wave * 2;
         for (let i = 0; i < waveBurst; i++) {
           setTimeout(() => {
             if (this.isPlaying) {
