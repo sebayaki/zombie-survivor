@@ -1244,11 +1244,8 @@ button.secondary:hover {
     }
 
     .upgrade-choices {
-        flex-direction: column;
-    }
-
-    .upgrade-choice {
-        width: 90% !important;
-        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
     }
 }

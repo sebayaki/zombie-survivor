@@ -56,10 +56,12 @@ export class UpgradeUI {
         background: rgba(0, 0, 0, 0.85);
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
         z-index: 300;
         cursor: default;
         box-sizing: border-box;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
 
       .upgrade-overlay.hidden {
@@ -69,6 +71,7 @@ export class UpgradeUI {
       .upgrade-container {
         text-align: center;
         padding: 30px;
+        margin: auto 0;
         animation: upgradeSlideIn 0.3s ease-out;
       }
 
@@ -280,7 +283,7 @@ export class UpgradeUI {
       /* Mobile responsive styles - 2 column grid */
       @media (max-width: 768px), (pointer: coarse) {
         .upgrade-container {
-          padding: 10px;
+          padding: 10px 10px env(safe-area-inset-bottom, 20px);
           width: 100%;
           max-width: 100vw;
           box-sizing: border-box;

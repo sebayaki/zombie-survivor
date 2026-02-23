@@ -49,20 +49,23 @@ export class ChestUI {
         background: rgba(0, 0, 0, 0.9);
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
         z-index: 400;
         box-sizing: border-box;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       .chest-overlay.hidden { display: none; }
 
       .chest-container {
         text-align: center;
-        padding: 30px;
+        padding: 30px 30px env(safe-area-inset-bottom, 20px);
         display: flex;
         flex-direction: column;
         align-items: center;
         width: 100%;
         max-width: 800px;
+        margin: auto 0;
       }
 
       .chest-title {
@@ -167,6 +170,31 @@ export class ChestUI {
         transform: translateY(2px);
       }
       .chest-done-btn.hidden { display: none; }
+
+      @media (max-width: 768px), (pointer: coarse) {
+        .chest-container {
+          padding: 15px 10px env(safe-area-inset-bottom, 15px);
+        }
+        .chest-title {
+          font-size: 28px;
+          margin-bottom: 15px;
+        }
+        .chest-items {
+          gap: 10px;
+        }
+        .chest-item {
+          width: 140px;
+          padding: 10px;
+        }
+        .chest-item-icon { font-size: 32px; margin: 5px 0; }
+        .chest-item-name { font-size: 14px; }
+        .chest-item-desc { font-size: 10px; }
+        .chest-done-btn {
+          margin-top: 20px;
+          padding: 12px 30px;
+          font-size: 20px;
+        }
+      }
     `, "chest-ui-styles");
   }
 

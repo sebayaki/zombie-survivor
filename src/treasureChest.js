@@ -13,6 +13,9 @@ export class TreasureChestSystem {
     this.spawnTimer = 0;
     this.spawnInterval = 20; // Spawn every 20 seconds (more frequent!)
 
+    // Cooldown between chest collections to prevent rapid-fire
+    this.collectCooldown = 0;
+
     // Chest geometry
     this.createChestGeometry();
   }
@@ -30,6 +33,7 @@ export class TreasureChestSystem {
     });
     this.chests = [];
     this.spawnTimer = 0;
+    this.collectCooldown = 0;
   }
 
   update(delta) {
@@ -40,6 +44,11 @@ export class TreasureChestSystem {
     if (this.spawnTimer >= this.spawnInterval) {
       this.spawnTimer = 0;
       this.spawnChest();
+    }
+
+    // Tick collect cooldown
+    if (this.collectCooldown > 0) {
+      this.collectCooldown -= delta;
     }
 
     // Update chests
@@ -58,10 +67,11 @@ export class TreasureChestSystem {
         chest.glow.material.opacity = pulse;
       }
 
-      // Check if player is close enough to collect
+      // Check if player is close enough to collect (with cooldown)
       const dist = playerPos.distanceTo(chest.mesh.position);
-      if (dist < 1.5) {
+      if (dist < 1.5 && this.collectCooldown <= 0) {
         this.collectChest(i);
+        this.collectCooldown = 1.0; // 1 second between collections
       }
     }
   }
@@ -306,17 +316,22 @@ export class TreasureChestSystem {
     };
     this.game.ui.showMessage(messages[rarity] || "Treasure!");
 
-    // Show chest UI with the results
-    setTimeout(() => {
-      this.game.upgradeQueue = this.game.upgradeQueue || [];
-      this.game.upgradeQueue.push({
-        type: "chest",
-        items: selectedItems,
-        rarity: rarity,
-        gold: actualGold,
-      });
-      this.game.triggerNextUpgrade();
-    }, 500);
+    // Show chest UI only if the queue isn't already overloaded
+    const queue = this.game.upgradeQueue || [];
+    this.game.upgradeQueue = queue;
+    const pendingChests = queue.filter((q) => q.type === "chest").length;
+
+    if (pendingChests < 3) {
+      setTimeout(() => {
+        this.game.upgradeQueue.push({
+          type: "chest",
+          items: selectedItems,
+          rarity: rarity,
+          gold: actualGold,
+        });
+        this.game.triggerNextUpgrade();
+      }, 500);
+    }
   }
 
   // Force spawn a chest (for boss kills, etc.)
