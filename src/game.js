@@ -76,7 +76,7 @@ export class Game {
 
     // Continuous spawning settings
     this.spawnTimer = 0;
-    this.baseSpawnInterval = 1.8; // Gentle start, ramps up over time
+    this.baseSpawnInterval = 1.4; // Slightly faster early spawns
     this.minSpawnInterval = 0.3; // Cap late-game spawn rate
     this.zombiesPerSpawn = 1; // Start with 1 zombie per spawn
   }

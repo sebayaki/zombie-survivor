@@ -453,15 +453,19 @@ export class UpgradeUI {
       return;
     }
 
-    // Luck influences rarity weighting: higher luck = higher rarity items appear more
+    // Base weights: common items appear most, legendary least
+    // Luck stat gradually boosts rarer items (legendary benefits most from luck)
     const luck = this.game.playerStats?.luck || 0;
-    const rarityWeight = { common: 1, uncommon: 1.5, rare: 2, legendary: 3 };
+    const rarityWeight = { common: 4, uncommon: 2.5, rare: 1.2, legendary: 0.5 };
+    const luckScale = { common: 0, uncommon: 0.03, rare: 0.06, legendary: 0.12 };
     const weightedShuffle = (arr) => {
       return arr
-        .map((item) => ({
-          item,
-          score: Math.random() * (rarityWeight[item.rarity] || 1) * (1 + luck * 0.1),
-        }))
+        .map((item) => {
+          const rarity = item.rarity || "common";
+          const base = rarityWeight[rarity] || 1;
+          const luckBoost = 1 + luck * (luckScale[rarity] || 0);
+          return { item, score: Math.random() * base * luckBoost };
+        })
         .sort((a, b) => b.score - a.score)
         .map((e) => e.item);
     };

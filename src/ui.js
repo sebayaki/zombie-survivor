@@ -27,88 +27,206 @@ export class UI {
 
   injectHUDStyles() {
     injectCSS(`
+      /* === XP Bar === */
       #xp-container { position: absolute; top: 0; left: 0; width: 100%; z-index: 100; }
-      #xp-bar { width: 100%; height: 8px; background: rgba(0,0,0,0.8); border-bottom: 2px solid #333; }
-      #xp-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #00aaff, #00ffff); transition: width 0.2s ease; box-shadow: 0 0 10px #00aaff; }
+      #xp-bar { width: 100%; height: 6px; background: rgba(0,0,0,0.85); }
+      #xp-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #00aaff, #00ffff); transition: width 0.2s ease; box-shadow: 0 0 8px rgba(0,170,255,0.6); }
 
-      #game-timer { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 32px; font-weight: bold; color: #fff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); letter-spacing: 2px; }
+      /* === Timer === */
+      #game-timer {
+        position: absolute;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 30px;
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: 2px;
+        text-shadow: 0 2px 12px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8);
+      }
 
-      #level-display { position: absolute; top: 20px; right: 20px; display: flex; align-items: baseline; gap: 5px; }
-      #level-display span:first-child { font-size: 16px; color: #888; }
-      #level-value { font-size: 36px; font-weight: bold; color: #ffcc00; text-shadow: 0 0 10px rgba(255,204,0,0.5); }
+      /* === Level Display === */
+      #level-display {
+        position: absolute;
+        top: 16px;
+        right: 20px;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+      }
+      #level-display span:first-child {
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(255,255,255,0.35);
+        letter-spacing: 2px;
+      }
+      #level-value {
+        font-size: 32px;
+        font-weight: 900;
+        color: #ffcc00;
+        text-shadow: 0 0 14px rgba(255,204,0,0.4);
+      }
 
-      #inventory-container { position: absolute; top: 60px; left: 20px; display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
-      #weapon-icons { display: flex; gap: 8px; flex-wrap: wrap; }
-      .weapon-icon-box { width: 48px; height: 48px; background: rgba(0,0,0,0.7); border: 2px solid #555; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      /* === Gold Display === */
+      #gold-display {
+        position: absolute;
+        top: 52px;
+        right: 20px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #ffcc00;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+      }
+      .gold-icon { font-size: 20px; }
+
+      /* === Inventory (weapons + passives) === */
+      #inventory-container {
+        position: absolute;
+        top: 60px;
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-width: 300px;
+      }
+      #weapon-icons { display: flex; gap: 6px; flex-wrap: wrap; }
+      .weapon-icon-box {
+        width: 48px; height: 48px;
+        background: rgba(0,0,0,0.6);
+        border: 2px solid #555;
+        border-radius: 8px;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        position: relative;
+      }
       .weapon-icon-box.rarity-common { border-color: #555; }
       .weapon-icon-box.rarity-uncommon { border-color: #00aa00; }
       .weapon-icon-box.rarity-rare { border-color: #0088ff; }
       .weapon-icon-box.rarity-legendary { border-color: #ffaa00; }
-      .weapon-icon-box .icon { font-size: 24px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5)); }
-      .weapon-icon-box .level { position: absolute; bottom: 2px; right: 2px; font-size: 10px; font-weight: bold; color: #ffcc00; text-shadow: 1px 1px 1px #000; }
-      .weapon-icon-box.max-level { border-color: #ffcc00 !important; box-shadow: 0 0 10px rgba(255,204,0,0.5); }
+      .weapon-icon-box .icon { font-size: 24px; filter: drop-shadow(0 0 4px rgba(255,255,255,0.3)); }
+      .weapon-icon-box .level {
+        position: absolute; bottom: 1px; right: 3px;
+        font-size: 10px; font-weight: 800;
+        color: #ffcc00;
+        text-shadow: 0 1px 3px #000, 0 0 2px #000;
+      }
+      .weapon-icon-box.max-level { border-color: #ffcc00 !important; box-shadow: 0 0 8px rgba(255,204,0,0.35); }
 
-      #passive-items { display: flex; gap: 6px; flex-wrap: wrap; }
-      .passive-item-box { width: 36px; height: 36px; background: rgba(0,0,0,0.7); border: 2px solid #555; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      #passive-items { display: flex; gap: 5px; flex-wrap: wrap; }
+      .passive-item-box {
+        width: 36px; height: 36px;
+        background: rgba(0,0,0,0.6);
+        border: 2px solid #555;
+        border-radius: 6px;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        position: relative;
+      }
       .passive-item-box.rarity-common { border-color: #555; }
       .passive-item-box.rarity-uncommon { border-color: #00aa00; }
       .passive-item-box.rarity-rare { border-color: #0088ff; }
       .passive-item-box.rarity-legendary { border-color: #ffaa00; }
       .passive-item-box .icon { font-size: 18px; }
-      .passive-item-box .level { position: absolute; bottom: 1px; right: 1px; font-size: 9px; font-weight: bold; color: #ffcc00; text-shadow: 1px 1px 1px #000; }
+      .passive-item-box .level {
+        position: absolute; bottom: 0; right: 2px;
+        font-size: 9px; font-weight: 800;
+        color: #ffcc00; text-shadow: 0 1px 2px #000;
+      }
       .passive-item-box.max-level { border-color: #ffcc00 !important; }
 
-      #gold-display { position: absolute; top: 55px; right: 20px; display: flex; align-items: center; gap: 5px; font-size: 20px; color: #ffcc00; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-      .gold-icon { font-size: 24px; }
-
+      /* === Powerup Stats Panel === */
       #powerup-stats-panel {
         position: absolute;
-        top: 85px;
+        top: 82px;
         right: 20px;
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
-        max-width: 220px;
+        gap: 3px;
+        max-width: 210px;
         justify-content: flex-end;
       }
-
       .powerup-stat-badge {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 3px;
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 204, 0, 0.3);
-        border-radius: 4px;
-        padding: 2px 6px;
-        font-size: 11px;
-        color: #ffcc00;
+        gap: 2px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 204, 0, 0.2);
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 10px;
+        color: #eebb33;
         white-space: nowrap;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+        line-height: 1.5;
       }
-
       .powerup-stat-badge .badge-icon {
-        font-size: 12px;
+        font-size: 10px;
         line-height: 1;
+        opacity: 0.85;
       }
-
       .powerup-stat-badge .badge-value {
-        font-weight: bold;
+        font-weight: 700;
         color: #ffdd44;
       }
 
+      /* ========== Mobile / Touch ========== */
       @media (max-width: 768px), (pointer: coarse) {
+        /* Timer */
+        #game-timer {
+          top: 10px;
+          font-size: 20px;
+          font-weight: 800;
+          letter-spacing: 1px;
+        }
+
+        /* Level */
+        #level-display { top: 8px; right: 10px; gap: 2px; }
+        #level-display span:first-child { font-size: 9px; letter-spacing: 1px; }
+        #level-value { font-size: 20px; }
+
+        /* Gold */
+        #gold-display { top: 32px; right: 10px; font-size: 13px; gap: 3px; }
+        .gold-icon { font-size: 14px; }
+
+        /* Inventory */
+        #inventory-container { top: 38px; left: 8px; gap: 4px; }
+        #weapon-icons { gap: 3px; }
+        .weapon-icon-box {
+          width: 34px; height: 34px;
+          border-radius: 6px; border-width: 1.5px;
+        }
+        .weapon-icon-box .icon { font-size: 17px; }
+        .weapon-icon-box .level { font-size: 8px; bottom: 0; right: 2px; }
+
+        #passive-items { gap: 2px; }
+        .passive-item-box {
+          width: 26px; height: 26px;
+          border-radius: 4px; border-width: 1.5px;
+        }
+        .passive-item-box .icon { font-size: 13px; }
+        .passive-item-box .level { font-size: 7px; }
+
+        /* Powerup Stats - ultra-compact */
         #powerup-stats-panel {
-          top: 80px;
-          right: 10px;
-          max-width: 160px;
-          gap: 3px;
+          top: 50px;
+          right: 8px;
+          max-width: 155px;
+          gap: 1px 2px;
         }
         .powerup-stat-badge {
-          font-size: 9px;
-          padding: 1px 4px;
-          gap: 2px;
+          font-size: 7.5px;
+          padding: 0px 3px;
+          gap: 1px;
+          border: none;
+          background: rgba(0, 0, 0, 0.35);
+          border-radius: 2px;
+          line-height: 1.6;
         }
-        .powerup-stat-badge .badge-icon { font-size: 10px; }
+        .powerup-stat-badge .badge-icon { font-size: 8px; }
+        .powerup-stat-badge .badge-value { font-size: 7.5px; }
       }
     `, "hud-styles");
   }
