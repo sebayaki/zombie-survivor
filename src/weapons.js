@@ -305,49 +305,46 @@ export class WeaponSystem {
   }
 
   createExplosion(position, radius, damage) {
-    // Visual explosion
-    const explosionGeometry = new THREE.SphereGeometry(radius, 16, 16);
-    const explosionMaterial = new THREE.MeshBasicMaterial({
+    // Damage zombies in radius
+    this.game.zombieManager.damageInRadius(position, radius, damage);
+
+    // Shared geometry (lazy-init)
+    if (!WeaponSystem._sharedExpGeo) {
+      WeaponSystem._sharedExpGeo = new THREE.SphereGeometry(1, 10, 10);
+    }
+
+    const mat = new THREE.MeshBasicMaterial({
       color: 0xff4400,
       transparent: true,
       opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
 
-    const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+    const explosion = new THREE.Mesh(WeaponSystem._sharedExpGeo, mat);
     explosion.position.copy(position);
     explosion.scale.setScalar(0.1);
     this.game.scene.add(explosion);
 
-    // Add point light
-    const light = new THREE.PointLight(0xff4400, 100, radius * 2);
-    light.position.copy(position);
-    this.game.scene.add(light);
-
-    // Damage zombies in radius
-    this.game.zombieManager.damageInRadius(position, radius, damage);
-
-    // Animate explosion
     let scale = 0.1;
     let opacity = 0.8;
+    const targetScale = radius;
 
     const animateExplosion = () => {
-      scale += 0.15;
-      opacity -= 0.05;
+      scale += (targetScale - scale) * 0.2 + 0.1;
+      opacity -= 0.06;
 
       if (opacity <= 0) {
         this.game.scene.remove(explosion);
-        this.game.scene.remove(light);
+        mat.dispose();
       } else {
         explosion.scale.setScalar(scale);
-        explosion.material.opacity = opacity;
-        light.intensity = opacity * 100;
+        mat.opacity = opacity;
         requestAnimationFrame(animateExplosion);
       }
     };
 
     requestAnimationFrame(animateExplosion);
-
-    // Play explosion sound
     this.game.audioManager.playSound("explosion");
   }
 

@@ -514,6 +514,16 @@ export class AutoWeaponSystem {
     // Last fire times for cooldowns
     this.cooldowns = {};
 
+    // Explosion performance limiter
+    this._activeExplosions = 0;
+    this._maxActiveExplosions = 8;
+    this._explosionLightCount = 0;
+    this._maxExplosionLights = 2;
+
+    // Shared explosion geometries (lazy-init in createExplosion)
+    this._sharedExpGeo = null;
+    this._sharedRingGeo = null;
+
     // Create detailed weapon geometries
     this.createWeaponGeometries();
   }
@@ -4212,163 +4222,131 @@ export class AutoWeaponSystem {
   }
 
   createExplosion(position, radius, damage) {
+    // Damage enemies in radius (always applies regardless of visual cap)
+    this.game.zombieManager.damageInRadius(position, radius, damage);
+
+    // Skip visual effect if too many active
+    if (this._activeExplosions >= this._maxActiveExplosions) {
+      this.game.audioManager.playSound("explosion");
+      return;
+    }
+    this._activeExplosions++;
+
+    // Lazy-init shared geometries
+    if (!this._sharedExpGeo) {
+      this._sharedExpGeo = new THREE.SphereGeometry(1, 10, 10);
+      this._sharedExpGeo.userData = { shared: true };
+      this._sharedRingGeo = new THREE.TorusGeometry(1, 0.3, 6, 12);
+      this._sharedRingGeo.userData = { shared: true };
+    }
+
     const explosionGroup = new THREE.Group();
     explosionGroup.position.copy(position);
 
-    // White-hot core flash
-    const coreGeometry = new THREE.SphereGeometry(radius * 0.3, 12, 12);
-    const coreMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 1,
+    // Core (white-hot)
+    const coreMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 1,
+      blending: THREE.AdditiveBlending, depthWrite: false,
     });
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+    const core = new THREE.Mesh(this._sharedExpGeo, coreMat);
+    core.scale.setScalar(radius * 0.3);
     explosionGroup.add(core);
 
-    // Yellow inner fireball
-    const yellowGeometry = new THREE.SphereGeometry(radius * 0.5, 12, 12);
-    const yellowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
-      transparent: true,
-      opacity: 0.9,
+    // Orange fireball
+    const fireMat = new THREE.MeshBasicMaterial({
+      color: 0xff6600, transparent: true, opacity: 0.8,
+      blending: THREE.AdditiveBlending, depthWrite: false,
     });
-    const yellow = new THREE.Mesh(yellowGeometry, yellowMaterial);
-    explosionGroup.add(yellow);
+    const fire = new THREE.Mesh(this._sharedExpGeo, fireMat);
+    fire.scale.setScalar(radius * 0.8);
+    explosionGroup.add(fire);
 
-    // Orange main fireball
-    const orangeGeometry = new THREE.SphereGeometry(radius * 0.8, 12, 12);
-    const orangeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff6600,
-      transparent: true,
-      opacity: 0.8,
+    // Red outer
+    const redMat = new THREE.MeshBasicMaterial({
+      color: 0xff2200, transparent: true, opacity: 0.6,
+      depthWrite: false,
     });
-    const orange = new THREE.Mesh(orangeGeometry, orangeMaterial);
-    explosionGroup.add(orange);
-
-    // Red outer fire
-    const redGeometry = new THREE.SphereGeometry(radius, 12, 12);
-    const redMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff2200,
-      transparent: true,
-      opacity: 0.6,
-    });
-    const red = new THREE.Mesh(redGeometry, redMaterial);
+    const red = new THREE.Mesh(this._sharedExpGeo, redMat);
+    red.scale.setScalar(radius);
     explosionGroup.add(red);
 
-    // Dark smoke ring
-    const smokeGeometry = new THREE.TorusGeometry(
-      radius * 0.8,
-      radius * 0.3,
-      8,
-      16,
-    );
-    const smokeMaterial = new THREE.MeshBasicMaterial({
-      color: 0x222222,
-      transparent: true,
-      opacity: 0.5,
+    // Smoke ring
+    const smokeMat = new THREE.MeshBasicMaterial({
+      color: 0x222222, transparent: true, opacity: 0.5,
     });
-    const smoke = new THREE.Mesh(smokeGeometry, smokeMaterial);
+    const smoke = new THREE.Mesh(this._sharedRingGeo, smokeMat);
     smoke.rotation.x = Math.PI / 2;
+    smoke.scale.setScalar(radius * 0.8);
     explosionGroup.add(smoke);
 
-    // Flying fire embers/sparks
+    // 4 embers instead of 12
+    const emberGeo = this._sharedExpGeo;
     const embers = [];
-    for (let i = 0; i < 12; i++) {
-      const emberGeometry = new THREE.SphereGeometry(0.15, 4, 4);
-      const emberMaterial = new THREE.MeshBasicMaterial({
+    for (let i = 0; i < 4; i++) {
+      const mat = new THREE.MeshBasicMaterial({
         color: i % 2 === 0 ? 0xffaa00 : 0xff4400,
       });
-      const ember = new THREE.Mesh(emberGeometry, emberMaterial);
-      const angle = (i / 12) * Math.PI * 2;
-      const speed = 0.2 + Math.random() * 0.2;
+      const ember = new THREE.Mesh(emberGeo, mat);
+      ember.scale.setScalar(0.15);
+      const angle = (i / 4) * Math.PI * 2;
+      const speed = 0.2 + Math.random() * 0.15;
       ember.userData = {
         vx: Math.cos(angle) * speed,
         vy: 0.15 + Math.random() * 0.1,
         vz: Math.sin(angle) * speed,
+        mat,
       };
       explosionGroup.add(ember);
       embers.push(ember);
     }
 
-    // Flame tongues shooting upward
-    const flameTongues = [];
-    for (let i = 0; i < 6; i++) {
-      const tongueGeometry = new THREE.ConeGeometry(0.2, radius * 0.8, 6);
-      const tongueMaterial = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0xff6600 : 0xff4400,
-        transparent: true,
-        opacity: 0.9,
-      });
-      const tongue = new THREE.Mesh(tongueGeometry, tongueMaterial);
-      const angle = (i / 6) * Math.PI * 2;
-      tongue.position.set(
-        Math.cos(angle) * radius * 0.4,
-        0,
-        Math.sin(angle) * radius * 0.4,
-      );
-      tongue.rotation.z = (Math.random() - 0.5) * 0.5;
-      explosionGroup.add(tongue);
-      flameTongues.push(tongue);
-    }
-
+    explosionGroup.scale.setScalar(0.1);
     this.game.scene.add(explosionGroup);
 
-    // Point light for dramatic lighting
-    const light = new THREE.PointLight(0xff6600, 80, radius * 3);
-    light.position.copy(position);
-    this.game.scene.add(light);
+    // Only add point light if under cap
+    let light = null;
+    if (this._explosionLightCount < this._maxExplosionLights) {
+      this._explosionLightCount++;
+      light = new THREE.PointLight(0xff6600, 80, radius * 3);
+      light.position.copy(position);
+      this.game.scene.add(light);
+    }
 
-    // Damage enemies in radius
-    this.game.zombieManager.damageInRadius(position, radius, damage);
-
-    // Animate explosion
     let scale = 0.1;
     let opacity = 1;
-    let frame = 0;
 
     const animate = () => {
-      frame++;
-      scale += 0.12;
-      opacity -= 0.04;
+      scale += 0.14;
+      opacity -= 0.05;
 
       if (opacity <= 0) {
         this.game.scene.remove(explosionGroup);
-        this.game.scene.remove(light);
-        this.disposeObject(explosionGroup);
-        light.dispose();
+        coreMat.dispose();
+        fireMat.dispose();
+        redMat.dispose();
+        smokeMat.dispose();
+        embers.forEach((e) => e.userData.mat.dispose());
+        if (light) {
+          this.game.scene.remove(light);
+          light.dispose();
+          this._explosionLightCount--;
+        }
+        this._activeExplosions--;
       } else {
-        // Scale up the fire layers
-        core.scale.setScalar(scale * 0.8);
-        yellow.scale.setScalar(scale * 0.9);
-        orange.scale.setScalar(scale);
-        red.scale.setScalar(scale * 1.1);
-        smoke.scale.setScalar(scale * 1.2);
+        explosionGroup.scale.setScalar(scale);
+        coreMat.opacity = opacity;
+        fireMat.opacity = opacity * 0.8;
+        redMat.opacity = opacity * 0.6;
+        smokeMat.opacity = opacity * 0.4;
 
-        // Fade out
-        coreMaterial.opacity = opacity;
-        yellowMaterial.opacity = opacity * 0.9;
-        orangeMaterial.opacity = opacity * 0.8;
-        redMaterial.opacity = opacity * 0.6;
-        smokeMaterial.opacity = opacity * 0.4;
-
-        // Animate embers flying outward
         embers.forEach((ember) => {
           ember.position.x += ember.userData.vx;
           ember.position.y += ember.userData.vy;
           ember.position.z += ember.userData.vz;
-          ember.userData.vy -= 0.01; // Gravity
+          ember.userData.vy -= 0.01;
         });
 
-        // Animate flame tongues rising
-        flameTongues.forEach((tongue, i) => {
-          tongue.position.y += 0.1;
-          tongue.scale.y = 1 + frame * 0.1;
-          tongue.material.opacity = opacity;
-        });
-
-        // Animate light
-        light.intensity = opacity * 80;
-
+        if (light) light.intensity = opacity * 80;
         requestAnimationFrame(animate);
       }
     };

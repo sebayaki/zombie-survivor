@@ -108,6 +108,11 @@ export class ZombieManager {
 
     // Object pool for performance
     this.zombiePool = [];
+
+    // Explosion chain depth limiter
+    this._explosionDepth = 0;
+    this._activeExplosions = 0;
+    this._maxActiveExplosions = 6;
   }
 
   reset() {
@@ -1148,10 +1153,13 @@ export class ZombieManager {
   }
 
   damageInRadius(position, radius, damage) {
-    for (const zombie of this.zombies) {
-      const dist = zombie.mesh.position.distanceTo(position);
+    const snapshot = this.zombies.slice();
+    for (const zombie of snapshot) {
+      if (zombie.health <= 0) continue;
+      const dx = zombie.mesh.position.x - position.x;
+      const dz = zombie.mesh.position.z - position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
       if (dist < radius) {
-        // Damage falls off with distance
         const falloff = 1 - dist / radius;
         this.damageZombie(zombie, damage * falloff);
       }
@@ -1165,13 +1173,15 @@ export class ZombieManager {
     // Remove from array
     this.zombies.splice(index, 1);
 
-    // Handle exploding enemies
-    if (zombie.explodeOnDeath) {
+    // Handle exploding enemies (with chain depth limit)
+    if (zombie.explodeOnDeath && this._explosionDepth < 3) {
+      this._explosionDepth++;
       this.createExplosionEffect(
         zombie.mesh.position,
         zombie.explosionRadius,
         zombie.explosionDamage,
       );
+      this._explosionDepth--;
     }
 
     // Death effect (bigger for bosses)
@@ -1224,39 +1234,49 @@ export class ZombieManager {
   }
 
   createExplosionEffect(position, radius, damage) {
-    // Visual explosion
-    const explosionGroup = new THREE.Group();
-    explosionGroup.position.copy(position);
+    // Damage player if in range (always applies)
+    const playerPos = this.game.player.getPosition();
+    const dx = position.x - playerPos.x;
+    const dz = position.z - playerPos.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < radius) {
+      const falloff = 1 - dist / radius;
+      this.game.player.takeDamage(damage * falloff);
+    }
 
-    // Hot inner core
-    const core = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 0.5, 16, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    explosionGroup.add(core);
+    // Damage nearby zombies too (chain reaction with depth limit)
+    this.damageInRadius(position, radius, damage);
 
-    // Glowing main fireball
+    // Skip visual if too many active explosions
+    if (this._activeExplosions >= this._maxActiveExplosions) {
+      this.game.audioManager.playSound("explosion");
+      return;
+    }
+    this._activeExplosions++;
+
+    // Lightweight visual: single fireball + single shockwave ring
+    if (!ZombieManager._sharedExpGeo) {
+      ZombieManager._sharedExpGeo = new THREE.SphereGeometry(1, 10, 10);
+      ZombieManager._sharedRingGeo = new THREE.RingGeometry(0.8, 1.2, 16);
+    }
+
     const fireball = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 1.2, 16, 16),
+      ZombieManager._sharedExpGeo,
       new THREE.MeshBasicMaterial({
         color: 0xff5500,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.85,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
     );
-    explosionGroup.add(fireball);
+    fireball.position.copy(position);
+    fireball.position.y = 1;
+    fireball.scale.setScalar(0.1);
+    this.game.scene.add(fireball);
 
-    // Shockwave ring
-    const shockwave = new THREE.Mesh(
-      new THREE.RingGeometry(radius * 0.8, radius * 1.5, 32),
+    const ring = new THREE.Mesh(
+      ZombieManager._sharedRingGeo,
       new THREE.MeshBasicMaterial({
         color: 0xffaa00,
         transparent: true,
@@ -1266,47 +1286,31 @@ export class ZombieManager {
         depthWrite: false,
       }),
     );
-    shockwave.rotation.x = -Math.PI / 2;
-    explosionGroup.add(shockwave);
+    ring.position.copy(position);
+    ring.position.y = 0.2;
+    ring.rotation.x = -Math.PI / 2;
+    ring.scale.setScalar(0.1);
+    this.game.scene.add(ring);
 
-    explosionGroup.position.y = 1;
-    explosionGroup.scale.setScalar(0.1);
-
-    this.game.scene.add(explosionGroup);
-
-    // Damage player if in range
-    const playerPos = this.game.player.getPosition();
-    const dist = position.distanceTo(playerPos);
-    if (dist < radius) {
-      const falloff = 1 - dist / radius;
-      this.game.player.takeDamage(damage * falloff);
-    }
-
-    // Animate explosion
     let scale = 0.1;
     let opacity = 1;
+    const targetScale = radius;
 
     const animate = () => {
-      scale += 0.15;
-      opacity -= 0.05;
+      scale += (targetScale - scale) * 0.25;
+      opacity -= 0.06;
 
       if (opacity <= 0) {
-        this.game.scene.remove(explosionGroup);
-
-        // Dispose
-        core.geometry.dispose();
-        core.material.dispose();
-        fireball.geometry.dispose();
+        this.game.scene.remove(fireball);
+        this.game.scene.remove(ring);
         fireball.material.dispose();
-        shockwave.geometry.dispose();
-        shockwave.material.dispose();
+        ring.material.dispose();
+        this._activeExplosions--;
       } else {
-        explosionGroup.scale.setScalar(scale);
-
-        core.material.opacity = opacity;
-        fireball.material.opacity = opacity * 0.8;
-        shockwave.material.opacity = opacity * 0.5;
-
+        fireball.scale.setScalar(scale);
+        fireball.material.opacity = opacity * 0.85;
+        ring.scale.setScalar(scale * 1.5);
+        ring.material.opacity = opacity * 0.4;
         requestAnimationFrame(animate);
       }
     };
