@@ -179,7 +179,6 @@ export class Game {
     createEnhancedArena(this);
   }
 
-
   findValidObstaclePosition(minDist, maxDist, minSeparation, maxAttempts = 20) {
     const pos = findSpawnPosition({
       minDist,
@@ -192,7 +191,6 @@ export class Game {
     });
     return pos ? { x: pos.x, z: pos.z } : null;
   }
-
 
   start() {
     document.getElementById("start-screen").classList.add("hidden");
@@ -246,7 +244,9 @@ export class Game {
     document.getElementById("final-wave").textContent = this.wave;
     document.getElementById("final-score").textContent = this.score;
     document.getElementById("final-kills").textContent = this.kills;
-    document.getElementById("final-gold").textContent = (this.gold || 0).toLocaleString();
+    document.getElementById("final-gold").textContent = (
+      this.gold || 0
+    ).toLocaleString();
     document.getElementById("game-over-screen").classList.remove("hidden");
 
     this.audioManager.stopMusic();
@@ -316,7 +316,7 @@ export class Game {
     const zombieHealth = 99 + timeMinutes * 60 + timeMinutes * timeMinutes * 4;
     const zombieSpeed = 1.5 + timeMinutes * 0.08;
 
-    const maxZombies = 150;
+    const maxZombies = 500;
     const currentCount = this.zombieManager.getZombies().length;
 
     if (this.spawnTimer >= spawnInterval) {
@@ -341,7 +341,10 @@ export class Game {
         );
         for (let i = 0; i < waveBurst; i++) {
           setTimeout(() => {
-            if (this.isPlaying && this.zombieManager.getZombies().length < maxZombies) {
+            if (
+              this.isPlaying &&
+              this.zombieManager.getZombies().length < maxZombies
+            ) {
               this.zombieManager.spawnZombie(
                 zombieSpeed * 1.2,
                 zombieHealth * 1.8,
@@ -367,16 +370,24 @@ export class Game {
 
   // Safely trigger the next upgrade in the queue
   triggerNextUpgrade() {
-    if ((this.upgradeUI && this.upgradeUI.isOpen) || (this.chestUI && this.chestUI.isOpen)) return; // Wait for current to finish
+    if (
+      (this.upgradeUI && this.upgradeUI.isOpen) ||
+      (this.chestUI && this.chestUI.isOpen)
+    )
+      return; // Wait for current to finish
     if (this.upgradeQueue && this.upgradeQueue.length > 0) {
-       const nextUpgrade = this.upgradeQueue.shift();
-       if (nextUpgrade.type === 'bonus') {
-           this.showBonusUpgradeSelection();
-       } else if (nextUpgrade.type === 'chest') {
-           this.chestUI.show(nextUpgrade.items, nextUpgrade.rarity, nextUpgrade.gold);
-       } else {
-           this.showUpgradeSelection(nextUpgrade.level);
-       }
+      const nextUpgrade = this.upgradeQueue.shift();
+      if (nextUpgrade.type === "bonus") {
+        this.showBonusUpgradeSelection();
+      } else if (nextUpgrade.type === "chest") {
+        this.chestUI.show(
+          nextUpgrade.items,
+          nextUpgrade.rarity,
+          nextUpgrade.gold,
+        );
+      } else {
+        this.showUpgradeSelection(nextUpgrade.level);
+      }
     }
   }
 
@@ -612,7 +623,10 @@ export class Game {
 
     this._mouseVec2.set(mouseX, mouseY);
     this._raycaster.setFromCamera(this._mouseVec2, this.camera);
-    const hit = this._raycaster.ray.intersectPlane(this._groundPlane, this._intersection);
+    const hit = this._raycaster.ray.intersectPlane(
+      this._groundPlane,
+      this._intersection,
+    );
 
     if (hit) {
       this.mouseWorldPos.copy(this._intersection);
