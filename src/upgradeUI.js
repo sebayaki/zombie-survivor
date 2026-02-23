@@ -447,7 +447,7 @@ export class UpgradeUI {
     // Icon
     const icon = document.createElement("div");
     icon.className = "upgrade-icon";
-    icon.textContent = choice.icon;
+    icon.innerHTML = choice.icon;
     element.appendChild(icon);
 
     // Name

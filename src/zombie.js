@@ -261,7 +261,9 @@ export class ZombieManager {
     return "normal";
   }
 
-  // --- Mesh building helpers ---
+  
+  
+  // --- Mesh building helpers (Organic Zombie Style) ---
 
   _addPart(group, geometry, material, pos, rot) {
     const mesh = new THREE.Mesh(geometry, material);
@@ -271,36 +273,40 @@ export class ZombieManager {
       if (rot.y) mesh.rotation.y = rot.y;
       if (rot.z) mesh.rotation.z = rot.z;
     }
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     group.add(mesh);
     return mesh;
   }
 
-  _addArms(group, mat, s, radius, length, offsets) {
-    const { lx, rx, y, z, rotX, lRotZ, rRotZ } = offsets;
-    const geo = new THREE.CapsuleGeometry(radius * s, length * s, 4, 8);
-    this._addPart(group, geo, mat.clone(), { x: lx * s, y: y * s, z: z * s }, { x: rotX, z: lRotZ });
-    this._addPart(group, geo, mat.clone(), { x: rx * s, y: y * s, z: z * s }, { x: rotX, z: rRotZ });
-  }
-
   _addEyes(group, type, s, eyeColor) {
-    const eyeGeo = new THREE.SphereGeometry(0.1 * s, 6, 6);
+    // Sunken, glowing eyes
+    const eyeGeo = new THREE.SphereGeometry(0.08 * s, 8, 8);
     const eyeMat = new THREE.MeshBasicMaterial({ color: eyeColor });
 
     const EYE_POS = {
-      fast:     { y: 1.75, z: 0.35 },
-      tank:     { y: 2.45, z: 0.35 },
-      spitter:  { y: 2.05, z: 0.28 },
-      exploder: { y: 1.95, z: 0.28 },
-      boss:     { y: 2.55, z: 0.4 },
-      normal:   { y: 2.15, z: 0.28 },
+      fast: { y: 1.45, z: 0.28, spread: 0.12 },
+      tank: { y: 1.95, z: 0.38, spread: 0.2 },
+      spitter: { y: 1.55, z: 0.28, spread: 0.15 },
+      exploder: { y: 1.65, z: 0.35, spread: 0.22 },
+      boss: { y: 2.6, z: 0.45, spread: 0.25 },
+      normal: { y: 1.55, z: 0.28, spread: 0.15 },
     };
     const ep = EYE_POS[type] || EYE_POS.normal;
 
-    this._addPart(group, eyeGeo, eyeMat, { x: -0.12 * s, y: ep.y * s, z: ep.z * s });
-    this._addPart(group, eyeGeo, eyeMat, { x:  0.12 * s, y: ep.y * s, z: ep.z * s });
+    this._addPart(group, eyeGeo, eyeMat, {
+      x: -ep.spread * s,
+      y: ep.y * s,
+      z: ep.z * s,
+    });
+    this._addPart(group, eyeGeo, eyeMat, {
+      x: ep.spread * s,
+      y: ep.y * s,
+      z: ep.z * s,
+    });
 
     if (type === "boss") {
-      this._addPart(group, eyeGeo, eyeMat, { x: 0, y: 2.65 * s, z: 0.35 * s });
+      this._addPart(group, eyeGeo, eyeMat, { x: 0, y: 2.8 * s, z: 0.48 * s });
     }
   }
 
@@ -309,118 +315,211 @@ export class ZombieManager {
     const s = typeDef.scale;
     const eyeColor = typeDef.eyeColor || 0xff0000;
     const glowColor = typeDef.glowColor || eyeColor;
-    const mat = new THREE.MeshStandardMaterial({ color: typeDef.color, roughness: 0.7 });
+    
+    // Shared organic materials
+    const bodyMat = new THREE.MeshStandardMaterial({ color: typeDef.color, roughness: 0.9, metalness: 0.1 });
+    // Decaying skin color
+    const skinColor = new THREE.Color(typeDef.secondaryColor || 0x5a7a51).lerp(new THREE.Color(0x332222), 0.3);
+    const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.9, metalness: 0.0 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 1.0 });
 
     const builders = {
-      fast: () => this._buildFastZombie(mesh, mat, s, eyeColor),
-      tank: () => this._buildTankZombie(mesh, mat, s, glowColor),
-      spitter: () => this._buildSpitterZombie(mesh, mat, s, glowColor),
-      exploder: () => this._buildExploderZombie(mesh, mat, s, glowColor),
-      boss: () => this._buildBossZombie(mesh, mat, s, glowColor),
+      fast: () => this._buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s, eyeColor),
+      tank: () => this._buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+      spitter: () => this._buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+      exploder: () => this._buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+      boss: () => this._buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
     };
 
     const builder = builders[type];
     if (builder) {
       builder();
     } else {
-      this._buildNormalZombie(mesh, mat, s);
+      this._buildNormalZombie(mesh, bodyMat, skinMat, pantsMat, s);
     }
 
     this._addEyes(mesh, type, s, eyeColor);
-    mesh.userData.body = mesh.children[0];
+    
+    // Make sure we have a "body" for hit flashes
+    if (!mesh.userData.body && mesh.children.length > 0) {
+      mesh.userData.body = mesh.children[0];
+    }
+    
     mesh.userData.type = type;
+    mesh.userData.animPhase = Math.random() * Math.PI * 2;
+    // Add random limp offsets for organic feel
+    mesh.userData.limpOffsetL = (Math.random() - 0.5) * 0.4;
+    mesh.userData.limpOffsetR = (Math.random() - 0.5) * 0.4;
     return mesh;
   }
 
-  _buildNormalZombie(mesh, mat, s) {
-    this._addPart(mesh, new THREE.CapsuleGeometry(0.4 * s, 1.2 * s, 4, 8), mat.clone(), { y: 1 * s });
-    this._addPart(mesh, new THREE.SphereGeometry(0.35 * s, 8, 8), mat.clone(), { y: 2.1 * s });
-    this._addArms(mesh, mat, s, 0.12, 0.8, { lx: -0.6, rx: 0.6, y: 1.3, z: 0.3, rotX: -0.5, lRotZ: 0.3, rRotZ: -0.3 });
+  _buildNormalZombie(mesh, bodyMat, skinMat, pantsMat, s) {
+    // Head - slightly tilted and round
+    const head = this._addPart(mesh, new THREE.SphereGeometry(0.3 * s, 12, 12), skinMat, { y: 1.55 * s }, { z: 0.15, x: 0.1 });
+    
+    // Body - curved spine
+    const bodyGeo = new THREE.CapsuleGeometry(0.3 * s, 0.6 * s, 8, 12);
+    const body = this._addPart(mesh, bodyGeo, bodyMat, { y: 0.9 * s, z: -0.05 * s }, { x: 0.15 });
+    mesh.userData.body = body;
+    
+    // Arms - asymmetrical, raised forward like classic zombies
+    const armGeo = new THREE.CapsuleGeometry(0.12 * s, 0.5 * s, 6, 8);
+    // Left arm hanging slightly lower
+    mesh.userData.leftArm = this._addPart(mesh, armGeo, skinMat, { x: -0.4 * s, y: 1.1 * s, z: 0.2 * s }, { x: -Math.PI / 2.2, z: 0.1 });
+    // Right arm reaching out
+    mesh.userData.rightArm = this._addPart(mesh, armGeo, skinMat, { x: 0.4 * s, y: 1.15 * s, z: 0.2 * s }, { x: -Math.PI / 1.8, z: -0.1 });
+
+    // Legs - thin and slightly bent
+    const legGeo = new THREE.CylinderGeometry(0.12 * s, 0.1 * s, 0.6 * s, 8);
+    mesh.userData.leftLeg = this._addPart(mesh, legGeo, pantsMat, { x: -0.18 * s, y: 0.3 * s });
+    mesh.userData.rightLeg = this._addPart(mesh, legGeo, pantsMat, { x: 0.18 * s, y: 0.3 * s });
   }
 
-  _buildFastZombie(mesh, mat, s, eyeColor) {
-    this._addPart(mesh, new THREE.CapsuleGeometry(0.25 * s, 1.0 * s, 4, 8), mat.clone(), { y: 0.9 * s }, { x: 0.3 });
-    this._addPart(mesh, new THREE.SphereGeometry(0.28 * s, 8, 8), mat.clone(), { y: 1.7 * s, z: 0.2 * s });
-    this._addArms(mesh, mat, s, 0.08, 1.0, { lx: -0.4, rx: 0.4, y: 1.0, z: 0.4, rotX: -1.0, lRotZ: 0.2, rRotZ: -0.2 });
+  _buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s, eyeColor) {
+    // Head - elongated, feral
+    this._addPart(mesh, new THREE.CapsuleGeometry(0.2 * s, 0.3 * s, 8, 8), skinMat, { y: 1.45 * s, z: 0.15 * s }, { x: 0.4 });
+    
+    // Body - hunched forward
+    const body = this._addPart(mesh, new THREE.CapsuleGeometry(0.25 * s, 0.5 * s, 8, 10), bodyMat, { y: 0.85 * s, z: -0.1 * s }, { x: 0.4 });
+    mesh.userData.body = body;
+    
+    // Arms - long and scrawny
+    const armGeo = new THREE.CylinderGeometry(0.08 * s, 0.05 * s, 0.7 * s, 6);
+    mesh.userData.leftArm = this._addPart(mesh, armGeo, skinMat, { x: -0.32 * s, y: 0.9 * s, z: 0.3 * s }, { x: -Math.PI / 2.5, z: 0.2 });
+    mesh.userData.rightArm = this._addPart(mesh, armGeo, skinMat, { x: 0.32 * s, y: 0.9 * s, z: 0.3 * s }, { x: -Math.PI / 2.5, z: -0.2 });
 
-    const streakMat = new THREE.MeshBasicMaterial({ color: eyeColor, transparent: true, opacity: 0.4 });
-    for (let i = 0; i < 3; i++) {
-      this._addPart(mesh, new THREE.BoxGeometry(0.05, 0.5 * s, 0.02), streakMat, { x: -0.5 * s - i * 0.15, y: 1.2 * s });
-    }
+    // Legs - crouched
+    const legGeo = new THREE.CapsuleGeometry(0.1 * s, 0.5 * s, 6, 8);
+    mesh.userData.leftLeg = this._addPart(mesh, legGeo, pantsMat, { x: -0.15 * s, y: 0.3 * s }, { x: 0.2 });
+    mesh.userData.rightLeg = this._addPart(mesh, legGeo, pantsMat, { x: 0.15 * s, y: 0.3 * s }, { x: 0.2 });
   }
 
-  _buildTankZombie(mesh, mat, s) {
-    const armorMat = new THREE.MeshStandardMaterial({ color: 0x444455, metalness: 0.9, roughness: 0.2 });
+  _buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
+    // Head - tiny compared to body, no neck
+    this._addPart(mesh, new THREE.SphereGeometry(0.3 * s, 12, 12), skinMat, { y: 1.95 * s, z: 0.2 * s });
+    
+    // Body - massive, swollen, muscular but deformed
+    const bodyGeo = new THREE.SphereGeometry(0.7 * s, 16, 16);
+    bodyGeo.scale(1.2, 1.0, 0.8);
+    const body = this._addPart(mesh, bodyGeo, bodyMat, { y: 1.2 * s });
+    mesh.userData.body = body;
+    
+    // Bone spikes protruding from back
+    const boneMat = new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.7 });
+    this._addPart(mesh, new THREE.ConeGeometry(0.1 * s, 0.4 * s, 6), boneMat, { x: -0.4 * s, y: 1.6 * s, z: -0.5 * s }, { x: -1, z: 0.3 });
+    this._addPart(mesh, new THREE.ConeGeometry(0.12 * s, 0.5 * s, 6), boneMat, { x: 0.3 * s, y: 1.5 * s, z: -0.6 * s }, { x: -1.2, z: -0.2 });
 
-    this._addPart(mesh, new THREE.CapsuleGeometry(0.6 * s, 1.4 * s, 4, 8), mat.clone(), { y: 1.2 * s });
-    this._addPart(mesh, new THREE.SphereGeometry(0.4 * s, 8, 8), mat.clone(), { y: 2.4 * s });
-    const helmet = this._addPart(mesh, new THREE.SphereGeometry(0.45 * s, 8, 4), armorMat, { y: 2.5 * s });
-    helmet.scale.y = 0.7;
-    this._addArms(mesh, mat, s, 0.2, 1.0, { lx: -0.8, rx: 0.8, y: 1.5, z: 0.2, rotX: -0.3, lRotZ: 0, rRotZ: 0 });
-    this._addPart(mesh, new THREE.BoxGeometry(1.0 * s, 0.8 * s, 0.3 * s), armorMat, { y: 1.3 * s, z: 0.4 * s });
+    // Arms - huge, dragging on ground
+    const armGeo = new THREE.CapsuleGeometry(0.25 * s, 0.9 * s, 10, 10);
+    mesh.userData.leftArm = this._addPart(mesh, armGeo, skinMat, { x: -0.9 * s, y: 1.1 * s, z: 0.1 * s }, { x: -0.2, z: 0.1 });
+    // Right arm is mutated and even larger
+    const bigArmGeo = new THREE.CapsuleGeometry(0.35 * s, 1.1 * s, 10, 10);
+    mesh.userData.rightArm = this._addPart(mesh, bigArmGeo, skinMat, { x: 1.0 * s, y: 1.0 * s, z: 0.2 * s }, { x: -0.3, z: -0.1 });
 
-    const spikeGeo = new THREE.ConeGeometry(0.1 * s, 0.4 * s, 6);
-    for (let i = 0; i < 3; i++) {
-      this._addPart(mesh, spikeGeo, armorMat, { x: -0.7 * s, y: 1.8 * s + i * 0.15 }, { z: -0.5 });
-      this._addPart(mesh, spikeGeo, armorMat, { x:  0.7 * s, y: 1.8 * s + i * 0.15 }, { z: 0.5 });
-    }
+    // Legs - thick
+    const legGeo = new THREE.CylinderGeometry(0.3 * s, 0.2 * s, 0.7 * s, 10);
+    mesh.userData.leftLeg = this._addPart(mesh, legGeo, pantsMat, { x: -0.35 * s, y: 0.35 * s });
+    mesh.userData.rightLeg = this._addPart(mesh, legGeo, pantsMat, { x: 0.35 * s, y: 0.35 * s });
   }
 
-  _buildSpitterZombie(mesh, mat, s, glowColor) {
-    this._addPart(mesh, new THREE.CapsuleGeometry(0.35 * s, 1.1 * s, 4, 8), mat.clone(), { y: 1 * s });
-    this._addPart(mesh, new THREE.SphereGeometry(0.32 * s, 8, 8), mat.clone(), { y: 2.0 * s });
+  _buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
+    // Head - jaw unhinged (distorted sphere)
+    const headGeo = new THREE.SphereGeometry(0.28 * s, 10, 10);
+    headGeo.scale(1, 1.3, 1);
+    this._addPart(mesh, headGeo, skinMat, { y: 1.55 * s, z: 0.1 * s }, { x: 0.2 });
+    
+    // Body - thin
+    const body = this._addPart(mesh, new THREE.CapsuleGeometry(0.25 * s, 0.6 * s, 8, 8), bodyMat, { y: 0.9 * s });
+    mesh.userData.body = body;
+    
+    // Toxic sacks on neck/back
+    const sackMat = new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 0.6, transparent: true, opacity: 0.9 });
+    this._addPart(mesh, new THREE.SphereGeometry(0.2 * s, 12, 12), sackMat, { x: -0.15 * s, y: 1.25 * s, z: -0.2 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.25 * s, 12, 12), sackMat, { x: 0.15 * s, y: 1.35 * s, z: -0.15 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.15 * s, 12, 12), sackMat, { x: 0, y: 1.15 * s, z: -0.25 * s });
 
-    const sackMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.7 });
-    this._addPart(mesh, new THREE.SphereGeometry(0.3 * s, 8, 8), sackMat, { y: 1.6 * s, z: 0.25 * s });
-    this._addPart(mesh, new THREE.SphereGeometry(0.15 * s, 6, 6), sackMat, { x: -0.25 * s, y: 1.7 * s, z: 0.15 * s });
-    this._addPart(mesh, new THREE.SphereGeometry(0.15 * s, 6, 6), sackMat, { x:  0.25 * s, y: 1.7 * s, z: 0.15 * s });
+    const armGeo = new THREE.CylinderGeometry(0.08 * s, 0.05 * s, 0.6 * s, 6);
+    mesh.userData.leftArm = this._addPart(mesh, armGeo, skinMat, { x: -0.35 * s, y: 1.0 * s, z: 0.1 * s }, { x: -Math.PI / 3 });
+    // Missing lower right arm
+    const stubGeo = new THREE.CapsuleGeometry(0.08 * s, 0.2 * s, 6, 6);
+    mesh.userData.rightArm = this._addPart(mesh, stubGeo, skinMat, { x: 0.35 * s, y: 1.1 * s, z: 0.0 * s }, { x: -0.5 });
 
-    const dripMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.5 });
-    for (let i = 0; i < 3; i++) {
-      this._addPart(mesh, new THREE.CylinderGeometry(0.02 * s, 0.04 * s, 0.3 * s, 6), dripMat,
-        { x: (Math.random() - 0.5) * 0.3 * s, y: 1.3 * s, z: 0.3 * s });
-    }
-    this._addArms(mesh, mat, s, 0.1, 0.7, { lx: -0.5, rx: 0.5, y: 1.2, z: 0.2, rotX: -0.4, lRotZ: 0, rRotZ: 0 });
+    const legGeo = new THREE.CapsuleGeometry(0.12 * s, 0.5 * s, 6, 8);
+    mesh.userData.leftLeg = this._addPart(mesh, legGeo, pantsMat, { x: -0.15 * s, y: 0.3 * s });
+    mesh.userData.rightLeg = this._addPart(mesh, legGeo, pantsMat, { x: 0.15 * s, y: 0.3 * s });
   }
 
-  _buildExploderZombie(mesh, mat, s, glowColor) {
-    const body = this._addPart(mesh, new THREE.SphereGeometry(0.6 * s, 12, 12), mat.clone(), { y: 0.9 * s });
-    body.scale.set(1, 1.3, 1);
-    this._addPart(mesh, new THREE.SphereGeometry(0.25 * s, 8, 8), mat.clone(), { y: 1.9 * s });
+  _buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
+    // Head - sunken into bloated body
+    this._addPart(mesh, new THREE.SphereGeometry(0.25 * s, 10, 10), skinMat, { y: 1.55 * s, z: 0.2 * s });
+    
+    // Body - grotesquely bloated
+    const bodyGeo = new THREE.SphereGeometry(0.65 * s, 16, 16);
+    bodyGeo.scale(1.1, 1.2, 1.1);
+    const body = this._addPart(mesh, bodyGeo, bodyMat, { y: 0.9 * s });
+    mesh.userData.body = body;
 
-    const innerGlowMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.6 });
-    this._addPart(mesh, new THREE.SphereGeometry(0.5 * s, 8, 8), innerGlowMat, { y: 0.9 * s });
-
-    const crackMat = new THREE.MeshBasicMaterial({ color: glowColor });
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      this._addPart(mesh, new THREE.BoxGeometry(0.08 * s, 0.4 * s, 0.03 * s), crackMat,
-        { x: Math.cos(angle) * 0.55 * s, y: 0.9 * s + (Math.random() - 0.5) * 0.4 * s, z: Math.sin(angle) * 0.55 * s },
-        { y: angle, z: (Math.random() - 0.5) * 0.5 });
+    // Pulsing glowing veins/cracks
+    const glowMat = new THREE.MeshBasicMaterial({ color: glowColor });
+    for (let i = 0; i < 6; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = (Math.random() - 0.5) * Math.PI;
+        const r = 0.65 * s * 1.05;
+        const gx = r * Math.cos(phi) * Math.cos(theta);
+        const gy = 0.9 * s + r * Math.sin(phi);
+        const gz = r * Math.cos(phi) * Math.sin(theta);
+        
+        this._addPart(mesh, new THREE.CapsuleGeometry(0.05 * s, 0.2 * s, 4, 4), glowMat, { x: gx, y: gy, z: gz }, { x: Math.random()*3, y: Math.random()*3 });
     }
-    this._addArms(mesh, mat, s, 0.12, 0.5, { lx: -0.65, rx: 0.65, y: 1.0, z: 0, rotX: 0, lRotZ: 0.5, rRotZ: -0.5 });
+
+    // Arms - small compared to body
+    const armGeo = new THREE.CapsuleGeometry(0.12 * s, 0.5 * s, 6, 8);
+    mesh.userData.leftArm = this._addPart(mesh, armGeo, skinMat, { x: -0.75 * s, y: 1.1 * s, z: 0.1 * s }, { x: -0.3, z: 0.4 });
+    mesh.userData.rightArm = this._addPart(mesh, armGeo, skinMat, { x: 0.75 * s, y: 1.1 * s, z: 0.1 * s }, { x: -0.3, z: -0.4 });
+
+    // Legs - spread wide to support weight
+    const legGeo = new THREE.CapsuleGeometry(0.18 * s, 0.4 * s, 8, 8);
+    mesh.userData.leftLeg = this._addPart(mesh, legGeo, pantsMat, { x: -0.35 * s, y: 0.25 * s }, { z: 0.2 });
+    mesh.userData.rightLeg = this._addPart(mesh, legGeo, pantsMat, { x: 0.35 * s, y: 0.25 * s }, { z: -0.2 });
   }
 
-  _buildBossZombie(mesh, mat, s, glowColor) {
-    this._addPart(mesh, new THREE.CapsuleGeometry(0.5 * s, 1.5 * s, 6, 12), mat.clone(), { y: 1.2 * s });
-    this._addPart(mesh, new THREE.SphereGeometry(0.45 * s, 12, 12), mat.clone(), { y: 2.5 * s });
+  _buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
+    // Head - multiple merged heads or deformed mass
+    const headGeo = new THREE.SphereGeometry(0.4 * s, 16, 16);
+    headGeo.scale(1.2, 0.9, 1.1);
+    this._addPart(mesh, headGeo, skinMat, { y: 2.6 * s, z: 0.2 * s });
+    this._addPart(mesh, new THREE.SphereGeometry(0.25 * s, 10, 10), skinMat, { x: 0.3 * s, y: 2.4 * s, z: 0.3 * s }, { y: 0.5 });
+    
+    // Body - towering nightmare of flesh
+    const bodyGeo = new THREE.CapsuleGeometry(0.7 * s, 1.2 * s, 16, 16);
+    const body = this._addPart(mesh, bodyGeo, bodyMat, { y: 1.4 * s });
+    mesh.userData.body = body;
 
-    const hornMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6, roughness: 0.4 });
-    const hornGeo = new THREE.ConeGeometry(0.12 * s, 0.7 * s, 6);
-    for (const h of [{ x: -0.3, y: 2.8, rz: 0.4 }, { x: 0.3, y: 2.8, rz: -0.4 }, { x: 0, y: 2.9, z: -0.2, rx: -0.3 }]) {
-      this._addPart(mesh, hornGeo, hornMat, { x: (h.x ?? 0) * s, y: h.y * s, z: (h.z ?? 0) * s }, { x: h.rx, z: h.rz });
-    }
+    // Dark spikes/tentacles
+    const spikeMat = new THREE.MeshStandardMaterial({ color: 0x110a1a, roughness: 0.5 });
+    this._addPart(mesh, new THREE.ConeGeometry(0.15 * s, 0.8 * s, 8), spikeMat, { x: -0.5 * s, y: 2.2 * s, z: -0.4 * s }, { x: -0.5, z: 0.4 });
+    this._addPart(mesh, new THREE.ConeGeometry(0.1 * s, 0.6 * s, 8), spikeMat, { x: 0.5 * s, y: 2.1 * s, z: -0.5 * s }, { x: -0.6, z: -0.3 });
+    this._addPart(mesh, new THREE.ConeGeometry(0.12 * s, 0.7 * s, 8), spikeMat, { x: 0, y: 2.4 * s, z: -0.6 * s }, { x: -0.8 });
 
-    this._addArms(mesh, mat, s, 0.18, 1.2, { lx: -0.7, rx: 0.7, y: 1.6, z: 0.3, rotX: -0.5, lRotZ: 0.3, rRotZ: -0.3 });
+    // Arms - asymmetrical
+    const leftArmGeo = new THREE.CapsuleGeometry(0.25 * s, 1.2 * s, 10, 10);
+    mesh.userData.leftArm = this._addPart(mesh, leftArmGeo, skinMat, { x: -1.0 * s, y: 1.7 * s, z: 0.3 * s }, { x: -Math.PI / 2.5, z: 0.2 });
+    
+    // Right arm is a massive club/blade of flesh
+    const rightArmGeo = new THREE.CylinderGeometry(0.15 * s, 0.4 * s, 1.5 * s, 12);
+    mesh.userData.rightArm = this._addPart(mesh, rightArmGeo, bodyMat, { x: 1.0 * s, y: 1.5 * s, z: 0.4 * s }, { x: -Math.PI / 3, z: -0.1 });
 
-    const auraMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.15 });
-    const aura = this._addPart(mesh, new THREE.SphereGeometry(1.8 * s, 16, 16), auraMat, { y: 1.2 * s });
+    const legGeo = new THREE.CapsuleGeometry(0.3 * s, 0.8 * s, 10, 10);
+    mesh.userData.leftLeg = this._addPart(mesh, legGeo, pantsMat, { x: -0.4 * s, y: 0.4 * s });
+    mesh.userData.rightLeg = this._addPart(mesh, legGeo, pantsMat, { x: 0.4 * s, y: 0.4 * s });
+
+    // Menacing aura
+    const auraMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending });
+    const aura = this._addPart(mesh, new THREE.SphereGeometry(2.2 * s, 24, 24), auraMat, { y: 1.5 * s });
     mesh.userData.aura = aura;
 
-    const hbBg = this._addPart(mesh, new THREE.PlaneGeometry(2.5 * s, 0.25),
-      new THREE.MeshBasicMaterial({ color: 0x333333 }), { y: 3.5 * s }, { x: -Math.PI / 4 });
-    const hb = this._addPart(mesh, new THREE.PlaneGeometry(2.5 * s, 0.2),
-      new THREE.MeshBasicMaterial({ color: 0xff0000 }), { y: 3.5 * s, z: 0.01 }, { x: -Math.PI / 4 });
+    const hbBg = this._addPart(mesh, new THREE.PlaneGeometry(2.5 * s, 0.25), new THREE.MeshBasicMaterial({ color: 0x333333 }), { y: 4.0 * s }, { x: -Math.PI / 4 });
+    const hb = this._addPart(mesh, new THREE.PlaneGeometry(2.5 * s, 0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }), { y: 4.0 * s, z: 0.01 }, { x: -Math.PI / 4 });
     mesh.userData.healthBar = hb;
     mesh.userData.healthBarWidth = 2.5 * s;
   }
@@ -516,10 +615,30 @@ export class ZombieManager {
         zombie.mesh.position.z += moveDir.z * zombie.speed * delta;
       }
 
-      // Wobble animation (smaller for bosses)
-      const wobbleAmount = zombie.isBoss ? 0.03 : 0.1;
-      zombie.mesh.children[0].rotation.z =
-        Math.sin(Date.now() * 0.01) * wobbleAmount;
+// Organic zombie animation: Limping and swinging
+      const time = Date.now() * 0.01;
+      const speedAnim = zombie.speed * 0.5;
+      
+      if (zombie.state === "chase" || zombie.state === "ranged") {
+        // Limping gait - asymmetric leg movement
+        const legPhase = time * speedAnim;
+        if (zombie.mesh.userData.leftLeg) zombie.mesh.userData.leftLeg.rotation.x = Math.sin(legPhase) * 0.4;
+        if (zombie.mesh.userData.rightLeg) zombie.mesh.userData.rightLeg.rotation.x = -Math.sin(legPhase + 0.5) * 0.4; // slight offset for limp
+        
+        // Arms reach out and sway
+        if (zombie.mesh.userData.leftArm) zombie.mesh.userData.leftArm.rotation.x = -Math.PI/2.2 + Math.sin(legPhase) * 0.15;
+        if (zombie.mesh.userData.rightArm) zombie.mesh.userData.rightArm.rotation.x = -Math.PI/1.8 - Math.sin(legPhase) * 0.15;
+      } else if (zombie.state === "attack") {
+        // Violent, irregular attack swing
+        if (zombie.mesh.userData.leftArm) zombie.mesh.userData.leftArm.rotation.x = -Math.PI/2 - Math.sin(time * 3) * 0.6;
+        if (zombie.mesh.userData.rightArm) zombie.mesh.userData.rightArm.rotation.x = -Math.PI/2 - Math.cos(time * 2.5) * 0.6;
+      }
+      
+      // Organic wobble: side-to-side and slight pitch
+      const wobbleAmount = zombie.isBoss ? 0.04 : 0.12;
+      zombie.mesh.rotation.z = Math.sin(time * speedAnim * 0.4 + zombie.mesh.userData.animPhase) * wobbleAmount;
+      zombie.mesh.rotation.x = Math.cos(time * speedAnim * 0.3 + zombie.mesh.userData.limpOffsetL) * (wobbleAmount * 0.5);
+
     }
 
     // Update enemy projectiles
@@ -664,18 +783,64 @@ export class ZombieManager {
     }
   }
 
-  damageZombie(zombie, damage) {
-    zombie.health -= damage;
+  damageZombie(zombie, rawDamage, hitDirection = null, forceCrit = false) {
+    // Basic crit system (15% chance for double damage, plus any forced crits)
+    const isCrit = forceCrit || Math.random() < 0.15;
+    const finalDamage = isCrit ? rawDamage * 2 : rawDamage;
 
-    // Flash red
+    zombie.health -= finalDamage;
+
+    // Flash white/yellow on hit
     const body = zombie.mesh.userData.body;
     if (body) {
-      body.material.emissive.setHex(0xff0000);
+      body.material.emissive.setHex(isCrit ? 0xffaa00 : 0xffffff);
       setTimeout(() => {
         if (body.material) {
           body.material.emissive.setHex(0x000000);
         }
-      }, 100);
+      }, 50); // Faster punchier flash
+    }
+
+    // Knockback
+    if (!zombie.isBoss) {
+      let knockbackDir = hitDirection;
+      if (!knockbackDir) {
+        knockbackDir = new THREE.Vector3().subVectors(
+          zombie.mesh.position,
+          this.game.player.getPosition(),
+        );
+        knockbackDir.y = 0;
+        knockbackDir.normalize();
+      }
+
+      const knockbackStrength = isCrit ? 0.8 : 0.4;
+      zombie.mesh.position.add(knockbackDir.multiplyScalar(knockbackStrength));
+    }
+
+    // Hit feedback (sparks & floating text)
+    if (this.game.particleSystem) {
+      // Small random offset for text
+      const textPos = zombie.mesh.position.clone();
+      textPos.x += (Math.random() - 0.5) * 1.5;
+      textPos.y += 1.5 + Math.random() * 0.5;
+      textPos.z += (Math.random() - 0.5) * 1.5;
+
+      const color = isCrit ? 0xffcc00 : 0xffffff;
+      const size = isCrit ? 0.8 : 0.5;
+
+      this.game.particleSystem.createFloatingText(
+        textPos,
+        Math.floor(finalDamage).toString(),
+        color,
+        size,
+        isCrit,
+      );
+
+      // Hit spark particle
+      this.game.particleSystem.spawn(
+        zombie.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)),
+        isCrit ? "critSpark" : "hitSpark",
+      );
     }
 
     if (zombie.health <= 0) {

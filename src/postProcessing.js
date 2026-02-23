@@ -126,7 +126,6 @@ export class PostProcessingManager {
     this.shakeIntensity = intensity;
     this.shakeDuration = duration;
     this.shakeTimer = 0;
-    this.originalCameraPos.copy(this.game.camera.position);
   }
 
   // Damage flash (red tint + chromatic aberration)
@@ -176,23 +175,9 @@ export class PostProcessingManager {
   }
 
   update(delta) {
-    // Update screen shake
+    // Update screen shake timer
     if (this.shakeTimer < this.shakeDuration) {
       this.shakeTimer += delta;
-      const progress = this.shakeTimer / this.shakeDuration;
-      const currentIntensity = this.shakeIntensity * (1 - progress);
-
-      // Apply random offset to camera
-      const offsetX = (Math.random() - 0.5) * 2 * currentIntensity;
-      const offsetZ = (Math.random() - 0.5) * 2 * currentIntensity;
-
-      this.game.camera.position.x = this.originalCameraPos.x + offsetX;
-      this.game.camera.position.z = this.originalCameraPos.z + offsetZ;
-
-      if (this.shakeTimer >= this.shakeDuration) {
-        // Reset camera position
-        this.game.camera.position.copy(this.originalCameraPos);
-      }
     }
 
     // Update damage flash

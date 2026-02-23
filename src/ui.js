@@ -261,7 +261,7 @@ export class UI {
 
       const icon = document.createElement("span");
       icon.className = "icon";
-      icon.textContent = def.icon;
+      icon.innerHTML = def.icon;
       box.appendChild(icon);
 
       const level = document.createElement("span");
@@ -295,7 +295,7 @@ export class UI {
 
       const icon = document.createElement("span");
       icon.className = "icon";
-      icon.textContent = def.icon;
+      icon.innerHTML = def.icon;
       box.appendChild(icon);
 
       const level = document.createElement("span");

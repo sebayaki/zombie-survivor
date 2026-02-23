@@ -102,6 +102,32 @@ const PARTICLE_PRESETS = {
     upward: false,
   },
 
+  // Hit spark particles
+  hitSpark: {
+    count: 6,
+    colors: [0xffffff, 0xffffaa, 0xffcc00],
+    size: { min: 0.05, max: 0.15 },
+    speed: { min: 5, max: 12 },
+    gravity: 8,
+    lifetime: 0.3,
+    spread: 2,
+    upward: false,
+    streak: true,
+  },
+
+  // Crit spark particles
+  critSpark: {
+    count: 15,
+    colors: [0xffffff, 0xffaa00, 0xff4400],
+    size: { min: 0.1, max: 0.3 },
+    speed: { min: 10, max: 20 },
+    gravity: 8,
+    lifetime: 0.4,
+    spread: 3,
+    upward: false,
+    streak: true,
+  },
+
   // Evolution sparkles
   evolution: {
     count: 80,
@@ -369,20 +395,32 @@ export class ParticleSystem {
   }
 
   // Special effect: Rising text (damage numbers, etc.)
-  createFloatingText(position, text, color = 0xffffff, size = 0.5) {
+  createFloatingText(position, text, color = 0xffffff, size = 0.5, isCrit = false) {
     // Create canvas texture
     const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 64;
+    canvas.width = 256; // Increased resolution
+    canvas.height = 128;
     const ctx = canvas.getContext("2d");
 
-    ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
-    ctx.font = "bold 48px Arial";
+    // Clear background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Text style
+    ctx.font = isCrit ? "bold 72px 'Impact', Arial" : "bold 56px 'Impact', Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(text, 64, 32);
+
+    // Stroke/Outline for better visibility
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = isCrit ? 8 : 5;
+    ctx.strokeText(text, 128, 64);
+
+    // Fill color
+    ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
+    ctx.fillText(text, 128, 64);
 
     const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter; // Better text rendering
     const material = new THREE.SpriteMaterial({
       map: texture,
       transparent: true,
@@ -390,13 +428,21 @@ export class ParticleSystem {
     const sprite = new THREE.Sprite(material);
     sprite.position.copy(position);
     sprite.position.y += 1;
-    sprite.scale.set(size * 2, size, 1);
+    
+    // Initial pop scale
+    const baseSize = size * (isCrit ? 3 : 2);
+    sprite.scale.set(baseSize * 0.5, baseSize * 0.25, 1);
 
     this.game.scene.add(sprite);
 
-    // Animate rising and fading
+    // Animate punchy rising and fading
     let elapsed = 0;
-    const duration = 1.0;
+    const duration = isCrit ? 0.8 : 0.6;
+    
+    // Random drift
+    const driftX = (Math.random() - 0.5) * 0.05;
+    const driftZ = (Math.random() - 0.5) * 0.05;
+
     const animate = () => {
       elapsed += 0.016;
       const progress = elapsed / duration;
@@ -408,8 +454,25 @@ export class ParticleSystem {
         return;
       }
 
-      sprite.position.y += 0.02;
-      material.opacity = 1 - progress;
+      // Pop effect: scale up quickly, then settle
+      if (progress < 0.2) {
+        const popProgress = progress / 0.2;
+        const currentSize = baseSize * (0.5 + 0.7 * popProgress); // scale from 0.5 to 1.2
+        sprite.scale.set(currentSize, currentSize * 0.5, 1);
+      } else {
+        const settleProgress = (progress - 0.2) / 0.8;
+        const currentSize = baseSize * (1.2 - 0.2 * settleProgress); // settle to 1.0
+        sprite.scale.set(currentSize, currentSize * 0.5, 1);
+      }
+
+      sprite.position.x += driftX;
+      sprite.position.z += driftZ;
+      sprite.position.y += isCrit ? 0.04 : 0.02;
+      
+      // Fade out at the end
+      if (progress > 0.6) {
+        material.opacity = 1 - (progress - 0.6) / 0.4;
+      }
 
       requestAnimationFrame(animate);
     };

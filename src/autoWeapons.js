@@ -8,7 +8,7 @@ export const AUTO_WEAPONS = {
     id: "magicWand",
     name: "Magic Wand",
     description: "Fires at the nearest enemy",
-    icon: "🪄",
+    icon: `<i class="fa-solid fa-wand-magic-sparkles"></i>`,
     maxLevel: 8,
     baseStats: {
       damage: 10,
@@ -36,7 +36,7 @@ export const AUTO_WEAPONS = {
     id: "whip",
     name: "Whip",
     description: "Attacks horizontally, passes through enemies",
-    icon: "⚡",
+    icon: '<i class="fa-solid fa-bolt"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 15,
@@ -63,7 +63,7 @@ export const AUTO_WEAPONS = {
     id: "knife",
     name: "Knife",
     description: "Throws knives in facing direction",
-    icon: "🗡️",
+    icon: '<i class="fa-solid fa-khanda"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 8,
@@ -91,7 +91,7 @@ export const AUTO_WEAPONS = {
     id: "axe",
     name: "Axe",
     description: "High damage, passes through enemies",
-    icon: "🪓",
+    icon: '<i class="fa-solid fa-gavel"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 25,
@@ -119,7 +119,7 @@ export const AUTO_WEAPONS = {
     id: "garlic",
     name: "Garlic",
     description: "Damages nearby enemies and knocks them back",
-    icon: "🧄",
+    icon: '<i class="fa-solid fa-shield-cat"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 5,
@@ -145,7 +145,7 @@ export const AUTO_WEAPONS = {
     id: "cross",
     name: "Cross",
     description: "Boomerangs around, deals damage on the way back",
-    icon: "✝️",
+    icon: '<i class="fa-solid fa-cross"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 15,
@@ -173,7 +173,7 @@ export const AUTO_WEAPONS = {
     id: "fireWand",
     name: "Fire Wand",
     description: "Fires explosive projectiles",
-    icon: "🔥",
+    icon: '<i class="fa-solid fa-fire"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 20,
@@ -201,7 +201,7 @@ export const AUTO_WEAPONS = {
     id: "lightning",
     name: "Lightning Ring",
     description: "Strikes random enemies in range",
-    icon: "⚡",
+    icon: '<i class="fa-solid fa-bolt"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 15,
@@ -227,7 +227,7 @@ export const AUTO_WEAPONS = {
     id: "runetracer",
     name: "Runetracer",
     description: "Bouncing projectile that lasts a long time",
-    icon: "💠",
+    icon: '<i class="fa-solid fa-gem"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 10,
@@ -255,7 +255,7 @@ export const AUTO_WEAPONS = {
     id: "holyWater",
     name: "Holy Water",
     description: "Throws bottles that create damaging pools",
-    icon: "💧",
+    icon: '<i class="fa-solid fa-droplet"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 8,
@@ -284,7 +284,7 @@ export const AUTO_WEAPONS = {
     id: "bone",
     name: "Bone",
     description: "Bounces between enemies, hitting multiple times",
-    icon: "🦴",
+    icon: '<i class="fa-solid fa-bone"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 12,
@@ -312,7 +312,7 @@ export const AUTO_WEAPONS = {
     id: "magicMissile",
     name: "Magic Missile",
     description: "Slow but relentless homing missiles",
-    icon: "💫",
+    icon: '<i class="fa-solid fa-star"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 15,
@@ -342,7 +342,7 @@ export const AUTO_WEAPONS = {
     id: "peachone",
     name: "Peachone",
     description: "A bird that orbits around you, dealing damage",
-    icon: "🕊️",
+    icon: '<i class="fa-solid fa-dove"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 10,
@@ -369,7 +369,7 @@ export const AUTO_WEAPONS = {
     id: "ebonyWings",
     name: "Ebony Wings",
     description: "A dark bird that orbits opposite to Peachone",
-    icon: "🦅",
+    icon: '<i class="fa-solid fa-crow"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 10,
@@ -396,7 +396,7 @@ export const AUTO_WEAPONS = {
     id: "pentagram",
     name: "Pentagram",
     description: "Periodically erases all enemies on screen",
-    icon: "⛧",
+    icon: '<i class="fa-solid fa-star-of-david"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 999,
@@ -421,7 +421,7 @@ export const AUTO_WEAPONS = {
     id: "clockLancet",
     name: "Clock Lancet",
     description: "Freezes enemies in place temporarily",
-    icon: "🕐",
+    icon: '<i class="fa-solid fa-clock"></i>',
     maxLevel: 8,
     baseStats: {
       damage: 1,
@@ -447,7 +447,7 @@ export const AUTO_WEAPONS = {
     id: "laurel",
     name: "Laurel",
     description: "Grants brief invincibility when taking fatal damage",
-    icon: "🌿",
+    icon: '<i class="fa-solid fa-leaf"></i>',
     maxLevel: 8,
     baseStats: {
       cooldown: 60, // Once per minute
@@ -2829,7 +2829,6 @@ export class AutoWeaponSystem {
               proj.explosionRadius,
               proj.damage,
             );
-            this.game.screenShake(0.4, 0.2);
             this.removeProjectile(i, false);
             continue;
           }
@@ -3913,6 +3912,11 @@ export class AutoWeaponSystem {
     requestAnimationFrame(animate);
 
     this.game.audioManager.playSound("explosion");
+
+    // Add screen shake
+    if (this.game.screenShake) {
+      this.game.screenShake(0.4, 0.2);
+    }
   }
 
   // Clock Lancet - freeze enemies

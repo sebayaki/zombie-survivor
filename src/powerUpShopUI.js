@@ -256,7 +256,7 @@ export class PowerUpShopUI {
   updateDisplay() {
     // Update gold display
     const gold = this.game.powerUpSystem.currentGold;
-    this.goldDisplay.innerHTML = `💰 ${gold.toLocaleString()} Gold`;
+    this.goldDisplay.innerHTML = `<i class="fa-solid fa-sack-dollar"></i> ${gold.toLocaleString()} Gold`;
 
     // Clear and rebuild items grid
     this.itemsGrid.innerHTML = "";
@@ -285,7 +285,7 @@ export class PowerUpShopUI {
 
     const icon = document.createElement("span");
     icon.className = "powerup-item-icon";
-    icon.textContent = powerUp.icon;
+    icon.innerHTML = powerUp.icon;
     header.appendChild(icon);
 
     const name = document.createElement("span");
@@ -322,7 +322,7 @@ export class PowerUpShopUI {
       cost.classList.add("maxed");
       cost.textContent = "✓ MAXED";
     } else {
-      cost.innerHTML = `💰 ${powerUp.nextCost.toLocaleString()}`;
+      cost.innerHTML = `<i class="fa-solid fa-sack-dollar"></i> ${powerUp.nextCost.toLocaleString()}`;
     }
     item.appendChild(cost);
 

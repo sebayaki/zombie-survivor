@@ -75,9 +75,9 @@ export class Game {
 
     // Continuous spawning settings
     this.spawnTimer = 0;
-    this.baseSpawnInterval = 2.0; // Start spawning every 2 seconds
-    this.minSpawnInterval = 0.3; // Minimum spawn interval
-    this.zombiesPerSpawn = 1;
+    this.baseSpawnInterval = 0.8; // Start spawning every 0.8 seconds (faster early game)
+    this.minSpawnInterval = 0.15; // Minimum spawn interval
+    this.zombiesPerSpawn = 2; // Start with more zombies
   }
 
   async init() {
@@ -565,9 +565,16 @@ export class Game {
 
     // Reset all resettable systems
     const resettableSystems = [
-      this.player, this.zombieManager, this.pickupManager, this.weaponSystem,
-      this.xpSystem, this.autoWeaponSystem, this.passiveItemSystem,
-      this.treasureChestSystem, this.evolutionSystem, this.particleSystem,
+      this.player,
+      this.zombieManager,
+      this.pickupManager,
+      this.weaponSystem,
+      this.xpSystem,
+      this.autoWeaponSystem,
+      this.passiveItemSystem,
+      this.treasureChestSystem,
+      this.evolutionSystem,
+      this.particleSystem,
     ];
     for (const system of resettableSystems) system.reset();
 
@@ -658,11 +665,11 @@ export class Game {
     // Spawn rate increases over time
     const spawnInterval = Math.max(
       this.minSpawnInterval,
-      this.baseSpawnInterval - timeMinutes * 0.1,
+      this.baseSpawnInterval - timeMinutes * 0.15,
     );
 
     // Number of zombies per spawn also increases
-    this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.5);
+    this.zombiesPerSpawn = Math.floor(2 + timeMinutes * 1.5);
 
     // Zombie stats scale with time
     const zombieHealth = 30 + timeMinutes * 10;
@@ -863,9 +870,34 @@ export class Game {
       const targetX = playerPos.x;
       const targetZ = playerPos.z;
 
+      // Remove previous shake offset before calculating new position
+      if (this.lastShakeOffset) {
+        this.camera.position.x -= this.lastShakeOffset.x;
+        this.camera.position.z -= this.lastShakeOffset.z;
+        this.lastShakeOffset = null;
+      }
+
       // Smoothly follow player position
       this.camera.position.x += (targetX - this.camera.position.x) * 0.1;
       this.camera.position.z += (targetZ + 0.1 - this.camera.position.z) * 0.1;
+
+      // Apply screen shake if active
+      if (
+        this.postProcessing &&
+        this.postProcessing.shakeTimer < this.postProcessing.shakeDuration
+      ) {
+        const progress =
+          this.postProcessing.shakeTimer / this.postProcessing.shakeDuration;
+        const currentIntensity =
+          this.postProcessing.shakeIntensity * (1 - progress);
+
+        const offsetX = (Math.random() - 0.5) * 2 * currentIntensity;
+        const offsetZ = (Math.random() - 0.5) * 2 * currentIntensity;
+
+        this.lastShakeOffset = { x: offsetX, z: offsetZ };
+        this.camera.position.x += offsetX;
+        this.camera.position.z += offsetZ;
+      }
 
       // Update player light
       this.playerLight.position.copy(playerPos);
