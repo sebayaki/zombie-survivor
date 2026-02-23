@@ -20,36 +20,36 @@ export class CollisionSystem {
     const projectiles = this.game.weaponSystem.getProjectiles();
     const zombies = this.game.zombieManager.getZombies();
 
-    // Check each projectile against each zombie
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const projectile = projectiles[i];
-      const projectilePos = projectile.mesh.position;
+      const px = projectile.mesh.position.x;
+      const py = projectile.mesh.position.y;
+      const pz = projectile.mesh.position.z;
+      const hitRadius = this.zombieRadius + projectile.mesh.scale.x;
+      const hitRadiusSq = hitRadius * hitRadius;
 
       for (const zombie of zombies) {
-        const zombiePos = zombie.mesh.position;
+        const zp = zombie.mesh.position;
+        const dx = px - zp.x;
+        const dz = pz - zp.z;
+        const flatDistSq = dx * dx + dz * dz;
 
-        // Calculate distance (using XZ plane + Y offset for body)
-        const dx = projectilePos.x - zombiePos.x;
-        const dy = projectilePos.y - (zombiePos.y + 1); // Zombie center is at y+1
-        const dz = projectilePos.z - zombiePos.z;
-        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        // Quick XZ rejection before computing full 3D distance
+        if (flatDistSq > hitRadiusSq * 4) continue;
 
-        const hitRadius = this.zombieRadius + projectile.mesh.scale.x;
+        const dy = py - (zp.y + 1);
+        const distSq = flatDistSq + dy * dy;
 
-        if (distance < hitRadius) {
-          // Skip if piercing and already hit this zombie
+        if (distSq < hitRadiusSq) {
           if (projectile.piercing && projectile.hitZombies.has(zombie)) {
             continue;
           }
 
-          // Hit!
           this.game.zombieManager.damageZombie(zombie, projectile.damage);
 
           if (projectile.piercing) {
-            // Mark as hit but continue
             projectile.hitZombies.add(zombie);
           } else {
-            // Remove projectile (may explode)
             this.game.weaponSystem.removeProjectile(i, projectile.explosive);
             break;
           }
@@ -81,13 +81,12 @@ export class CollisionSystem {
   // Utility: Check if position collides with any obstacle
   checkObstacleCollision(position, radius) {
     for (const obstacle of this.game.obstacles) {
-      const halfSize = obstacle.size.clone().multiplyScalar(0.5);
-      halfSize.x += radius;
-      halfSize.z += radius;
+      const hx = obstacle.size.x * 0.5 + radius;
+      const hz = obstacle.size.z * 0.5 + radius;
 
       if (
-        Math.abs(position.x - obstacle.position.x) < halfSize.x &&
-        Math.abs(position.z - obstacle.position.z) < halfSize.z
+        Math.abs(position.x - obstacle.position.x) < hx &&
+        Math.abs(position.z - obstacle.position.z) < hz
       ) {
         return true;
       }

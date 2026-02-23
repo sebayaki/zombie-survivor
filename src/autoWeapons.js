@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { EVOLUTION_RECIPES } from "./evolutionSystem.js";
 
+// Reusable temp vectors for hot loops (avoids GC pressure)
+const _tv1 = new THREE.Vector3();
+const _tv2 = new THREE.Vector3();
+
 // Weapon definitions - Vampire Survivors style
 export const AUTO_WEAPONS = {
   // Starting weapon - simple projectile
@@ -3181,15 +3185,16 @@ export class AutoWeaponSystem {
       // Update based on type
       switch (proj.type) {
         case "magicWand":
-        case "knife":
-          // Simple linear movement
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+        case "knife": {
+          const s = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * s;
+          proj.mesh.position.y += proj.direction.y * s;
+          proj.mesh.position.z += proj.direction.z * s;
           if (proj.type === "knife") {
             proj.mesh.rotation.y += delta * 10;
           }
           break;
+        }
 
         case "axe":
           // Arc movement
@@ -3201,44 +3206,45 @@ export class AutoWeaponSystem {
           proj.mesh.rotation.z = proj.spin;
           break;
 
-        case "cross":
-          // Boomerang movement
+        case "cross": {
+          const cs = proj.speed * delta;
           if (!proj.returning) {
-            proj.mesh.position.add(
-              proj.direction.clone().multiplyScalar(proj.speed * delta),
-            );
+            proj.mesh.position.x += proj.direction.x * cs;
+            proj.mesh.position.z += proj.direction.z * cs;
 
-            // Check if should return
-            const dist = proj.mesh.position.distanceTo(proj.startPos);
-            if (dist > 8 || proj.elapsed > proj.duration * 0.4) {
+            const cdx = proj.mesh.position.x - proj.startPos.x;
+            const cdz = proj.mesh.position.z - proj.startPos.z;
+            if (cdx * cdx + cdz * cdz > 64 || proj.elapsed > proj.duration * 0.4) {
               proj.returning = true;
             }
           } else {
-            // Return to player
-            const playerPos = this.game.player.getPosition();
-            const toPlayer = new THREE.Vector3();
-            toPlayer.subVectors(playerPos, proj.mesh.position);
-            toPlayer.y = 0;
-            toPlayer.normalize();
-            proj.mesh.position.add(
-              toPlayer.multiplyScalar(proj.speed * 1.2 * delta),
-            );
+            const pp = this.game.player.getPosition();
+            let tpx = pp.x - proj.mesh.position.x;
+            let tpz = pp.z - proj.mesh.position.z;
+            const tpl = Math.sqrt(tpx * tpx + tpz * tpz);
+            if (tpl > 0.0001) { tpx /= tpl; tpz /= tpl; }
+            const rs = proj.speed * 1.2 * delta;
+            proj.mesh.position.x += tpx * rs;
+            proj.mesh.position.z += tpz * rs;
           }
           proj.spin += delta * 15;
           proj.mesh.rotation.y = proj.spin;
           break;
+        }
 
-        case "fireWand":
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+        case "fireWand": {
+          const fs = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * fs;
+          proj.mesh.position.y += proj.direction.y * fs;
+          proj.mesh.position.z += proj.direction.z * fs;
           break;
+        }
 
-        case "runetracer":
+        case "runetracer": {
           // Bounce off walls
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+          const rs = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * rs;
+          proj.mesh.position.z += proj.direction.z * rs;
 
           // Wall bouncing
           if (Math.abs(proj.mesh.position.x) > arenaSize - 1) {
@@ -3252,6 +3258,7 @@ export class AutoWeaponSystem {
               Math.sign(proj.mesh.position.z) * (arenaSize - 1);
           }
           break;
+        }
 
         case "holyWater":
           // Arc to target, then create pool
@@ -3273,13 +3280,14 @@ export class AutoWeaponSystem {
 
         // === EVOLVED WEAPON PROJECTILES ===
         case "holyWand":
-        case "thousandEdge":
-          // Linear movement like regular projectiles
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+        case "thousandEdge": {
+          const hs = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * hs;
+          proj.mesh.position.y += proj.direction.y * hs;
+          proj.mesh.position.z += proj.direction.z * hs;
           proj.mesh.rotation.y += delta * 5;
           break;
+        }
 
         case "deathSpiral":
           // Orbit around player
@@ -3296,36 +3304,33 @@ export class AutoWeaponSystem {
           break;
 
         case "heavenSword":
-          // Homing projectile
           if (proj.homing) {
             const zombies = this.game.zombieManager.getZombies();
             if (zombies.length > 0) {
-              // Find nearest enemy
               let nearest = null;
-              let nearestDist = Infinity;
+              let nearestDistSq = Infinity;
               for (const z of zombies) {
-                const dist = z.mesh.position.distanceTo(proj.mesh.position);
-                if (dist < nearestDist) {
-                  nearestDist = dist;
-                  nearest = z;
-                }
+                const dx = z.mesh.position.x - proj.mesh.position.x;
+                const dz = z.mesh.position.z - proj.mesh.position.z;
+                const dsq = dx * dx + dz * dz;
+                if (dsq < nearestDistSq) { nearestDistSq = dsq; nearest = z; }
               }
               if (nearest) {
-                const targetDir = new THREE.Vector3();
-                targetDir.subVectors(nearest.mesh.position, proj.mesh.position);
-                targetDir.y = 0;
-                targetDir.normalize();
-
-                // Gradually turn toward target
-                proj.direction.lerp(targetDir, proj.homingStrength * delta);
+                _tv1.x = nearest.mesh.position.x - proj.mesh.position.x;
+                _tv1.y = 0;
+                _tv1.z = nearest.mesh.position.z - proj.mesh.position.z;
+                _tv1.normalize();
+                proj.direction.lerp(_tv1, proj.homingStrength * delta);
                 proj.direction.normalize();
               }
             }
           }
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
-          // Point in movement direction
+          {
+            const hs2 = proj.speed * delta;
+            proj.mesh.position.x += proj.direction.x * hs2;
+            proj.mesh.position.y += proj.direction.y * hs2;
+            proj.mesh.position.z += proj.direction.z * hs2;
+          }
           proj.mesh.rotation.z = Math.atan2(proj.direction.x, proj.direction.z);
           break;
 
@@ -3346,11 +3351,11 @@ export class AutoWeaponSystem {
           }
           break;
 
-        case "noFuture":
+        case "noFuture": {
           // Bouncing doom orb
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+          const ns = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * ns;
+          proj.mesh.position.z += proj.direction.z * ns;
           proj.mesh.rotation.y += delta * 3;
           proj.mesh.rotation.x += delta * 2;
 
@@ -3360,11 +3365,8 @@ export class AutoWeaponSystem {
             proj.mesh.position.x =
               Math.sign(proj.mesh.position.x) * (arenaSize - 1);
             if (proj.explosionOnBounce) {
-              this.createExplosion(
-                proj.mesh.position.clone(),
-                proj.explosionRadius,
-                proj.damage * 0.5,
-              );
+              _tv2.copy(proj.mesh.position);
+              this.createExplosion(_tv2, proj.explosionRadius, proj.damage * 0.5);
             }
           }
           if (Math.abs(proj.mesh.position.z) > arenaSize - 1) {
@@ -3372,52 +3374,44 @@ export class AutoWeaponSystem {
             proj.mesh.position.z =
               Math.sign(proj.mesh.position.z) * (arenaSize - 1);
             if (proj.explosionOnBounce) {
-              this.createExplosion(
-                proj.mesh.position.clone(),
-                proj.explosionRadius,
-                proj.damage * 0.5,
-              );
+              _tv2.copy(proj.mesh.position);
+              this.createExplosion(_tv2, proj.explosionRadius, proj.damage * 0.5);
             }
           }
           break;
+        }
 
         // === NEW WEAPON PROJECTILES ===
-        case "bone":
-          // Move and bounce between enemies
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
-          proj.mesh.rotation.z += delta * 15; // Spin
+        case "bone": {
+          const bs = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * bs;
+          proj.mesh.position.z += proj.direction.z * bs;
+          proj.mesh.rotation.z += delta * 15;
 
-          // Check enemy collision for bouncing
           const boneZombies = this.game.zombieManager.getZombies();
+          const bhr = proj.area + 0.8;
+          const bhrSq = bhr * bhr;
           for (const zombie of boneZombies) {
             if (proj.hitEnemies.has(zombie)) continue;
-            const dist = zombie.mesh.position.distanceTo(proj.mesh.position);
-            if (dist < proj.area + 0.8) {
-              // Hit!
+            const bdx = zombie.mesh.position.x - proj.mesh.position.x;
+            const bdz = zombie.mesh.position.z - proj.mesh.position.z;
+            if (bdx * bdx + bdz * bdz < bhrSq) {
               this.game.zombieManager.damageZombie(zombie, proj.damage);
               proj.hitEnemies.add(zombie);
 
-              // Bounce to next enemy
               if (proj.bounceCount > 0) {
                 proj.bounceCount--;
-                // Find nearest unhit enemy
                 let nearestEnemy = null;
-                let nearestDist = Infinity;
+                let nearestDistSq = Infinity;
                 for (const z of boneZombies) {
                   if (proj.hitEnemies.has(z)) continue;
-                  const d = z.mesh.position.distanceTo(proj.mesh.position);
-                  if (d < nearestDist) {
-                    nearestDist = d;
-                    nearestEnemy = z;
-                  }
+                  const ndx = z.mesh.position.x - proj.mesh.position.x;
+                  const ndz = z.mesh.position.z - proj.mesh.position.z;
+                  const ndsq = ndx * ndx + ndz * ndz;
+                  if (ndsq < nearestDistSq) { nearestDistSq = ndsq; nearestEnemy = z; }
                 }
                 if (nearestEnemy) {
-                  proj.direction.subVectors(
-                    nearestEnemy.mesh.position,
-                    proj.mesh.position,
-                  );
+                  proj.direction.subVectors(nearestEnemy.mesh.position, proj.mesh.position);
                   proj.direction.y = 0;
                   proj.direction.normalize();
                 }
@@ -3426,35 +3420,34 @@ export class AutoWeaponSystem {
             }
           }
           break;
+        }
 
-        case "magicMissile":
-          // Homing projectile
-          const missileZombies = this.game.zombieManager.getZombies();
-          if (missileZombies.length > 0) {
+        case "magicMissile": {
+          const mmZombies = this.game.zombieManager.getZombies();
+          if (mmZombies.length > 0) {
             let nearestZ = null;
-            let nearestD = Infinity;
-            for (const z of missileZombies) {
-              const d = z.mesh.position.distanceTo(proj.mesh.position);
-              if (d < nearestD) {
-                nearestD = d;
-                nearestZ = z;
-              }
+            let nearestDSq = Infinity;
+            for (const z of mmZombies) {
+              const mdx = z.mesh.position.x - proj.mesh.position.x;
+              const mdz = z.mesh.position.z - proj.mesh.position.z;
+              const mdsq = mdx * mdx + mdz * mdz;
+              if (mdsq < nearestDSq) { nearestDSq = mdsq; nearestZ = z; }
             }
             if (nearestZ) {
-              const targetDir = new THREE.Vector3();
-              targetDir.subVectors(nearestZ.mesh.position, proj.mesh.position);
-              targetDir.y = 0;
-              targetDir.normalize();
-
-              proj.direction.lerp(targetDir, proj.homingStrength * delta);
+              _tv1.x = nearestZ.mesh.position.x - proj.mesh.position.x;
+              _tv1.y = 0;
+              _tv1.z = nearestZ.mesh.position.z - proj.mesh.position.z;
+              _tv1.normalize();
+              proj.direction.lerp(_tv1, proj.homingStrength * delta);
               proj.direction.normalize();
             }
           }
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+          const mms = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * mms;
+          proj.mesh.position.z += proj.direction.z * mms;
           proj.mesh.rotation.y = Math.atan2(proj.direction.x, proj.direction.z);
           break;
+        }
 
         case "peachone":
         case "ebonyWings":
@@ -3481,12 +3474,14 @@ export class AutoWeaponSystem {
 
           // Check damage cooldowns
           const birdZombies = this.game.zombieManager.getZombies();
+          const birdAreaSq = proj.area * proj.area;
           for (const zombie of birdZombies) {
             const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
             if (proj.elapsed - lastHit < 0.5) continue;
 
-            const dist = zombie.mesh.position.distanceTo(proj.mesh.position);
-            if (dist < proj.area) {
+            const bdx = zombie.mesh.position.x - proj.mesh.position.x;
+            const bdz = zombie.mesh.position.z - proj.mesh.position.z;
+            if (bdx * bdx + bdz * bdz < birdAreaSq) {
               this.game.zombieManager.damageZombie(zombie, proj.damage);
               proj.hitCooldowns[zombie.mesh.uuid] = proj.elapsed;
             }
@@ -3494,39 +3489,39 @@ export class AutoWeaponSystem {
           break;
 
         case "skullOManiac": {
-          // Homing bone that bounces between enemies
           const skullZombies = this.game.zombieManager.getZombies();
           if (proj.homing && skullZombies.length > 0) {
             let nearestZ = null;
-            let nearestD = Infinity;
+            let nearestDSq = Infinity;
             for (const z of skullZombies) {
               if (proj.hitEnemies.has(z)) continue;
-              const d = z.mesh.position.distanceTo(proj.mesh.position);
-              if (d < nearestD) {
-                nearestD = d;
-                nearestZ = z;
-              }
+              const sdx = z.mesh.position.x - proj.mesh.position.x;
+              const sdz = z.mesh.position.z - proj.mesh.position.z;
+              const sdsq = sdx * sdx + sdz * sdz;
+              if (sdsq < nearestDSq) { nearestDSq = sdsq; nearestZ = z; }
             }
             if (nearestZ) {
-              const targetDir = new THREE.Vector3();
-              targetDir.subVectors(nearestZ.mesh.position, proj.mesh.position);
-              targetDir.y = 0;
-              targetDir.normalize();
-              proj.direction.lerp(targetDir, proj.homingStrength * delta);
+              _tv1.x = nearestZ.mesh.position.x - proj.mesh.position.x;
+              _tv1.y = 0;
+              _tv1.z = nearestZ.mesh.position.z - proj.mesh.position.z;
+              _tv1.normalize();
+              proj.direction.lerp(_tv1, proj.homingStrength * delta);
               proj.direction.normalize();
             }
           }
 
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+          const sks = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * sks;
+          proj.mesh.position.z += proj.direction.z * sks;
           proj.mesh.rotation.z += delta * 18;
 
-          // Bounce on enemy hit
+          const skhr = proj.area + 0.8;
+          const skhrSq = skhr * skhr;
           for (const zombie of skullZombies) {
             if (proj.hitEnemies.has(zombie)) continue;
-            const dist = zombie.mesh.position.distanceTo(proj.mesh.position);
-            if (dist < proj.area + 0.8) {
+            const sdx = zombie.mesh.position.x - proj.mesh.position.x;
+            const sdz = zombie.mesh.position.z - proj.mesh.position.z;
+            if (sdx * sdx + sdz * sdz < skhrSq) {
               this.game.zombieManager.damageZombie(zombie, proj.damage);
               proj.hitEnemies.add(zombie);
 
@@ -3542,31 +3537,29 @@ export class AutoWeaponSystem {
         }
 
         case "guidedMeteor": {
-          // Homing meteor that explodes on impact
-          const meteorZombies = this.game.zombieManager.getZombies();
-          if (meteorZombies.length > 0) {
+          const gmZombies = this.game.zombieManager.getZombies();
+          if (gmZombies.length > 0) {
             let nearestZ = null;
-            let nearestD = Infinity;
-            for (const z of meteorZombies) {
-              const d = z.mesh.position.distanceTo(proj.mesh.position);
-              if (d < nearestD) {
-                nearestD = d;
-                nearestZ = z;
-              }
+            let nearestDSq = Infinity;
+            for (const z of gmZombies) {
+              const gdx = z.mesh.position.x - proj.mesh.position.x;
+              const gdz = z.mesh.position.z - proj.mesh.position.z;
+              const gdsq = gdx * gdx + gdz * gdz;
+              if (gdsq < nearestDSq) { nearestDSq = gdsq; nearestZ = z; }
             }
             if (nearestZ) {
-              const targetDir = new THREE.Vector3();
-              targetDir.subVectors(nearestZ.mesh.position, proj.mesh.position);
-              targetDir.y = 0;
-              targetDir.normalize();
-              proj.direction.lerp(targetDir, proj.homingStrength * delta);
+              _tv1.x = nearestZ.mesh.position.x - proj.mesh.position.x;
+              _tv1.y = 0;
+              _tv1.z = nearestZ.mesh.position.z - proj.mesh.position.z;
+              _tv1.normalize();
+              proj.direction.lerp(_tv1, proj.homingStrength * delta);
               proj.direction.normalize();
             }
           }
 
-          proj.mesh.position.add(
-            proj.direction.clone().multiplyScalar(proj.speed * delta),
-          );
+          const gms = proj.speed * delta;
+          proj.mesh.position.x += proj.direction.x * gms;
+          proj.mesh.position.z += proj.direction.z * gms;
           proj.mesh.rotation.y = Math.atan2(proj.direction.x, proj.direction.z);
           proj.mesh.rotation.x = Math.sin(proj.elapsed * 4) * 0.1;
           break;
@@ -3593,12 +3586,14 @@ export class AutoWeaponSystem {
           }
 
           const vanZombies = this.game.zombieManager.getZombies();
+          const vanAreaSq = proj.area * proj.area;
           for (const zombie of vanZombies) {
             const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
             if (proj.elapsed - lastHit < 0.3) continue;
 
-            const dist = zombie.mesh.position.distanceTo(proj.mesh.position);
-            if (dist < proj.area) {
+            const vdx = zombie.mesh.position.x - proj.mesh.position.x;
+            const vdz = zombie.mesh.position.z - proj.mesh.position.z;
+            if (vdx * vdx + vdz * vdz < vanAreaSq) {
               this.game.zombieManager.damageZombie(zombie, proj.damage);
               proj.hitCooldowns[zombie.mesh.uuid] = proj.elapsed;
             }
@@ -3634,13 +3629,13 @@ export class AutoWeaponSystem {
 
   checkProjectileCollisions(proj, index) {
     const zombies = this.game.zombieManager.getZombies();
-    const projPos = proj.mesh.position;
-    const hitRadius = (proj.area || 1) * 0.8; // Increased hit radius
+    const px = proj.mesh.position.x;
+    const pz = proj.mesh.position.z;
+    const hitRadius = (proj.area || 1) * 0.8 + 0.8;
+    const hitRadiusSq = hitRadius * hitRadius;
 
     for (const zombie of zombies) {
-      // Check if already hit (for pierce tracking)
       if (proj.hitEnemies && proj.hitEnemies.has(zombie)) {
-        // For runetracer, allow re-hits after cooldown
         if (proj.type === "runetracer") {
           const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
           if (proj.elapsed - lastHit < 0.5) continue;
@@ -3649,13 +3644,11 @@ export class AutoWeaponSystem {
         }
       }
 
-      // Use 2D distance (ignore Y axis) for more reliable collision
-      const zombiePos = zombie.mesh.position;
-      const dx = zombiePos.x - projPos.x;
-      const dz = zombiePos.z - projPos.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
+      const dx = zombie.mesh.position.x - px;
+      const dz = zombie.mesh.position.z - pz;
+      const distSq = dx * dx + dz * dz;
 
-      if (dist < hitRadius + 0.8) {
+      if (distSq < hitRadiusSq) {
         // Hit!
         this.game.zombieManager.damageZombie(zombie, proj.damage);
 
@@ -3775,27 +3768,25 @@ export class AutoWeaponSystem {
           for (const zombie of zombies) {
             if (effect.hitEnemies.has(zombie)) continue;
 
-            // 2D distance check
             const zPos = zombie.mesh.position;
             const ePos = effect.position;
             const dx = zPos.x - ePos.x;
             const dz = zPos.z - ePos.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
+            const distSq = dx * dx + dz * dz;
+            const areaSq = effect.area * effect.area;
 
-            if (dist < effect.area) {
+            if (distSq < areaSq) {
               this.game.zombieManager.damageZombie(zombie, effect.damage);
               effect.hitEnemies.add(zombie);
 
-              // Knockback
               if (effect.knockback) {
-                const dir = new THREE.Vector3();
-                dir.subVectors(
-                  zombie.mesh.position,
-                  this.game.player.getPosition(),
-                );
-                dir.y = 0;
-                dir.normalize();
-                zombie.mesh.position.add(dir.multiplyScalar(effect.knockback));
+                const pp = this.game.player.getPosition();
+                let kx = zPos.x - pp.x;
+                let kz = zPos.z - pp.z;
+                const kl = Math.sqrt(kx * kx + kz * kz);
+                if (kl > 0.0001) { kx /= kl; kz /= kl; }
+                zPos.x += kx * effect.knockback;
+                zPos.z += kz * effect.knockback;
               }
             }
           }
@@ -3836,22 +3827,19 @@ export class AutoWeaponSystem {
           break;
 
         case "holyWaterPool":
-          // Tick damage (use 2D distance)
           if (effect.elapsed - effect.lastTick >= effect.tickRate) {
             effect.lastTick = effect.elapsed;
 
-            const zombiesInPool = this.game.zombieManager
-              .getZombies()
-              .filter((z) => {
-                const zp = z.mesh.position;
-                const ep = effect.position;
-                const dx = zp.x - ep.x;
-                const dz = zp.z - ep.z;
-                return Math.sqrt(dx * dx + dz * dz) < effect.area;
-              });
-
-            for (const zombie of zombiesInPool) {
-              this.game.zombieManager.damageZombie(zombie, effect.damage);
+            const poolAreaSq = effect.area * effect.area;
+            const allZombies = this.game.zombieManager.getZombies();
+            for (const z of allZombies) {
+              const zp = z.mesh.position;
+              const ep = effect.position;
+              const dx = zp.x - ep.x;
+              const dz = zp.z - ep.z;
+              if (dx * dx + dz * dz < poolAreaSq) {
+                this.game.zombieManager.damageZombie(z, effect.damage);
+              }
             }
           }
 
@@ -3947,10 +3935,10 @@ export class AutoWeaponSystem {
           break;
 
         // === EVOLVED WEAPON EFFECTS ===
-        case "bloodyTear":
-          // Blood whip - damage enemies and heal player
+        case "bloodyTear": {
           const bloodZombies = this.game.zombieManager.getZombies();
           let bloodHealed = 0;
+          const btAreaSq = effect.area * effect.area;
           for (const zombie of bloodZombies) {
             if (effect.hitEnemies.has(zombie)) continue;
 
@@ -3958,22 +3946,20 @@ export class AutoWeaponSystem {
             const ePos = effect.position;
             const dx = zPos.x - ePos.x;
             const dz = zPos.z - ePos.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
 
-            if (dist < effect.area) {
+            if (dx * dx + dz * dz < btAreaSq) {
               this.game.zombieManager.damageZombie(zombie, effect.damage);
               effect.hitEnemies.add(zombie);
               bloodHealed += effect.lifesteal || 0;
 
               if (effect.knockback) {
-                const dir = new THREE.Vector3();
-                dir.subVectors(
-                  zombie.mesh.position,
-                  this.game.player.getPosition(),
-                );
-                dir.y = 0;
-                dir.normalize();
-                zombie.mesh.position.add(dir.multiplyScalar(effect.knockback));
+                const pp = this.game.player.getPosition();
+                let kx = zPos.x - pp.x;
+                let kz = zPos.z - pp.z;
+                const kl = Math.sqrt(kx * kx + kz * kz);
+                if (kl > 0.0001) { kx /= kl; kz /= kl; }
+                zPos.x += kx * effect.knockback;
+                zPos.z += kz * effect.knockback;
               }
             }
           }
@@ -3999,6 +3985,7 @@ export class AutoWeaponSystem {
             }
           });
           break;
+        }
 
         case "soulEater":
           // Rotate the entire aura group slowly
@@ -4045,25 +4032,24 @@ export class AutoWeaponSystem {
 
             const poolZombies = this.game.zombieManager
               .getZombies()
-              .filter((z) => {
-                const zp = z.mesh.position;
-                const ep = effect.position;
-                const dx = zp.x - ep.x;
-                const dz = zp.z - ep.z;
-                return Math.sqrt(dx * dx + dz * dz) < effect.area;
-              });
+              .getZombies();
 
+            const lbAreaSq = effect.area * effect.area;
             for (const zombie of poolZombies) {
+              const zp = zombie.mesh.position;
+              const ep = effect.position;
+              const dx = zp.x - ep.x;
+              const dz = zp.z - ep.z;
+              if (dx * dx + dz * dz >= lbAreaSq) continue;
+
               this.game.zombieManager.damageZombie(zombie, effect.damage);
 
-              // Apply slow (temporarily reduce zombie speed)
               if (!zombie.originalSpeed) {
                 zombie.originalSpeed = zombie.speed;
               }
               zombie.speed =
                 zombie.originalSpeed * (1 - (effect.slowAmount || 0.5));
 
-              // Reset speed after leaving
               zombie.slowTimeout = setTimeout(() => {
                 if (zombie.originalSpeed) {
                   zombie.speed = zombie.originalSpeed;
@@ -4112,16 +4098,14 @@ export class AutoWeaponSystem {
           if (effect.elapsed - effect.lastTick >= effect.tickRate) {
             effect.lastTick = effect.elapsed;
 
-            const corridorZombies = this.game.zombieManager
-              .getZombies()
-              .filter((z) => {
-                const dx = z.mesh.position.x - effect.position.x;
-                const dz = z.mesh.position.z - effect.position.z;
-                return Math.sqrt(dx * dx + dz * dz) < effect.area;
-              });
-
+            const corridorZombies = this.game.zombieManager.getZombies();
+            const icAreaSq = effect.area * effect.area;
             for (const zombie of corridorZombies) {
-              this.game.zombieManager.damageZombie(zombie, effect.damage);
+              const dx = zombie.mesh.position.x - effect.position.x;
+              const dz = zombie.mesh.position.z - effect.position.z;
+              if (dx * dx + dz * dz < icAreaSq) {
+                this.game.zombieManager.damageZombie(zombie, effect.damage);
+              }
             }
           }
 
@@ -4156,20 +4140,14 @@ export class AutoWeaponSystem {
             // Reflect damage to nearby enemies periodically
             if (effect.elapsed - effect.lastReflectTick >= 0.5) {
               effect.lastReflectTick = effect.elapsed;
-              const reflectZombies = this.game.zombieManager
-                .getZombies()
-                .filter((z) => {
-                  return (
-                    z.mesh.position.distanceTo(shroudPlayerPos) <
-                    effect.reflectRadius
-                  );
-                });
-
+              const reflectZombies = this.game.zombieManager.getZombies();
+              const rrSq = effect.reflectRadius * effect.reflectRadius;
               for (const zombie of reflectZombies) {
-                this.game.zombieManager.damageZombie(
-                  zombie,
-                  effect.reflectDamage,
-                );
+                const rdx = zombie.mesh.position.x - shroudPlayerPos.x;
+                const rdz = zombie.mesh.position.z - shroudPlayerPos.z;
+                if (rdx * rdx + rdz * rdz < rrSq) {
+                  this.game.zombieManager.damageZombie(zombie, effect.reflectDamage);
+                }
               }
             }
           }

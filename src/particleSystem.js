@@ -142,26 +142,33 @@ const PARTICLE_PRESETS = {
   },
 };
 
+const _pColor = new THREE.Color();
+const _pBlack = new THREE.Color(0x111111);
+const _pLookAt = new THREE.Vector3();
+
 export class ParticleSystem {
   constructor(game) {
     this.game = game;
     this.particles = [];
-    this.trailParticles = []; // For continuous trails
+    this.trailParticles = [];
+    this.maxParticles = 300;
 
     // Shared geometries for performance
     this.sphereGeometry = new THREE.SphereGeometry(1, 6, 6);
     this.boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   }
 
-  // Spawn particles at a position with a preset
   spawn(position, presetName, options = {}) {
     const preset = PARTICLE_PRESETS[presetName];
-    if (!preset) {
-      console.warn(`Unknown particle preset: ${presetName}`);
-      return;
-    }
+    if (!preset) return;
 
-    const count = options.count || preset.count;
+    // Cap total particles to prevent performance death spiral
+    if (this.particles.length >= this.maxParticles) return;
+
+    const count = Math.min(
+      options.count || preset.count,
+      this.maxParticles - this.particles.length,
+    );
     const scale = options.scale || 1;
 
     for (let i = 0; i < count; i++) {
@@ -265,13 +272,14 @@ export class ParticleSystem {
   }
 
   update(delta) {
-    // Update existing particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const particle = this.particles[i];
       particle.elapsed += delta;
 
-      // Apply velocity
-      particle.mesh.position.add(particle.velocity.clone().multiplyScalar(delta));
+      // Apply velocity (inline, no clone)
+      particle.mesh.position.x += particle.velocity.x * delta;
+      particle.mesh.position.y += particle.velocity.y * delta;
+      particle.mesh.position.z += particle.velocity.z * delta;
 
       // Apply gravity
       particle.velocity.y -= particle.gravity * delta;
@@ -279,7 +287,7 @@ export class ParticleSystem {
       // Ground collision
       if (particle.mesh.position.y < 0.1) {
         particle.mesh.position.y = 0.1;
-        particle.velocity.y *= -0.3; // Bounce
+        particle.velocity.y *= -0.3;
         particle.velocity.x *= 0.8;
         particle.velocity.z *= 0.8;
       }
@@ -290,20 +298,23 @@ export class ParticleSystem {
 
       // If streak, point in direction of movement
       if (particle.streak) {
-        particle.mesh.lookAt(
-          particle.mesh.position.clone().add(particle.velocity)
+        _pLookAt.set(
+          particle.mesh.position.x + particle.velocity.x,
+          particle.mesh.position.y + particle.velocity.y,
+          particle.mesh.position.z + particle.velocity.z,
         );
+        particle.mesh.lookAt(_pLookAt);
       }
 
       // Fade out
       const lifeProgress = particle.elapsed / particle.lifetime;
       particle.mesh.material.opacity = Math.max(0, 1 - lifeProgress);
 
-      // Color fade (for fire particles)
+      // Color fade (for fire particles) - reuse temp Color
       if (particle.fadeToBlack) {
-        const color = new THREE.Color(particle.originalColor);
-        color.lerp(new THREE.Color(0x111111), lifeProgress);
-        particle.mesh.material.color = color;
+        _pColor.set(particle.originalColor);
+        _pColor.lerp(_pBlack, lifeProgress);
+        particle.mesh.material.color.copy(_pColor);
       }
 
       // Size shrink

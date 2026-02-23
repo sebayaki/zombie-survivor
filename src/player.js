@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { MD2Character } from "three/examples/jsm/misc/MD2Character.js";
 
+const _tmpVec = new THREE.Vector3();
+
 export class Player {
+  static _zeroVec = new THREE.Vector3();
+  static _dirVec = new THREE.Vector3();
+
   constructor(game) {
     this.game = game;
 
@@ -499,9 +504,10 @@ export class Player {
       }
 
       // Check for obstacle collisions before moving
-      const newPos = this.mesh.position.clone();
-      newPos.x += moveX * moveSpeed;
-      newPos.z += moveZ * moveSpeed;
+      _tmpVec.copy(this.mesh.position);
+      _tmpVec.x += moveX * moveSpeed;
+      _tmpVec.z += moveZ * moveSpeed;
+      const newPos = _tmpVec;
 
       if (!this.checkObstacleCollision(newPos)) {
         this.mesh.position.x += moveX * moveSpeed;
@@ -552,13 +558,12 @@ export class Player {
     const playerRadius = 0.8;
 
     for (const obstacle of this.game.obstacles) {
-      const halfSize = obstacle.size.clone().multiplyScalar(0.5);
-      halfSize.x += playerRadius;
-      halfSize.z += playerRadius;
+      const hx = obstacle.size.x * 0.5 + playerRadius;
+      const hz = obstacle.size.z * 0.5 + playerRadius;
 
       if (
-        Math.abs(position.x - obstacle.position.x) < halfSize.x &&
-        Math.abs(position.z - obstacle.position.z) < halfSize.z
+        Math.abs(position.x - obstacle.position.x) < hx &&
+        Math.abs(position.z - obstacle.position.z) < hz
       ) {
         return true;
       }
@@ -751,16 +756,11 @@ export class Player {
   }
 
   getPosition() {
-    return this.mesh ? this.mesh.position.clone() : new THREE.Vector3();
+    return this.mesh ? this.mesh.position : Player._zeroVec;
   }
 
   getDirection() {
-    // Shooting direction is always where the character is facing
-    // Character faces +Z at rotation 0, so we use sin/cos accordingly
-    return new THREE.Vector3(
-      Math.sin(this.rotation),
-      0,
-      Math.cos(this.rotation),
-    );
+    Player._dirVec.set(Math.sin(this.rotation), 0, Math.cos(this.rotation));
+    return Player._dirVec;
   }
 }

@@ -80,6 +80,14 @@ const ENEMY_TYPES = {
   },
 };
 
+const _tmpDir = new THREE.Vector3();
+const _tmpAvoid = new THREE.Vector3();
+const _tmpObst = new THREE.Vector3();
+const _tmpFinal = new THREE.Vector3();
+const _tmpKnock = new THREE.Vector3();
+const _tmpTextPos = new THREE.Vector3();
+const _tmpHitPos = new THREE.Vector3();
+
 export class ZombieManager {
   constructor(game) {
     this.game = game;
@@ -853,11 +861,15 @@ export class ZombieManager {
       }
 
       // Calculate direction to player
-      const direction = new THREE.Vector3();
-      direction.subVectors(playerPos, zombie.mesh.position);
+      const direction = _tmpDir;
+      direction.x = playerPos.x - zombie.mesh.position.x;
       direction.y = 0;
-      const distance = direction.length();
-      direction.normalize();
+      direction.z = playerPos.z - zombie.mesh.position.z;
+      const distance = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+      if (distance > 0.0001) {
+        direction.x /= distance;
+        direction.z /= distance;
+      }
 
       // Face player
       zombie.mesh.rotation.y = Math.atan2(direction.x, direction.z);
@@ -1051,32 +1063,31 @@ export class ZombieManager {
   avoidObstacles(zombie, desiredDirection) {
     const pos = zombie.mesh.position;
     const avoidanceRadius = 2;
-    const avoidanceForce = new THREE.Vector3();
+    _tmpAvoid.set(0, 0, 0);
 
-    // Check obstacles
     for (const obstacle of this.game.obstacles) {
-      const toObstacle = new THREE.Vector3();
-      toObstacle.subVectors(obstacle.position, pos);
-      toObstacle.y = 0;
+      const ox = obstacle.position.x - pos.x;
+      const oz = obstacle.position.z - pos.z;
+      const dist = Math.sqrt(ox * ox + oz * oz);
+      const minDist = Math.max(obstacle.size.x, obstacle.size.z) * 0.5 + avoidanceRadius;
 
-      const dist = toObstacle.length();
-      const minDist =
-        Math.max(obstacle.size.x, obstacle.size.z) / 2 + avoidanceRadius;
-
-      if (dist < minDist) {
-        // Push away from obstacle
-        toObstacle.normalize();
+      if (dist < minDist && dist > 0.0001) {
+        const invDist = 1 / dist;
         const force = (minDist - dist) / minDist;
-        avoidanceForce.sub(toObstacle.multiplyScalar(force));
+        _tmpAvoid.x -= ox * invDist * force;
+        _tmpAvoid.z -= oz * invDist * force;
       }
     }
 
-    // Combine desired direction with avoidance
-    const finalDir = desiredDirection.clone();
-    finalDir.add(avoidanceForce);
-    finalDir.normalize();
-
-    return finalDir;
+    _tmpFinal.x = desiredDirection.x + _tmpAvoid.x;
+    _tmpFinal.y = 0;
+    _tmpFinal.z = desiredDirection.z + _tmpAvoid.z;
+    const len = Math.sqrt(_tmpFinal.x * _tmpFinal.x + _tmpFinal.z * _tmpFinal.z);
+    if (len > 0.0001) {
+      _tmpFinal.x /= len;
+      _tmpFinal.z /= len;
+    }
+    return _tmpFinal;
   }
 
   attackPlayer(zombie) {
@@ -1107,42 +1118,44 @@ export class ZombieManager {
 
     // Knockback
     if (!zombie.isBoss) {
-      let knockbackDir = hitDirection;
-      if (!knockbackDir) {
-        knockbackDir = new THREE.Vector3().subVectors(
-          zombie.mesh.position,
-          this.game.player.getPosition(),
-        );
-        knockbackDir.y = 0;
-        knockbackDir.normalize();
+      if (hitDirection) {
+        _tmpKnock.copy(hitDirection);
+      } else {
+        const pp = this.game.player.getPosition();
+        _tmpKnock.x = zombie.mesh.position.x - pp.x;
+        _tmpKnock.y = 0;
+        _tmpKnock.z = zombie.mesh.position.z - pp.z;
+        const kl = Math.sqrt(_tmpKnock.x * _tmpKnock.x + _tmpKnock.z * _tmpKnock.z);
+        if (kl > 0.0001) { _tmpKnock.x /= kl; _tmpKnock.z /= kl; }
       }
 
       const knockbackStrength = isCrit ? 0.8 : 0.4;
-      zombie.mesh.position.add(knockbackDir.multiplyScalar(knockbackStrength));
+      zombie.mesh.position.x += _tmpKnock.x * knockbackStrength;
+      zombie.mesh.position.z += _tmpKnock.z * knockbackStrength;
     }
 
     // Hit feedback (sparks & floating text)
     if (this.game.particleSystem) {
-      // Small random offset for text
-      const textPos = zombie.mesh.position.clone();
-      textPos.x += (Math.random() - 0.5) * 1.5;
-      textPos.y += 1.5 + Math.random() * 0.5;
-      textPos.z += (Math.random() - 0.5) * 1.5;
+      _tmpTextPos.set(
+        zombie.mesh.position.x + (Math.random() - 0.5) * 1.5,
+        zombie.mesh.position.y + 1.5 + Math.random() * 0.5,
+        zombie.mesh.position.z + (Math.random() - 0.5) * 1.5,
+      );
 
       const color = isCrit ? 0xffcc00 : 0xffffff;
       const size = isCrit ? 0.8 : 0.5;
 
       this.game.particleSystem.createFloatingText(
-        textPos,
+        _tmpTextPos,
         Math.floor(finalDamage).toString(),
         color,
         size,
         isCrit,
       );
 
-      // Hit spark particle
+      _tmpHitPos.set(zombie.mesh.position.x, zombie.mesh.position.y + 1, zombie.mesh.position.z);
       this.game.particleSystem.spawn(
-        zombie.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)),
+        _tmpHitPos,
         isCrit ? "critSpark" : "hitSpark",
       );
     }

@@ -495,15 +495,15 @@ export class Game {
     const playerPos = this.player.getPosition();
     const zombies = this.zombieManager.getZombies();
     let nearest = null;
-    let nearestDist = Infinity;
+    let nearestDistSq = this.autoAimRange * this.autoAimRange;
 
     for (const zombie of zombies) {
       const pos = zombie.mesh.position;
       const dx = pos.x - playerPos.x;
       const dz = pos.z - playerPos.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < nearestDist && dist <= this.autoAimRange) {
-        nearestDist = dist;
+      const distSq = dx * dx + dz * dz;
+      if (distSq < nearestDistSq) {
+        nearestDistSq = distSq;
         nearest = zombie;
       }
     }
@@ -589,17 +589,20 @@ export class Game {
     const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-    // Create a ray from camera through mouse position
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), this.camera);
+    // Reuse cached objects
+    if (!this._raycaster) {
+      this._raycaster = new THREE.Raycaster();
+      this._mouseVec2 = new THREE.Vector2();
+      this._groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      this._intersection = new THREE.Vector3();
+    }
 
-    // Find intersection with ground plane (y = 0)
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersection = new THREE.Vector3();
-    raycaster.ray.intersectPlane(groundPlane, intersection);
+    this._mouseVec2.set(mouseX, mouseY);
+    this._raycaster.setFromCamera(this._mouseVec2, this.camera);
+    const hit = this._raycaster.ray.intersectPlane(this._groundPlane, this._intersection);
 
-    if (intersection) {
-      this.mouseWorldPos.copy(intersection);
+    if (hit) {
+      this.mouseWorldPos.copy(this._intersection);
     }
   }
 
