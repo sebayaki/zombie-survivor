@@ -3958,51 +3958,74 @@ export class AutoWeaponSystem {
 
   // Clock Lancet - freeze enemies
   fireClockLancet(stats, playerPos, zombies, scale = 1) {
-    // Create clock visual
     const group = new THREE.Group();
 
-    // Clock face
+    // Outer ring
+    const ringGeo = new THREE.RingGeometry(stats.area * 0.92, stats.area, 48);
+    const ring = new THREE.Mesh(
+      ringGeo,
+      new THREE.MeshBasicMaterial({
+        color: 0xaaddff,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide,
+      }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.02;
+    group.add(ring);
+
+    // Clock face (translucent fill)
     const face = new THREE.Mesh(
-      new THREE.CircleGeometry(stats.area, 32),
+      new THREE.CircleGeometry(stats.area * 0.92, 48),
       new THREE.MeshBasicMaterial({
         color: 0x88ccff,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.15,
         side: THREE.DoubleSide,
       }),
     );
     face.rotation.x = -Math.PI / 2;
     group.add(face);
 
-    // Clock hands
+    // Clock hands - geometry offset so pivot is at one end
     const handMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const hourHand = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.02, stats.area * 0.5),
-      handMat,
-    );
-    hourHand.position.z = stats.area * 0.25;
+
+    const hourLen = stats.area * 0.45;
+    const hourGeo = new THREE.BoxGeometry(0.12, 0.03, hourLen);
+    hourGeo.translate(0, 0, hourLen / 2);
+    const hourHand = new THREE.Mesh(hourGeo, handMat);
+    hourHand.position.y = 0.03;
+    hourHand.rotation.y = -Math.PI / 6; // ~2 o'clock direction
     group.add(hourHand);
 
-    const minuteHand = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.02, stats.area * 0.7),
-      handMat,
-    );
-    minuteHand.position.z = stats.area * 0.35;
-    minuteHand.rotation.y = Math.PI / 3;
+    const minLen = stats.area * 0.65;
+    const minGeo = new THREE.BoxGeometry(0.08, 0.03, minLen);
+    minGeo.translate(0, 0, minLen / 2);
+    const minuteHand = new THREE.Mesh(minGeo, handMat);
+    minuteHand.position.y = 0.04;
+    minuteHand.rotation.y = Math.PI / 2.5; // ~10 o'clock direction
     group.add(minuteHand);
 
-    // Roman numerals (simplified - just marks)
+    // Center dot
+    const centerDot = new THREE.Mesh(
+      new THREE.CircleGeometry(0.15, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+    );
+    centerDot.rotation.x = -Math.PI / 2;
+    centerDot.position.y = 0.05;
+    group.add(centerDot);
+
+    // Hour marks (12 ticks around the edge)
     for (let i = 0; i < 12; i++) {
       const angle = (i / 12) * Math.PI * 2;
-      const mark = new THREE.Mesh(
-        new THREE.BoxGeometry(0.15, 0.02, 0.3),
-        handMat,
-      );
-      mark.position.set(
-        Math.sin(angle) * stats.area * 0.85,
-        0.01,
-        Math.cos(angle) * stats.area * 0.85,
-      );
+      const isMajor = i % 3 === 0;
+      const markLen = isMajor ? 0.35 : 0.2;
+      const markW = isMajor ? 0.12 : 0.06;
+      const markGeo = new THREE.BoxGeometry(markW, 0.02, markLen);
+      markGeo.translate(0, 0, stats.area * 0.82);
+      const mark = new THREE.Mesh(markGeo, handMat);
+      mark.position.y = 0.02;
       mark.rotation.y = angle;
       group.add(mark);
     }

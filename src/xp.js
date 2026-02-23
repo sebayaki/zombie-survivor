@@ -160,6 +160,7 @@ export class XPSystem {
 
     // Update UI
     this.game.ui.updateXP();
+    this.game.ui.updateLevel();
   }
 
   // Level up!

@@ -255,20 +255,16 @@ export class TreasureChestSystem {
     else if (rarity === "rare") numItems = Math.random() < 0.5 ? 3 : 5;
     else if (rarity === "legendary") numItems = 5;
 
-    // Get all available upgrades
+    // Only upgrade items the player already owns (no forced new picks)
     this.game.evolutionSystem.checkEvolutions();
     const evolutionUpgrades = this.game.evolutionSystem.getPendingEvolutions();
     const weaponUpgrades = this.game.autoWeaponSystem.getAvailableUpgrades();
     const passiveUpgrades = this.game.passiveItemSystem.getAvailableUpgrades();
 
-    // We only want upgrades that the player already HAS to be highly weighted,
-    // but for simplicity we can just pick from all available, or filter out new items
-    // unless they have empty slots. `getAvailableUpgrades` handles slot limits if implemented,
-    // otherwise it returns all valid.
     let allUpgrades = [
       ...(evolutionUpgrades || []),
-      ...(weaponUpgrades || []),
-      ...(passiveUpgrades || []),
+      ...(weaponUpgrades || []).filter((u) => u.currentLevel > 0),
+      ...(passiveUpgrades || []).filter((u) => u.currentLevel > 0),
     ];
 
     // If no upgrades available, maybe just give gold? We always give gold anyway.
