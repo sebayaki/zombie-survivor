@@ -10,7 +10,7 @@ for (let i = XP_THRESHOLDS.length; i < 200; i++) {
   XP_THRESHOLDS.push(Math.floor(XP_THRESHOLDS[i - 1] * 1.12));
 }
 
-const MAX_GEMS = 500;
+const GEM_LIFETIME = 120;
 const _matrix = new THREE.Matrix4();
 const _position = new THREE.Vector3();
 const _quaternion = new THREE.Quaternion();
@@ -56,7 +56,7 @@ export class XPSystem {
       const material = new THREE.MeshBasicMaterial({
         color: def.color, transparent: true, opacity: 0.9,
       });
-      const im = new THREE.InstancedMesh(gemGeometry, material, MAX_GEMS);
+      const im = new THREE.InstancedMesh(gemGeometry, material, 4096);
       im.count = 0;
       im.frustumCulled = false;
       this._instancedMeshes[def.key] = im;
@@ -109,6 +109,7 @@ export class XPSystem {
       size,
       bobOffset: Math.random() * Math.PI * 2,
       beingMagneted: false,
+      spawnTime: this.game.gameTime,
     });
   }
 
@@ -149,14 +150,20 @@ export class XPSystem {
     const playerPos = this.game.player.getPosition();
     const time = Date.now() * 0.001;
 
-    // Reset instance counts for this frame
     const counts = {};
     for (const key of Object.keys(this._instancedMeshes)) {
       counts[key] = 0;
     }
 
+    const gameTime = this.game.gameTime;
+
     for (let i = this.gems.length - 1; i >= 0; i--) {
       const gem = this.gems[i];
+
+      if (gameTime - gem.spawnTime >= GEM_LIFETIME) {
+        swapRemove(this.gems, i);
+        continue;
+      }
 
       gem.rotY += delta * 2;
       gem.rotX += delta;
@@ -182,9 +189,8 @@ export class XPSystem {
         gem.z += (dz / dist) * speed;
       }
 
-      // Write instance matrix
-      const y = 0.3 + Math.sin(time * 3 + gem.bobOffset) * 0.1;
       const s = this._sizeScales[gem.size];
+      const y = 0.3 + Math.sin(time * 3 + gem.bobOffset) * 0.1;
       _position.set(gem.x, y, gem.z);
       _euler.set(gem.rotX, gem.rotY, 0);
       _quaternion.setFromEuler(_euler);
@@ -195,7 +201,6 @@ export class XPSystem {
       this._instancedMeshes[gem.size].setMatrixAt(idx, _matrix);
     }
 
-    // Commit instance buffers
     for (const [key, im] of Object.entries(this._instancedMeshes)) {
       im.count = counts[key];
       if (im.count > 0) {
