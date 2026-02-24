@@ -60,6 +60,7 @@ export class ZombieManager {
     this.waveInProgress = false;
     this.bossActive = false;
     this.bossSpawnedThisWave = false;
+    this.game.ui?.hideBossHealthBar();
   }
 
   spawnWave(count, speed, health) {
@@ -111,6 +112,8 @@ export class ZombieManager {
       attackRange: typeDef.attackRange || 1.5,
       projectileSpeed: typeDef.projectileSpeed || 5,
       isBoss: typeDef.isBoss || false,
+      bossState: typeDef.isBoss ? "chase" : null,
+      bossTimer: 0,
       explodeOnDeath: typeDef.explodeOnDeath || false,
       explosionRadius: typeDef.explosionRadius || 0,
       explosionDamage: typeDef.explosionDamage || 0,
@@ -118,6 +121,13 @@ export class ZombieManager {
 
     if (zombie.isBoss) {
       this.bossActive = true;
+      this.game.ui.announceBoss();
+      this.game.ui.showBossHealthBar(typeDef.name);
+      this.game.audioManager.playSound("bossRoar");
+      if (this.game.postProcessing) {
+        this.game.postProcessing.shake(0.8, 0.6);
+        this.game.postProcessing.pulseBloom(0.5, 3.0);
+      }
     }
 
     this.zombies.push(zombie);
@@ -132,8 +142,7 @@ export class ZombieManager {
       waveNumber >= 3 &&
       waveNumber % 3 === 0 &&
       !this.bossActive &&
-      !this.bossSpawnedThisWave &&
-      roll < 0.05
+      !this.bossSpawnedThisWave
     ) {
       this.bossSpawnedThisWave = true;
       return "boss";
@@ -332,6 +341,15 @@ export class ZombieManager {
     if (zombie.isBoss) {
       this.createBossDeathEffect(zombie.mesh.position);
       this.bossActive = false;
+      this.game.ui.hideBossHealthBar();
+      if (this.game.postProcessing) {
+        this.game.postProcessing.slowTime(0.15, 1.2);
+        this.game.postProcessing.shake(1.5, 1.0);
+        this.game.postProcessing.pulseBloom(0.8, 4.0);
+      }
+      if (this.game.treasureChestSystem) {
+        this.game.treasureChestSystem.forceSpawn(zombie.mesh.position.clone());
+      }
     } else {
       this.createDeathEffect(zombie.mesh.position, zombie.type);
     }
@@ -462,6 +480,19 @@ export class ZombieManager {
   createBossDeathEffect(position) {
     if (this.game.particleSystem) {
       this.game.particleSystem.spawn(position, "bossDeath");
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+          if (this.game.particleSystem) {
+            this.game.particleSystem.spawn(position, "bossDeath");
+            this.game.particleSystem.createShockwave(
+              position,
+              6 + i * 3,
+              i === 0 ? 0xff0088 : i === 1 ? 0x8800ff : 0xffffff,
+              0.8 + i * 0.3,
+            );
+          }
+        }, i * 300);
+      }
     }
   }
 

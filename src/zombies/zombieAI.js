@@ -4,6 +4,43 @@ const _tmpDir = new THREE.Vector3();
 const _tmpAvoid = new THREE.Vector3();
 const _tmpFinal = new THREE.Vector3();
 
+function createBossTelegraph(zombie, game, radius, color) {
+  const geo = new THREE.RingGeometry(0.2, radius, 32);
+  const mat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.0,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const ring = new THREE.Mesh(geo, mat);
+  ring.position.copy(zombie.mesh.position);
+  ring.position.y = 0.05;
+  ring.rotation.x = -Math.PI / 2;
+  game.scene.add(ring);
+
+  let elapsed = 0;
+  const duration = zombie.enraged ? 0.8 : 1.2;
+  const animate = () => {
+    elapsed += 0.016;
+    const t = Math.min(elapsed / duration, 1);
+    mat.opacity = Math.sin(t * Math.PI * 4) * 0.3 + 0.15;
+    ring.scale.setScalar(0.3 + t * 0.7);
+    ring.position.copy(zombie.mesh.position);
+    ring.position.y = 0.05;
+
+    if (t >= 1) {
+      game.scene.remove(ring);
+      geo.dispose();
+      mat.dispose();
+      return;
+    }
+    requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
+}
+
 export function avoidObstacles(zombiePos, desiredDirection, obstacles) {
   const pos = zombiePos;
   const avoidanceRadius = 2;
@@ -27,9 +64,7 @@ export function avoidObstacles(zombiePos, desiredDirection, obstacles) {
   _tmpFinal.x = desiredDirection.x + _tmpAvoid.x;
   _tmpFinal.y = 0;
   _tmpFinal.z = desiredDirection.z + _tmpAvoid.z;
-  const len = Math.sqrt(
-    _tmpFinal.x * _tmpFinal.x + _tmpFinal.z * _tmpFinal.z,
-  );
+  const len = Math.sqrt(_tmpFinal.x * _tmpFinal.x + _tmpFinal.z * _tmpFinal.z);
   if (len > 0.0001) {
     _tmpFinal.x /= len;
     _tmpFinal.z /= len;
@@ -158,16 +193,237 @@ export function updateZombieBehavior(
 
   zombie.mesh.rotation.y = Math.atan2(direction.x, direction.z);
 
-  if (zombie.isBoss && zombie.mesh.userData.healthBar) {
-    const healthPercent = zombie.health / zombie.maxHealth;
-    zombie.mesh.userData.healthBar.scale.x = healthPercent;
-    zombie.mesh.userData.healthBar.position.x =
-      (-zombie.mesh.userData.healthBarWidth * (1 - healthPercent)) / 2;
+  if (zombie.isBoss) {
+    if (zombie.mesh.userData.healthBar) {
+      const healthPercent = zombie.health / zombie.maxHealth;
+      zombie.mesh.userData.healthBar.scale.x = healthPercent;
+      zombie.mesh.userData.healthBar.position.x =
+        (-zombie.mesh.userData.healthBarWidth * (1 - healthPercent)) / 2;
 
-    if (zombie.mesh.userData.aura) {
-      const pulse = 1 + Math.sin(Date.now() * 0.003) * 0.2;
-      zombie.mesh.userData.aura.scale.setScalar(pulse);
+      if (game.ui) game.ui.updateBossHealthBar(healthPercent);
+
+      if (zombie.mesh.userData.aura) {
+        const pulse = 1 + Math.sin(Date.now() * 0.003) * 0.2;
+        zombie.mesh.userData.aura.scale.setScalar(pulse);
+      }
+
+      // Enrage at 30% HP
+      const enraged = healthPercent < 0.3;
+      if (enraged && !zombie.enraged) {
+        zombie.enraged = true;
+        zombie.speed *= 1.6;
+        zombie.attackRate *= 0.5;
+        game.audioManager.playSound("bossRoar");
+        if (game.postProcessing) {
+          game.postProcessing.shake(0.6, 0.4);
+          game.postProcessing.pulseBloom(0.4, 2.5);
+        }
+        if (game.particleSystem && game.particleSystem.createShockwave) {
+          game.particleSystem.createShockwave(
+            zombie.mesh.position,
+            5,
+            0xff0000,
+            0.8,
+          );
+        }
+      }
+      if (enraged && zombie.mesh.userData.aura) {
+        zombie.mesh.userData.aura.material.color.setHex(0xff0000);
+        zombie.mesh.userData.aura.material.opacity =
+          0.25 + Math.sin(Date.now() * 0.01) * 0.1;
+      }
     }
+
+    zombie.bossTimer += delta;
+    const attackCooldown = zombie.enraged ? 2.0 : 4.0;
+    const attackCooldownRandom = zombie.enraged ? 1.0 : 3.0;
+
+    if (zombie.bossState === "chase") {
+      const moveDir = avoidObstacles(
+        zombie.mesh.position,
+        direction,
+        game.obstacles,
+      );
+      zombie.mesh.position.x += moveDir.x * zombie.speed * delta;
+      zombie.mesh.position.z += moveDir.z * zombie.speed * delta;
+
+      if (distance < 2.0 * (zombie.typeDef?.scale || 1)) {
+        attackPlayer(zombie, game);
+      }
+
+      if (
+        zombie.bossTimer >
+        attackCooldown + Math.random() * attackCooldownRandom
+      ) {
+        const rand = Math.random();
+        const slamThreshold = zombie.enraged ? 0.35 : 0.25;
+        const chargeThreshold = slamThreshold + (zombie.enraged ? 0.3 : 0.25);
+        const burstThreshold = chargeThreshold + (zombie.enraged ? 0.25 : 0.25);
+
+        if (rand < slamThreshold) {
+          zombie.bossState = "slam_telegraph";
+          zombie.bossTimer = 0;
+          game.audioManager.playSound("bossCharge");
+          createBossTelegraph(zombie, game, 6, 0xff0044);
+        } else if (rand < chargeThreshold) {
+          zombie.bossState = "charge_windup";
+          zombie.bossTimer = 0;
+          game.audioManager.playSound("bossCharge");
+        } else if (rand < burstThreshold) {
+          zombie.bossState = "projectile_burst";
+          zombie.bossTimer = 0;
+          game.audioManager.playSound("bossCharge");
+        } else {
+          zombie.bossState = "summon_adds";
+          zombie.bossTimer = 0;
+          game.audioManager.playSound("bossRoar");
+        }
+      }
+    } else if (zombie.bossState === "slam_telegraph") {
+      zombie.mesh.position.y = Math.abs(Math.sin(zombie.bossTimer * 6)) * 0.5;
+      const windupDuration = zombie.enraged ? 0.8 : 1.2;
+      if (zombie.bossTimer > windupDuration) {
+        zombie.bossState = "slam";
+        zombie.bossTimer = 0;
+      }
+    } else if (zombie.bossState === "slam") {
+      zombie.mesh.position.y = Math.max(0, zombie.mesh.position.y - delta * 20);
+      if (zombie.mesh.position.y <= 0) {
+        zombie.mesh.position.y = 0;
+        game.audioManager.playSound("bossSlam");
+        if (game.postProcessing) game.postProcessing.shake(1.0, 0.4);
+        if (game.particleSystem && game.particleSystem.createShockwave) {
+          game.particleSystem.createShockwave(
+            zombie.mesh.position,
+            8,
+            0xff0044,
+            0.8,
+          );
+        }
+        const slamRadius = zombie.enraged ? 7 : 5;
+        if (distance < slamRadius) {
+          game.player.takeDamage(zombie.damage * 2);
+        }
+        zombie.bossState = "chase";
+        zombie.bossTimer = 0;
+      }
+    } else if (zombie.bossState === "charge_windup") {
+      zombie.mesh.rotation.z += Math.sin(Date.now() * 0.05) * 0.12;
+      zombie.mesh.rotation.x += Math.sin(Date.now() * 0.06) * 0.12;
+      const windupDuration = zombie.enraged ? 0.7 : 1.2;
+      if (zombie.bossTimer > windupDuration) {
+        zombie.bossState = "charge";
+        zombie.bossTimer = 0;
+        zombie.chargeDirection = direction.clone();
+        game.audioManager.playSound("bossRoar");
+      }
+    } else if (zombie.bossState === "charge") {
+      const chargeSpeed = zombie.speed * (zombie.enraged ? 5 : 4);
+      zombie.mesh.position.x += zombie.chargeDirection.x * chargeSpeed * delta;
+      zombie.mesh.position.z += zombie.chargeDirection.z * chargeSpeed * delta;
+
+      const chargeDist = zombie.mesh.position.distanceTo(playerPos);
+      if (chargeDist < 3.0 && zombie.bossTimer < 0.8) {
+        game.player.takeDamage(zombie.damage * 1.5);
+        zombie.bossState = "chase";
+        zombie.bossTimer = 0;
+      }
+
+      if (zombie.bossTimer > 1.0) {
+        zombie.bossState = "chase";
+        zombie.bossTimer = 0;
+        game.audioManager.playSound("bossSlam");
+        if (game.postProcessing) game.postProcessing.shake(0.6, 0.3);
+        if (game.particleSystem && game.particleSystem.createShockwave) {
+          game.particleSystem.createShockwave(
+            zombie.mesh.position,
+            5,
+            0xff0000,
+            0.6,
+          );
+        }
+        if (chargeDist < 5) {
+          game.player.takeDamage(zombie.damage);
+        }
+      }
+    } else if (zombie.bossState === "projectile_burst") {
+      zombie.mesh.rotation.y += delta * (zombie.enraged ? 20 : 12);
+      zombie.mesh.position.y = Math.sin(zombie.bossTimer * 4) * 0.3;
+      const burstTime = zombie.enraged ? 0.6 : 1.0;
+      if (zombie.bossTimer > burstTime) {
+        zombie.mesh.position.y = 0;
+        const projCount = zombie.enraged ? 16 : 10;
+        for (let i = 0; i < projCount; i++) {
+          const angle = (i / projCount) * Math.PI * 2;
+          const pDir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+          fireProjectile(zombie, pDir, game, enemyProjectiles);
+        }
+        if (zombie.enraged) {
+          setTimeout(() => {
+            for (let i = 0; i < 12; i++) {
+              const angle = ((i + 0.5) / 12) * Math.PI * 2;
+              const pDir = new THREE.Vector3(
+                Math.cos(angle),
+                0,
+                Math.sin(angle),
+              );
+              fireProjectile(zombie, pDir, game, enemyProjectiles);
+            }
+          }, 400);
+        }
+        zombie.bossState = "chase";
+        zombie.bossTimer = 0;
+      }
+    } else if (zombie.bossState === "summon_adds") {
+      zombie.mesh.position.y = Math.sin(zombie.bossTimer * 10) * 0.4;
+      zombie.mesh.rotation.y += delta * 8;
+      const summonTime = zombie.enraged ? 0.8 : 1.5;
+      if (zombie.bossTimer > summonTime) {
+        zombie.mesh.position.y = 0;
+        const addCount = zombie.enraged ? 5 : 3;
+        const addTypes = zombie.enraged
+          ? ["fast", "fast", "fast", "tank", "spitter"]
+          : ["fast", "fast", "normal"];
+        for (let i = 0; i < addCount; i++) {
+          game.zombieManager.spawnZombie(
+            zombie.speed * 2.5,
+            zombie.maxHealth * 0.04,
+            addTypes[i % addTypes.length],
+          );
+        }
+        if (game.particleSystem && game.particleSystem.createShockwave) {
+          game.particleSystem.createShockwave(
+            zombie.mesh.position,
+            4,
+            0x8800ff,
+            0.5,
+          );
+        }
+        zombie.bossState = "chase";
+        zombie.bossTimer = 0;
+      }
+    }
+
+    // Boss-specific animation
+    const time = Date.now() * 0.01;
+    const bossLeg = time * zombie.speed * 0.3;
+    if (zombie.mesh.userData.leftLeg)
+      zombie.mesh.userData.leftLeg.rotation.x = Math.sin(bossLeg) * 0.3;
+    if (zombie.mesh.userData.rightLeg)
+      zombie.mesh.userData.rightLeg.rotation.x = -Math.sin(bossLeg + 0.5) * 0.3;
+
+    if (zombie.bossState === "chase" || zombie.bossState === "slam_telegraph") {
+      if (zombie.mesh.userData.leftArm)
+        zombie.mesh.userData.leftArm.rotation.x =
+          -Math.PI / 2.5 + Math.sin(bossLeg) * 0.2;
+      if (zombie.mesh.userData.rightArm)
+        zombie.mesh.userData.rightArm.rotation.x =
+          -Math.PI / 3 - Math.sin(bossLeg) * 0.2;
+    }
+
+    zombie.mesh.rotation.z =
+      Math.sin(time * 0.3 + zombie.mesh.userData.animPhase) * 0.04;
+    return;
   }
 
   if (zombie.ranged && distance < zombie.attackRange && distance > 2) {

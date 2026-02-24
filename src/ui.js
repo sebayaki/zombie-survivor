@@ -508,6 +508,145 @@ export class UI {
     this.updateWave();
   }
 
+  announceBoss() {
+    const el = document.createElement("div");
+    el.id = "boss-announcement";
+    el.innerHTML = `
+      <div class="boss-announce-text">WARNING</div>
+      <div class="boss-announce-name">THE ABOMINATION APPROACHES</div>
+      <div class="boss-announce-bar"></div>
+    `;
+    document.body.appendChild(el);
+
+    injectCSS(`
+      #boss-announcement {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        pointer-events: none;
+        animation: bossAnnounceFade 3s ease-out forwards;
+      }
+      .boss-announce-text {
+        font-size: 5rem;
+        font-weight: 900;
+        color: #ff0044;
+        text-shadow: 0 0 30px #ff0044, 0 0 60px #880022, 0 0 90px #440011;
+        letter-spacing: 1.5rem;
+        animation: bossTextPulse 0.5s ease-in-out infinite alternate;
+      }
+      .boss-announce-name {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #ff88aa;
+        text-shadow: 0 0 15px #ff0044;
+        letter-spacing: 0.5rem;
+        margin-top: 0.5rem;
+        opacity: 0;
+        animation: bossNameReveal 1s ease-out 0.5s forwards;
+      }
+      .boss-announce-bar {
+        width: 0;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #ff0044, #ff88aa, #ff0044, transparent);
+        margin-top: 1rem;
+        animation: bossBarExpand 1.5s ease-out 0.3s forwards;
+      }
+      @keyframes bossAnnounceFade {
+        0% { background: rgba(0,0,0,0); }
+        10% { background: rgba(20,0,5,0.6); }
+        60% { background: rgba(20,0,5,0.4); }
+        100% { background: rgba(0,0,0,0); opacity: 0; }
+      }
+      @keyframes bossTextPulse {
+        from { transform: scale(1); }
+        to { transform: scale(1.05); }
+      }
+      @keyframes bossNameReveal {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes bossBarExpand {
+        from { width: 0; }
+        to { width: 400px; }
+      }
+    `);
+
+    setTimeout(() => el.remove(), 3200);
+  }
+
+  showBossHealthBar(name) {
+    if (document.getElementById("boss-hud")) return;
+    const bar = document.createElement("div");
+    bar.id = "boss-hud";
+    bar.innerHTML = `
+      <div class="boss-hud-name">${name || "ABOMINATION"}</div>
+      <div class="boss-hud-bar-bg"><div class="boss-hud-bar-fill" id="boss-hud-fill"></div></div>
+    `;
+    document.body.appendChild(bar);
+
+    injectCSS(`
+      #boss-hud {
+        position: fixed;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
+        text-align: center;
+        pointer-events: none;
+        animation: bossHudSlideIn 0.5s ease-out;
+      }
+      .boss-hud-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #ff4488;
+        text-shadow: 0 0 10px #ff0044;
+        letter-spacing: 0.3rem;
+        margin-bottom: 4px;
+      }
+      .boss-hud-bar-bg {
+        width: 400px;
+        height: 10px;
+        background: rgba(50,0,20,0.8);
+        border: 1px solid #ff2266;
+        border-radius: 5px;
+        overflow: hidden;
+        box-shadow: 0 0 10px rgba(255,0,68,0.3);
+      }
+      .boss-hud-bar-fill {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #ff0044, #ff4488);
+        border-radius: 5px;
+        transition: width 0.15s ease-out;
+        box-shadow: 0 0 8px #ff0044;
+      }
+      @keyframes bossHudSlideIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+    `);
+  }
+
+  updateBossHealthBar(percent) {
+    const fill = document.getElementById("boss-hud-fill");
+    if (fill) {
+      fill.style.width = `${Math.max(0, percent * 100)}%`;
+      if (percent < 0.3) {
+        fill.style.background = "linear-gradient(90deg, #ff0000, #ff4400)";
+        fill.style.boxShadow = "0 0 12px #ff0000";
+      }
+    }
+  }
+
+  hideBossHealthBar() {
+    const el = document.getElementById("boss-hud");
+    if (el) el.remove();
+  }
+
   showLevelUp(level) {
     // Create level up effect
     const levelUp = document.createElement("div");

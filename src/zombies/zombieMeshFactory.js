@@ -94,7 +94,8 @@ function addPart(group, geometry, material, pos, rot) {
 }
 
 function addEyes(group, type, s, eyeColor) {
-  const eyeGeo = new THREE.SphereGeometry(0.08 * s, 8, 8);
+  const isBoss = type === "boss";
+  const eyeGeo = new THREE.SphereGeometry((isBoss ? 0.12 : 0.08) * s, 8, 8);
   const eyeMat = new THREE.MeshBasicMaterial({ color: eyeColor });
 
   const EYE_POS = {
@@ -102,7 +103,7 @@ function addEyes(group, type, s, eyeColor) {
     tank: { y: 1.95, z: 0.38, spread: 0.2 },
     spitter: { y: 1.55, z: 0.28, spread: 0.15 },
     exploder: { y: 1.65, z: 0.35, spread: 0.22 },
-    boss: { y: 2.6, z: 0.45, spread: 0.25 },
+    boss: { y: 2.7, z: 0.55, spread: 0.28 },
     normal: { y: 1.55, z: 0.28, spread: 0.15 },
   };
   const ep = EYE_POS[type] || EYE_POS.normal;
@@ -118,8 +119,8 @@ function addEyes(group, type, s, eyeColor) {
     z: ep.z * s,
   });
 
-  if (type === "boss") {
-    addPart(group, eyeGeo, eyeMat, { x: 0, y: 2.8 * s, z: 0.48 * s });
+  if (isBoss) {
+    addPart(group, eyeGeo, eyeMat, { x: 0, y: 2.85 * s, z: 0.5 * s });
   }
 }
 
@@ -411,78 +412,126 @@ function buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
 }
 
 function buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
-  const headGeo = new THREE.SphereGeometry(0.4 * s, 16, 16);
-  headGeo.scale(1.2, 0.9, 1.1);
-  addPart(mesh, headGeo, skinMat, { y: 2.6 * s, z: 0.2 * s });
+  // More fearful and detailed head with horns
+  const headGeo = new THREE.SphereGeometry(0.45 * s, 16, 16);
+  headGeo.scale(1.1, 0.8, 1.2);
+  addPart(mesh, headGeo, skinMat, { y: 2.7 * s, z: 0.3 * s }, { x: 0.1 });
+  
+  // Jaw
   addPart(
     mesh,
-    new THREE.SphereGeometry(0.25 * s, 10, 10),
+    new THREE.BoxGeometry(0.5 * s, 0.3 * s, 0.4 * s),
     skinMat,
-    { x: 0.3 * s, y: 2.4 * s, z: 0.3 * s },
-    { y: 0.5 },
+    { y: 2.4 * s, z: 0.4 * s },
+    { x: 0.2 }
   );
-
-  const bodyGeo = new THREE.CapsuleGeometry(0.7 * s, 1.2 * s, 16, 16);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.4 * s });
-  mesh.userData.body = body;
 
   const spikeMat = new THREE.MeshStandardMaterial({
     color: 0x110a1a,
-    roughness: 0.5,
+    roughness: 0.3,
+    metalness: 0.8,
   });
+
+  // Horns
+  addPart(
+    mesh,
+    new THREE.ConeGeometry(0.08 * s, 0.5 * s, 8),
+    spikeMat,
+    { x: -0.3 * s, y: 3.0 * s, z: 0.1 * s },
+    { x: -0.3, z: 0.5 }
+  );
+  addPart(
+    mesh,
+    new THREE.ConeGeometry(0.08 * s, 0.5 * s, 8),
+    spikeMat,
+    { x: 0.3 * s, y: 3.0 * s, z: 0.1 * s },
+    { x: -0.3, z: -0.5 }
+  );
+
+  // Massive torso
+  const bodyGeo = new THREE.CapsuleGeometry(0.85 * s, 1.3 * s, 16, 16);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.5 * s }, { x: 0.1 });
+  mesh.userData.body = body;
+
+  // Glowing core on chest
+  const coreGeo = new THREE.SphereGeometry(0.3 * s, 16, 16);
+  const coreMat = new THREE.MeshBasicMaterial({ color: glowColor });
+  addPart(mesh, coreGeo, coreMat, { y: 1.6 * s, z: 0.8 * s });
+
+  // Back spikes
   addPart(
     mesh,
     new THREE.ConeGeometry(0.15 * s, 0.8 * s, 8),
     spikeMat,
     { x: -0.5 * s, y: 2.2 * s, z: -0.4 * s },
-    { x: -0.5, z: 0.4 },
-  );
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.1 * s, 0.6 * s, 8),
-    spikeMat,
-    { x: 0.5 * s, y: 2.1 * s, z: -0.5 * s },
-    { x: -0.6, z: -0.3 },
+    { x: -0.5, z: 0.4 }
   );
   addPart(
     mesh,
     new THREE.ConeGeometry(0.12 * s, 0.7 * s, 8),
     spikeMat,
+    { x: 0.5 * s, y: 2.1 * s, z: -0.5 * s },
+    { x: -0.6, z: -0.3 }
+  );
+  addPart(
+    mesh,
+    new THREE.ConeGeometry(0.18 * s, 1.0 * s, 8),
+    spikeMat,
     { x: 0, y: 2.4 * s, z: -0.6 * s },
-    { x: -0.8 },
+    { x: -0.8 }
   );
 
-  const leftArmGeo = new THREE.CapsuleGeometry(0.25 * s, 1.2 * s, 10, 10);
+  // Asymmetrical Arms: Massive left arm, mutated right arm
+  const leftArmGeo = new THREE.CapsuleGeometry(0.4 * s, 1.4 * s, 12, 12);
   mesh.userData.leftArm = addPart(
     mesh,
     leftArmGeo,
     skinMat,
-    { x: -1.0 * s, y: 1.7 * s, z: 0.3 * s },
-    { x: -Math.PI / 2.5, z: 0.2 },
+    { x: -1.2 * s, y: 1.6 * s, z: 0.4 * s },
+    { x: -Math.PI / 2.5, z: 0.2 }
+  );
+  
+  // Left arm spikes
+  addPart(
+    mesh,
+    new THREE.ConeGeometry(0.1 * s, 0.6 * s, 6),
+    spikeMat,
+    { x: -1.4 * s, y: 1.6 * s, z: 0.4 * s },
+    { z: 1.0 }
   );
 
   const rightArmGeo = new THREE.CylinderGeometry(
     0.15 * s,
-    0.4 * s,
-    1.5 * s,
-    12,
+    0.3 * s,
+    1.6 * s,
+    12
   );
   mesh.userData.rightArm = addPart(
     mesh,
     rightArmGeo,
     bodyMat,
-    { x: 1.0 * s, y: 1.5 * s, z: 0.4 * s },
-    { x: -Math.PI / 3, z: -0.1 },
+    { x: 1.1 * s, y: 1.4 * s, z: 0.5 * s },
+    { x: -Math.PI / 3, z: -0.1 }
+  );
+  
+  // Right arm scythe blade
+  addPart(
+    mesh,
+    new THREE.BoxGeometry(0.05 * s, 1.2 * s, 0.3 * s),
+    spikeMat,
+    { x: 1.1 * s, y: 0.8 * s, z: 1.1 * s },
+    { x: -Math.PI / 4, z: -0.1 }
   );
 
-  const legGeo = new THREE.CapsuleGeometry(0.3 * s, 0.8 * s, 10, 10);
+  // Thick legs
+  const legGeo = new THREE.CapsuleGeometry(0.35 * s, 0.9 * s, 10, 10);
   mesh.userData.leftLeg = addPart(mesh, legGeo, pantsMat, {
-    x: -0.4 * s,
-    y: 0.4 * s,
+    x: -0.5 * s,
+    y: 0.45 * s,
   });
   mesh.userData.rightLeg = addPart(mesh, legGeo, pantsMat, {
-    x: 0.4 * s,
-    y: 0.4 * s,
+    x: 0.5 * s,
+    y: 0.45 * s,
   });
 
   const auraMat = new THREE.MeshBasicMaterial({
@@ -493,28 +542,28 @@ function buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
   });
   const aura = addPart(
     mesh,
-    new THREE.SphereGeometry(2.2 * s, 24, 24),
+    new THREE.SphereGeometry(2.5 * s, 24, 24),
     auraMat,
-    { y: 1.5 * s },
+    { y: 1.5 * s }
   );
   mesh.userData.aura = aura;
 
   const hbBg = addPart(
     mesh,
-    new THREE.PlaneGeometry(2.5 * s, 0.25),
+    new THREE.PlaneGeometry(3.0 * s, 0.25),
     new THREE.MeshBasicMaterial({ color: 0x333333 }),
-    { y: 4.0 * s },
-    { x: -Math.PI / 4 },
+    { y: 4.5 * s },
+    { x: -Math.PI / 4 }
   );
   const hb = addPart(
     mesh,
-    new THREE.PlaneGeometry(2.5 * s, 0.2),
+    new THREE.PlaneGeometry(3.0 * s, 0.2),
     new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-    { y: 4.0 * s, z: 0.01 },
-    { x: -Math.PI / 4 },
+    { y: 4.5 * s, z: 0.01 },
+    { x: -Math.PI / 4 }
   );
   mesh.userData.healthBar = hb;
-  mesh.userData.healthBarWidth = 2.5 * s;
+  mesh.userData.healthBarWidth = 3.0 * s;
 }
 
 export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) {

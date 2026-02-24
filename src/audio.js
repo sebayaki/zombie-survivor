@@ -55,6 +55,76 @@ const SOUND_DEFS = {
 
   chestOpen: { type: "chord", frequencies: [523, 659], wave: "sine", duration: 0.4, volume: 0.2 },
 
+  bossRoar: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const dist = ctx.createWaveShaper();
+      const curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 4);
+      dist.curve = curve;
+      osc1.type = "sawtooth";
+      osc1.frequency.setValueAtTime(80, now);
+      osc1.frequency.exponentialRampToValueAtTime(40, now + 0.8);
+      osc2.type = "square";
+      osc2.frequency.setValueAtTime(60, now);
+      osc2.frequency.exponentialRampToValueAtTime(30, now + 0.8);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.6, now + 0.1);
+      gain.gain.setValueAtTime(0.6, now + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+      osc1.connect(dist);
+      osc2.connect(dist);
+      dist.connect(gain);
+      gain.connect(masterGain);
+      osc1.start(now);
+      osc1.stop(now + 1.0);
+      osc2.start(now);
+      osc2.stop(now + 1.0);
+
+      const noiseLen = Math.floor(ctx.sampleRate * 0.8);
+      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+      const nd = noiseBuf.getChannelData(0);
+      for (let i = 0; i < noiseLen; i++) nd[i] = (Math.random() * 2 - 1) * Math.exp(-(i / noiseLen) * 3);
+      const ns = ctx.createBufferSource();
+      ns.buffer = noiseBuf;
+      const nf = ctx.createBiquadFilter();
+      nf.type = "lowpass";
+      nf.frequency.value = 300;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.3, now);
+      ng.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+      ns.connect(nf);
+      nf.connect(ng);
+      ng.connect(masterGain);
+      ns.start(now);
+    },
+  },
+
+  bossSlam: { type: "noise", duration: 0.6, volume: 0.8, decay: 3, filter: "lowpass", filterFreq: 200, modulate: 30 },
+
+  bossCharge: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(60, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.6);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.4, now + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.7);
+    },
+  },
+
   bfg: { type: "chord", frequencies: [50, 1500], wave: "sine", duration: 0.5, volume: 0.4, sweepEnd: [50, 200] },
 
   evolution: {
