@@ -543,6 +543,53 @@ body {
     50% { opacity: 0.5; }
 }
 
+/* Stage Select */
+.stage-select-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.stage-select-label {
+    font-size: 14px;
+    font-weight: 800;
+    color: rgba(255, 136, 68, 0.7);
+    letter-spacing: 3px;
+}
+
+.stage-select-num {
+    font-size: 36px;
+    font-weight: 900;
+    color: #ffcc00;
+    text-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+    min-width: 50px;
+    text-align: center;
+}
+
+.stage-arrow-btn {
+    background: none;
+    border: 2px solid rgba(255, 204, 0, 0.3);
+    color: #ffcc00;
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+.stage-arrow-btn:hover {
+    background: rgba(255, 204, 0, 0.15);
+    border-color: #ffcc00;
+    transform: scale(1.1);
+}
+
 /* Button Container */
 .button-container {
     display: flex;

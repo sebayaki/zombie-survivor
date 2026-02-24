@@ -310,30 +310,172 @@ export const EVOLUTION_RECIPES = {
   },
 };
 
+// Super Evolution recipes — require an evolved weapon + Stage 5+
+// Each fundamentally changes the weapon's behavior
+export const SUPER_EVOLUTION_RECIPES = {
+  // Holy Wand -> Celestial Barrage (sweeping beam projectiles)
+  celestialBarrage: {
+    id: "celestialBarrage",
+    name: "Celestial Barrage",
+    description: "Fires sweeping divine beams that pierce all and chain-explode",
+    icon: "🌟",
+    baseEvolution: "holyWand",
+    requiredStage: 5,
+    stats: {
+      damage: 55,
+      cooldown: 0.1,
+      projectileCount: 6,
+      projectileSpeed: 30,
+      pierce: Infinity,
+      area: 2.0,
+      duration: 3.5,
+      explosionRadius: 2,
+    },
+  },
+
+  // Bloody Tear -> Sanguine Tempest (massive AoE lifesteal storm)
+  sanguineTempest: {
+    id: "sanguineTempest",
+    name: "Sanguine Tempest",
+    description: "A crimson storm that drains all nearby enemies",
+    icon: "🌪️",
+    baseEvolution: "bloodyTear",
+    requiredStage: 5,
+    stats: {
+      damage: 65,
+      cooldown: 0.5,
+      projectileCount: 4,
+      area: 4.0,
+      duration: 0.6,
+      knockback: 6,
+      lifesteal: 8,
+    },
+  },
+
+  // Thousand Edge -> Blade Maelstrom (a permanent whirlwind of knives)
+  bladeMaelstrom: {
+    id: "bladeMaelstrom",
+    name: "Blade Maelstrom",
+    description: "An infinite storm of knives orbits you",
+    icon: "⚔️",
+    baseEvolution: "thousandEdge",
+    requiredStage: 6,
+    stats: {
+      damage: 30,
+      cooldown: 0.08,
+      projectileCount: 12,
+      projectileSpeed: 40,
+      pierce: 3,
+      area: 1.5,
+      duration: 2.5,
+    },
+  },
+
+  // Hellfire -> Infernal Cataclysm (screen-wide fire rain)
+  infernalCataclysm: {
+    id: "infernalCataclysm",
+    name: "Infernal Cataclysm",
+    description: "Rains apocalyptic fire across the entire battlefield",
+    icon: "🌋",
+    baseEvolution: "hellfire",
+    requiredStage: 6,
+    stats: {
+      damage: 120,
+      cooldown: 0.7,
+      projectileCount: 5,
+      projectileSpeed: 25,
+      area: 4.0,
+      explosionRadius: 7,
+      duration: 3.0,
+    },
+  },
+
+  // Thunder Loop -> Stormcaller's Judgment (permanent chain-lightning field)
+  stormcallersJudgment: {
+    id: "stormcallersJudgment",
+    name: "Stormcaller's Judgment",
+    description: "Lightning eternally arcs between all nearby enemies",
+    icon: "🌩️",
+    baseEvolution: "thunderLoop",
+    requiredStage: 7,
+    stats: {
+      damage: 50,
+      cooldown: 0.3,
+      projectileCount: 8,
+      area: 12.0,
+      duration: 0.3,
+      chainCount: 8,
+    },
+  },
+
+  // Death Spiral -> Orbital Annihilator (massive orbiting death field)
+  orbitalAnnihilator: {
+    id: "orbitalAnnihilator",
+    name: "Orbital Annihilator",
+    description: "Giant blades of death orbit at incredible speed",
+    icon: "💫",
+    baseEvolution: "deathSpiral",
+    requiredStage: 7,
+    stats: {
+      damage: 80,
+      cooldown: 1.5,
+      projectileCount: 6,
+      projectileSpeed: 10,
+      pierce: Infinity,
+      area: 3.5,
+      duration: 12.0,
+      orbiting: true,
+      orbitRadius: 7,
+    },
+  },
+
+  // Heaven Sword -> Archangel's Fury (homing divine cluster)
+  archangelsFury: {
+    id: "archangelsFury",
+    name: "Archangel's Fury",
+    description: "Relentless divine blades that hunt down all enemies",
+    icon: "👼",
+    baseEvolution: "heavenSword",
+    requiredStage: 8,
+    stats: {
+      damage: 60,
+      cooldown: 0.5,
+      projectileCount: 6,
+      projectileSpeed: 20,
+      pierce: Infinity,
+      area: 2.0,
+      duration: 7.0,
+      homing: true,
+      homingStrength: 5,
+    },
+  },
+};
+
 export class EvolutionSystem {
   constructor(game) {
     this.game = game;
-    this.evolvedWeapons = []; // Weapons that have been evolved
-    this.pendingEvolutions = []; // Evolutions ready to be claimed
+    this.evolvedWeapons = [];
+    this.superEvolvedWeapons = [];
+    this.pendingEvolutions = [];
   }
 
   reset() {
     this.evolvedWeapons = [];
+    this.superEvolvedWeapons = [];
     this.pendingEvolutions = [];
   }
 
-  // Check if any weapons can evolve
   checkEvolutions() {
     const weaponSystem = this.game.autoWeaponSystem;
     const passiveSystem = this.game.passiveItemSystem;
 
+    // Check normal evolutions
     for (const [evolvedId, recipe] of Object.entries(EVOLUTION_RECIPES)) {
       if (this.evolvedWeapons.includes(evolvedId)) continue;
 
       const weaponLevel = weaponSystem.getWeaponLevel(recipe.baseWeapon);
       if (weaponLevel < 8) continue;
 
-      // Dual-weapon evolution (e.g. Vandalier = peachone + ebonyWings)
       if (recipe.requiredWeapon) {
         const secondLevel = weaponSystem.getWeaponLevel(recipe.requiredWeapon);
         if (secondLevel < 8) continue;
@@ -347,19 +489,42 @@ export class EvolutionSystem {
       }
     }
 
+    // Check super evolutions (require stage threshold + having the base evolution equipped)
+    const currentStage = this.game.stageSystem ? this.game.stageSystem.currentStage : 1;
+    for (const [superId, recipe] of Object.entries(SUPER_EVOLUTION_RECIPES)) {
+      if (this.superEvolvedWeapons.includes(superId)) continue;
+      if (currentStage < recipe.requiredStage) continue;
+
+      const hasBaseEvolution = weaponSystem.equippedWeapons.some(
+        (w) => w.id === recipe.baseEvolution && w.isEvolved,
+      );
+      if (!hasBaseEvolution) continue;
+
+      if (!this.pendingEvolutions.includes(superId)) {
+        this.pendingEvolutions.push(superId);
+        console.log(`Super Evolution available: ${recipe.name}!`);
+      }
+    }
+
     return this.pendingEvolutions.length > 0;
   }
 
-  // Get list of pending evolutions for UI
   getPendingEvolutions() {
-    return this.pendingEvolutions.map((id) => ({
-      ...EVOLUTION_RECIPES[id],
-      type: "evolution",
-    }));
+    return this.pendingEvolutions.map((id) => {
+      if (SUPER_EVOLUTION_RECIPES[id]) {
+        return { ...SUPER_EVOLUTION_RECIPES[id], type: "evolution", isSuperEvolution: true };
+      }
+      return { ...EVOLUTION_RECIPES[id], type: "evolution" };
+    });
   }
 
-  // Perform evolution
   evolve(evolvedId) {
+    // Check if this is a super evolution
+    const superRecipe = SUPER_EVOLUTION_RECIPES[evolvedId];
+    if (superRecipe) {
+      return this.superEvolve(evolvedId, superRecipe);
+    }
+
     const recipe = EVOLUTION_RECIPES[evolvedId];
     if (!recipe) return false;
 
@@ -369,18 +534,16 @@ export class EvolutionSystem {
 
     const weaponSystem = this.game.autoWeaponSystem;
 
-    // Remove base weapon
     const weaponIndex = weaponSystem.equippedWeapons.findIndex(
-      (w) => w.id === recipe.baseWeapon
+      (w) => w.id === recipe.baseWeapon,
     );
     if (weaponIndex !== -1) {
       weaponSystem.equippedWeapons.splice(weaponIndex, 1);
     }
 
-    // For dual-weapon evolutions, also remove the second weapon
     if (recipe.requiredWeapon) {
       const secondIndex = weaponSystem.equippedWeapons.findIndex(
-        (w) => w.id === recipe.requiredWeapon
+        (w) => w.id === recipe.requiredWeapon,
       );
       if (secondIndex !== -1) {
         weaponSystem.equippedWeapons.splice(secondIndex, 1);
@@ -402,17 +565,45 @@ export class EvolutionSystem {
     return true;
   }
 
-  // Check if a weapon is evolved
-  isEvolved(weaponId) {
-    return EVOLUTION_RECIPES[weaponId] !== undefined;
+  superEvolve(superId, recipe) {
+    const pendingIndex = this.pendingEvolutions.indexOf(superId);
+    if (pendingIndex === -1) return false;
+    this.pendingEvolutions.splice(pendingIndex, 1);
+
+    const weaponSystem = this.game.autoWeaponSystem;
+
+    // Remove the base evolved weapon
+    const weaponIndex = weaponSystem.equippedWeapons.findIndex(
+      (w) => w.id === recipe.baseEvolution,
+    );
+    if (weaponIndex !== -1) {
+      weaponSystem.equippedWeapons.splice(weaponIndex, 1);
+    }
+
+    weaponSystem.equippedWeapons.push({
+      id: superId,
+      level: 1,
+      isEvolved: true,
+      isSuperEvolved: true,
+    });
+
+    this.superEvolvedWeapons.push(superId);
+
+    this.game.audioManager.playSound("evolution");
+    this.createSuperEvolutionEffect();
+
+    console.log(`Super Evolved into ${recipe.name}!`);
+    return true;
   }
 
-  // Get evolved weapon stats
+  isEvolved(weaponId) {
+    return EVOLUTION_RECIPES[weaponId] !== undefined || SUPER_EVOLUTION_RECIPES[weaponId] !== undefined;
+  }
+
   getEvolvedStats(weaponId) {
-    const recipe = EVOLUTION_RECIPES[weaponId];
+    const recipe = EVOLUTION_RECIPES[weaponId] || SUPER_EVOLUTION_RECIPES[weaponId];
     if (!recipe) return null;
 
-    // Apply player stat bonuses
     const stats = { ...recipe.stats };
     const playerStats = this.game.playerStats || {};
 
@@ -428,6 +619,23 @@ export class EvolutionSystem {
     if (playerStats.cooldown) stats.cooldown *= 1 - playerStats.cooldown * 0.05;
 
     return stats;
+  }
+
+  createSuperEvolutionEffect() {
+    const playerPos = this.game.player.getPosition();
+
+    if (this.game.particleSystem) {
+      this.game.particleSystem.spawn(playerPos, "evolution");
+      this.game.particleSystem.spawn(playerPos, "bossDeath");
+      this.game.particleSystem.createShockwave(playerPos, 8, 0xff44ff, 1.2);
+      this.game.particleSystem.createShockwave(playerPos, 5, 0xffdd00, 0.8);
+    }
+
+    if (this.game.postProcessing) {
+      this.game.postProcessing.shake(0.8, 0.5);
+      this.game.postProcessing.pulseBloom(0.6, 3.5);
+      this.game.postProcessing.slowTime(0.2, 1.0);
+    }
   }
 
   createEvolutionEffect() {

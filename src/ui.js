@@ -1,5 +1,6 @@
 import { AUTO_WEAPONS } from "./autoWeapons.js";
 import { PASSIVE_ITEMS } from "./passiveItems.js";
+import { ARCANA_CARDS } from "./arcanaSystem.js";
 import { injectCSS } from "./utils.js";
 import { clearChildren, createIconBox } from "./uiUtils.js";
 
@@ -44,6 +45,46 @@ export class UI {
         color: #fff;
         letter-spacing: 2px;
         text-shadow: 0 2px 12px rgba(0,0,0,1), 0 0 4px rgba(0,0,0,0.8);
+      }
+
+      /* === Active Arcana === */
+      #active-arcana {
+        position: absolute;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 6px;
+      }
+      .arcana-hud-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        border: 2px solid;
+        background: rgba(0,0,0,0.6);
+        filter: drop-shadow(0 0 4px currentColor);
+      }
+
+      /* === Stage Badge === */
+      #stage-badge {
+        position: absolute;
+        top: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 13px;
+        font-weight: 700;
+        color: #ff8844;
+        letter-spacing: 2px;
+        text-shadow: 0 0 10px rgba(255,136,68,0.5), 0 2px 6px rgba(0,0,0,0.9);
+      }
+      #stage-badge .stage-num {
+        color: #ffcc00;
+        font-size: 16px;
+        font-weight: 900;
       }
 
       /* === Level Display === */
@@ -183,6 +224,14 @@ export class UI {
           letter-spacing: 1px;
         }
 
+        /* Stage badge */
+        #stage-badge { top: 33px; font-size: 10px; }
+        #stage-badge .stage-num { font-size: 12px; }
+
+        /* Arcana */
+        #active-arcana { top: 48px; gap: 3px; }
+        .arcana-hud-icon { width: 22px; height: 22px; font-size: 11px; }
+
         /* Level */
         #level-display { top: 8px; right: 10px; gap: 2px; }
         #level-display span:first-child { font-size: 9px; letter-spacing: 1px; }
@@ -239,6 +288,12 @@ export class UI {
     // Timer
     this.createTimer();
 
+    // Stage badge
+    this.createStageBadge();
+
+    // Active arcana display
+    this.createArcanaDisplay();
+
     // Level display
     this.createLevelDisplay();
 
@@ -275,6 +330,43 @@ export class UI {
     document.getElementById("hud").appendChild(timer);
 
     this.elements.timer = timer;
+  }
+
+  createStageBadge() {
+    const badge = document.createElement("div");
+    badge.id = "stage-badge";
+    badge.innerHTML = `STAGE <span class="stage-num" id="stage-value">1</span>`;
+    document.getElementById("hud").appendChild(badge);
+    this.elements.stageValue = document.getElementById("stage-value");
+  }
+
+  updateStage() {
+    if (!this.elements.stageValue || !this.game.stageSystem) return;
+    this.elements.stageValue.textContent = this.game.stageSystem.currentStage;
+  }
+
+  createArcanaDisplay() {
+    const container = document.createElement("div");
+    container.id = "active-arcana";
+    document.getElementById("hud").appendChild(container);
+    this.elements.activeArcana = container;
+  }
+
+  updateArcana() {
+    if (!this.elements.activeArcana || !this.game.arcanaSystem) return;
+    clearChildren(this.elements.activeArcana);
+
+    for (const id of this.game.arcanaSystem.activeArcana) {
+      const card = ARCANA_CARDS[id];
+      if (!card) continue;
+      const icon = document.createElement("div");
+      icon.className = "arcana-hud-icon";
+      icon.style.color = card.color;
+      icon.style.borderColor = card.color;
+      icon.innerHTML = card.icon;
+      icon.title = `${card.name}: ${card.description}`;
+      this.elements.activeArcana.appendChild(icon);
+    }
   }
 
   createLevelDisplay() {
@@ -376,6 +468,8 @@ export class UI {
     this.updateWeapon();
     this.updateXP();
     this.updateLevel();
+    this.updateStage();
+    this.updateArcana();
     this.updateWeaponIcons();
     this.updatePassiveItems();
     this.updatePowerUpStats();
@@ -449,13 +543,15 @@ export class UI {
     this.elements.levelValue.textContent = this.game.xpSystem.level;
   }
 
-  updateTimer() {
-    if (!this.elements.timer) return;
-
-    const elapsed = this.game.gameTime || 0;
+  formatTime(elapsed) {
     const minutes = Math.floor(elapsed / 60);
     const seconds = Math.floor(elapsed % 60);
-    this.elements.timer.textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  updateTimer() {
+    if (!this.elements.timer) return;
+    this.elements.timer.textContent = this.formatTime(this.game.gameTime || 0);
   }
 
   updateWeaponIcons() {

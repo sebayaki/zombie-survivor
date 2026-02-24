@@ -267,26 +267,45 @@ export class PassiveItemSystem {
 
     this.game.playerStats = stats;
 
+    // Apply arcana effects
+    let maxHealthMult = 1;
+    let moveSpeedMult = 1;
+    let magnetMult = 1;
+    if (this.game.arcanaSystem) {
+      const arcana = this.game.arcanaSystem.getActiveEffects();
+      if (arcana.maxHealthMult) maxHealthMult *= arcana.maxHealthMult;
+      if (arcana.moveSpeedMult) moveSpeedMult *= arcana.moveSpeedMult;
+      if (arcana.magnetMult) magnetMult *= arcana.magnetMult;
+      if (arcana.bonusArmor) stats.armor = (stats.armor || 0) + arcana.bonusArmor;
+      if (arcana.bonusAmount) stats.amount = (stats.amount || 0) + arcana.bonusAmount;
+      if (arcana.cooldownMult) stats.cooldown = (stats.cooldown || 0) + (1 - arcana.cooldownMult) / 0.05;
+    }
+
     // Apply direct stat changes to player
     if (this.game.player) {
       const baseSpeed = 8;
-      this.game.player.speed = baseSpeed * (1 + (stats.moveSpeed || 0) * 0.1);
+      this.game.player.speed = baseSpeed * (1 + (stats.moveSpeed || 0) * 0.1) * moveSpeedMult;
 
       const baseMaxHealth = 100;
       const newMaxHealth = Math.floor(
-        baseMaxHealth * (1 + (stats.maxHealth || 0) * 0.2),
+        baseMaxHealth * (1 + (stats.maxHealth || 0) * 0.2) * maxHealthMult,
       );
-      if (newMaxHealth > this.game.player.maxHealth) {
-        const diff = newMaxHealth - this.game.player.maxHealth;
+      if (newMaxHealth !== this.game.player.maxHealth) {
+        const oldMax = this.game.player.maxHealth;
         this.game.player.maxHealth = newMaxHealth;
-        this.game.player.health = Math.min(
-          this.game.player.health + diff,
-          newMaxHealth,
-        );
+        if (newMaxHealth > oldMax) {
+          const diff = newMaxHealth - oldMax;
+          this.game.player.health = Math.min(
+            this.game.player.health + diff,
+            newMaxHealth,
+          );
+        } else {
+          this.game.player.health = Math.min(this.game.player.health, newMaxHealth);
+        }
       }
 
       if (this.game.xpSystem) {
-        this.game.xpSystem.magnetRadius = 3 + (stats.magnet || 0);
+        this.game.xpSystem.magnetRadius = (3 + (stats.magnet || 0)) * magnetMult;
       }
     }
   }

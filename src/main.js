@@ -40,9 +40,22 @@ function setupEventListeners() {
   // Restart button
   const restartButton = document.getElementById("restart-button");
   restartButton.addEventListener("click", () => {
-    updateGoldDisplay(); // Update gold after game over
+    updateGoldDisplay();
     game.restart();
   });
+
+  // Stage complete: next stage button
+  document.getElementById("next-stage-button").addEventListener("click", () => {
+    game.nextStage();
+  });
+
+  // Stage complete: shop button
+  document.getElementById("stage-shop-button").addEventListener("click", () => {
+    game.powerUpShopUI.show();
+  });
+
+  // Stage select arrows on start screen
+  setupStageSelect();
 
   // Resume button (pause menu)
   const resumeButton = document.getElementById("resume-button");
@@ -137,11 +150,47 @@ function setupEventListeners() {
   });
 }
 
+// Stage selection on start screen
+function setupStageSelect() {
+  const numEl = document.getElementById("stage-select-num");
+  const prevBtn = document.getElementById("stage-prev");
+  const nextBtn = document.getElementById("stage-next");
+
+  const updateDisplay = () => {
+    const stage = game.stageSystem.currentStage;
+    const max = game.stageSystem.data.maxStageReached;
+    numEl.textContent = stage;
+    prevBtn.style.visibility = stage > 1 ? "visible" : "hidden";
+    nextBtn.style.visibility = stage < max ? "visible" : "hidden";
+  };
+
+  prevBtn.addEventListener("click", () => {
+    if (game.stageSystem.currentStage > 1) {
+      game.stageSystem.currentStage = game.stageSystem.currentStage - 1;
+      updateDisplay();
+    }
+  });
+
+  nextBtn.addEventListener("click", () => {
+    if (game.stageSystem.currentStage < game.stageSystem.data.maxStageReached) {
+      game.stageSystem.currentStage = game.stageSystem.currentStage + 1;
+      updateDisplay();
+    }
+  });
+
+  updateDisplay();
+}
+
 // Update gold display on start screen
 function updateGoldDisplay() {
   const goldElement = document.getElementById("total-gold");
   if (goldElement && game.powerUpSystem) {
     goldElement.textContent = game.powerUpSystem.currentGold.toLocaleString();
+  }
+  // Also update stage display
+  const numEl = document.getElementById("stage-select-num");
+  if (numEl && game.stageSystem) {
+    numEl.textContent = game.stageSystem.currentStage;
   }
 }
 

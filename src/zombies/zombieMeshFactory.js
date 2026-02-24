@@ -79,6 +79,45 @@ export const ENEMY_TYPES = {
   },
 };
 
+// Stage boss variants — cycled by stage number
+export const STAGE_BOSS_VARIANTS = [
+  {
+    name: "The Abomination",
+    color: 0x1a0a2e,
+    secondaryColor: 0x0d0519,
+    eyeColor: 0xff0088,
+    glowColor: 0x8800ff,
+  },
+  {
+    name: "The Warden",
+    color: 0x0a1a2e,
+    secondaryColor: 0x051930,
+    eyeColor: 0x00ccff,
+    glowColor: 0x0066ff,
+  },
+  {
+    name: "The Devourer",
+    color: 0x2e1a0a,
+    secondaryColor: 0x301905,
+    eyeColor: 0xff6600,
+    glowColor: 0xff3300,
+  },
+  {
+    name: "The Plague Bearer",
+    color: 0x0a2e0a,
+    secondaryColor: 0x053005,
+    eyeColor: 0x44ff00,
+    glowColor: 0x22cc00,
+  },
+  {
+    name: "The Wraith King",
+    color: 0x2e0a2e,
+    secondaryColor: 0x300530,
+    eyeColor: 0xff00ff,
+    glowColor: 0xcc00cc,
+  },
+];
+
 function addPart(group, geometry, material, pos, rot) {
   const mesh = new THREE.Mesh(geometry, material);
   if (pos) mesh.position.set(pos.x ?? 0, pos.y ?? 0, pos.z ?? 0);

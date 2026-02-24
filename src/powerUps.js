@@ -331,11 +331,11 @@ export class PowerUpSystem {
     return true;
   }
 
-  // Add gold (called when collecting gold in-game)
   addGold(amount) {
     const greedStat = (this.game.playerStats && this.game.playerStats.greed) || 0;
     const greedBonus = 1 + greedStat * 0.1;
-    const finalAmount = Math.floor(amount * greedBonus);
+    const arcanaGoldMult = this.game.arcanaSystem ? (this.game.arcanaSystem.getActiveEffects().goldMult || 1) : 1;
+    const finalAmount = Math.floor(amount * greedBonus * arcanaGoldMult);
     this.currentGold += finalAmount;
     this.totalGoldEarned += finalAmount;
     this.saveProgress();

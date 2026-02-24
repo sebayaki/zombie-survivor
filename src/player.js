@@ -478,7 +478,8 @@ export class Player {
   }
 
   handleMovement(delta) {
-    const moveSpeed = this.speed * delta;
+    const frozenSlow = this._frozenAuraSlow || 0;
+    const moveSpeed = this.speed * (1 - frozenSlow) * delta;
     const { x: moveX, z: moveZ } = this.getMovementInput();
 
     const wasMoving = this.isMoving;

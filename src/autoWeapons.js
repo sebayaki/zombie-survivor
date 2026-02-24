@@ -101,6 +101,21 @@ export class AutoWeaponSystem {
     if (playerStats.cooldown) stats.cooldown *= 1 - playerStats.cooldown * 0.05;
     if (playerStats.amount && stats.projectileCount) stats.projectileCount += playerStats.amount;
 
+    // Apply arcana effects
+    if (this.game.arcanaSystem) {
+      const arcana = this.game.arcanaSystem.getActiveEffects();
+      if (arcana.damageMult) stats.damage *= arcana.damageMult;
+      if (arcana.bonusAmount && stats.projectileCount) stats.projectileCount += arcana.bonusAmount;
+      if (arcana.cooldownMult) stats.cooldown *= arcana.cooldownMult;
+
+      // Berserker's Rage: damage scales inversely with HP ratio
+      if (arcana.berserkerRage && this.game.player) {
+        const hpRatio = this.game.player.health / this.game.player.maxHealth;
+        const rageBonus = 1 + (1 - hpRatio);
+        stats.damage *= rageBonus;
+      }
+    }
+
     return stats;
   }
 

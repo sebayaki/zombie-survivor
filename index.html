@@ -107,6 +107,13 @@
           upgrades!
         </p>
 
+        <div id="stage-select" class="stage-select-display">
+          <span class="stage-select-label">STAGE</span>
+          <button id="stage-prev" class="stage-arrow-btn"><i class="fa-solid fa-caret-left"></i></button>
+          <span id="stage-select-num" class="stage-select-num">1</span>
+          <button id="stage-next" class="stage-arrow-btn"><i class="fa-solid fa-caret-right"></i></button>
+        </div>
+
         <div class="button-container">
           <button id="start-button" class="action-btn primary-btn">
             <span class="btn-icon"><i class="fa-solid fa-skull-crossbones"></i></span>
@@ -120,6 +127,48 @@
         </div>
       </div>
       <div id="start-version-display" class="version-display"></div>
+    </div>
+
+    <!-- Stage Complete Screen -->
+    <div id="stage-complete-screen" class="overlay hidden">
+      <div class="vignette"></div>
+      <div class="overlay-content game-over-content">
+        <div class="death-icon" style="color: #ffcc00"><i class="fa-solid fa-trophy"></i></div>
+        <h1 class="game-over-title" style="color: #ffcc00; text-shadow: 0 0 30px rgba(255,204,0,0.6)">STAGE CLEAR!</h1>
+        <p class="death-message">Stage <span id="stage-clear-stage" style="color:#ffcc00;font-weight:900">1</span> completed!</p>
+        <div class="final-stats gore-box">
+          <div class="gore-corner tl"></div>
+          <div class="gore-corner tr"></div>
+          <div class="gore-corner bl"></div>
+          <div class="gore-corner br"></div>
+          <div class="stat-row">
+            <span class="stat-icon"><i class="fa-solid fa-clock"></i></span>
+            <span class="stat-label">Survival Time</span>
+            <span class="stat-value" id="stage-clear-time">0:00</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon"><i class="fa-solid fa-skull-crossbones"></i></span>
+            <span class="stat-label">Zombies Killed</span>
+            <span class="stat-value" id="stage-clear-kills">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon"><i class="fa-solid fa-sack-dollar"></i></span>
+            <span class="stat-label">Stage Bonus Gold</span>
+            <span class="stat-value" id="stage-clear-gold" style="color: #ffcc00">0</span>
+          </div>
+        </div>
+        <div class="button-container" style="display:flex;flex-direction:column;gap:12px;align-items:center;margin-top:20px">
+          <button id="next-stage-button" class="action-btn primary-btn">
+            <span class="btn-icon"><i class="fa-solid fa-forward"></i></span>
+            <span class="btn-text">NEXT STAGE</span>
+            <span class="btn-glow"></span>
+          </button>
+          <button id="stage-shop-button" class="action-btn shop-button">
+            <span class="btn-icon"><i class="fa-solid fa-sack-dollar"></i></span>
+            <span class="btn-text">POWER UP SHOP</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Game Over Screen -->
@@ -136,6 +185,11 @@
           <div class="gore-corner tr"></div>
           <div class="gore-corner bl"></div>
           <div class="gore-corner br"></div>
+          <div class="stat-row">
+            <span class="stat-icon"><i class="fa-solid fa-layer-group"></i></span>
+            <span class="stat-label">Stage</span>
+            <span class="stat-value" id="final-stage" style="color:#ff8844">1</span>
+          </div>
           <div class="stat-row">
             <span class="stat-icon"><i class="fa-solid fa-water"></i></span>
             <span class="stat-label">Wave Reached</span>

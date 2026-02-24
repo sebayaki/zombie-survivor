@@ -77,6 +77,12 @@ export function attackPlayer(zombie, game) {
     game.player.takeDamage(zombie.damage);
     zombie.attackCooldown = zombie.attackRate;
     game.audioManager.playSound("zombieAttack");
+
+    // Vampiric affix: heal on hit
+    if (zombie.isElite && zombie.affixes && zombie.affixes.includes("vampiric")) {
+      const healAmount = zombie.maxHealth * 0.05;
+      zombie.health = Math.min(zombie.maxHealth, zombie.health + healAmount);
+    }
   }
 }
 
@@ -244,8 +250,8 @@ export function updateZombieBehavior(
         direction,
         game.obstacles,
       );
-      zombie.mesh.position.x += moveDir.x * zombie.speed * delta;
-      zombie.mesh.position.z += moveDir.z * zombie.speed * delta;
+      zombie.mesh.position.x += moveDir.x * (zombie._effectiveSpeed || zombie.speed) * delta;
+      zombie.mesh.position.z += moveDir.z * (zombie._effectiveSpeed || zombie.speed) * delta;
 
       if (distance < 2.0 * (zombie.typeDef?.scale || 1)) {
         attackPlayer(zombie, game);
@@ -438,8 +444,8 @@ export function updateZombieBehavior(
         direction,
         game.obstacles,
       );
-      zombie.mesh.position.x += moveDir.x * zombie.speed * delta;
-      zombie.mesh.position.z += moveDir.z * zombie.speed * delta;
+      zombie.mesh.position.x += moveDir.x * (zombie._effectiveSpeed || zombie.speed) * delta;
+      zombie.mesh.position.z += moveDir.z * (zombie._effectiveSpeed || zombie.speed) * delta;
     }
   } else if (distance < 1.5 * (zombie.typeDef?.scale || 1)) {
     zombie.state = "attack";
@@ -451,8 +457,8 @@ export function updateZombieBehavior(
       direction,
       game.obstacles,
     );
-    zombie.mesh.position.x += moveDir.x * zombie.speed * delta;
-    zombie.mesh.position.z += moveDir.z * zombie.speed * delta;
+    zombie.mesh.position.x += moveDir.x * (zombie._effectiveSpeed || zombie.speed) * delta;
+    zombie.mesh.position.z += moveDir.z * (zombie._effectiveSpeed || zombie.speed) * delta;
   }
 
   // Animation

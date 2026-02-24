@@ -18,6 +18,8 @@ import { ParticleSystem } from "./particleSystem.js";
 import { PowerUpSystem } from "./powerUps.js";
 import { PowerUpShopUI } from "./powerUpShopUI.js";
 import { TouchControls } from "./touchControls.js";
+import { StageSystem } from "./stageSystem.js";
+import { ArcanaSystem } from "./arcanaSystem.js";
 import { findSpawnPosition } from "./utils.js";
 import { SpatialGrid } from "./spatialGrid.js";
 import {
@@ -66,6 +68,8 @@ export class Game {
     this.powerUpSystem = null;
     this.powerUpShopUI = null;
     this.touchControls = null;
+    this.stageSystem = null;
+    this.arcanaSystem = null;
 
     // Input state
     this.keys = {};
@@ -164,6 +168,8 @@ export class Game {
     this.powerUpSystem = new PowerUpSystem(this);
     this.powerUpShopUI = new PowerUpShopUI(this);
     this.touchControls = new TouchControls(this);
+    this.stageSystem = new StageSystem(this);
+    this.arcanaSystem = new ArcanaSystem(this);
 
     // Load player
     await this.player.init();
@@ -220,6 +226,8 @@ export class Game {
     ];
     for (const system of resettableSystems) system.reset();
 
+    this.stageSystem.resetRun();
+    this.arcanaSystem.reset();
     this.powerUpSystem.applyBonuses();
     this.autoWeaponSystem.addWeapon("magicWand");
     this.ui.updateAll();
@@ -227,6 +235,15 @@ export class Game {
     this.isPlaying = true;
     this.touchControls.show();
     this.audioManager.playMusic();
+
+    // Offer arcana selection if stage qualifies (every 3 stages, starting at 3)
+    if (this.arcanaSystem.shouldOfferArcana()) {
+      setTimeout(() => {
+        if (this.isPlaying) {
+          this.arcanaSystem.showSelection();
+        }
+      }, 500);
+    }
   }
 
   restart() {
@@ -248,6 +265,8 @@ export class Game {
     document.getElementById("final-gold").textContent = (
       this.gold || 0
     ).toLocaleString();
+    const stageEl = document.getElementById("final-stage");
+    if (stageEl) stageEl.textContent = this.stageSystem.currentStage;
     document.getElementById("game-over-screen").classList.remove("hidden");
 
     this.audioManager.stopMusic();
@@ -283,43 +302,39 @@ export class Game {
   quitToMenu() {
     console.log("Quit to menu");
 
-    // Hide pause screen
     document.getElementById("pause-screen").classList.add("hidden");
-
-    // Hide touch controls
+    document.getElementById("stage-complete-screen").classList.add("hidden");
     this.touchControls.hide();
-
-    // Reset game state
     this.isPlaying = false;
     this.isPaused = false;
-
-    // Stop music
     this.audioManager.stopMusic();
-
-    // Show start screen
     document.getElementById("start-screen").classList.remove("hidden");
   }
 
-  // VS-style continuous spawning
+  // VS-style continuous spawning (with stage modifiers applied)
   updateSpawning(delta) {
+    if (this.stageSystem.stageCompleted) return;
+
     this.spawnTimer += delta;
 
     const timeMinutes = this.gameTime / 60;
+    const stage = this.stageSystem;
 
-    const spawnInterval = Math.max(
+    const baseInterval = Math.max(
       this.minSpawnInterval,
       this.baseSpawnInterval - timeMinutes * 0.1,
     );
+    const spawnInterval = baseInterval / stage.getSpawnRateMult();
 
     this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.5);
 
-    // HP scales aggressively with stronger quadratic + cubic curve
-    const zombieHealth =
+    const baseHealth =
       99 + timeMinutes * 80 + timeMinutes * timeMinutes * 12 + Math.pow(timeMinutes, 3) * 0.8;
-    // Speed ramps faster so enemies close gaps on high-DPS players
-    const zombieSpeed = 1.5 + timeMinutes * 0.15;
-    // Damage scales with time so enemies remain threatening
-    const zombieDamage = 10 + timeMinutes * 3 + timeMinutes * timeMinutes * 0.5;
+    const zombieHealth = baseHealth * stage.getEnemyHealthMult();
+    const arcanaSpeedMult = this.arcanaSystem ? (this.arcanaSystem.getActiveEffects().enemySpeedMult || 1) : 1;
+    const zombieSpeed = (1.5 + timeMinutes * 0.15) * stage.getEnemySpeedMult() * arcanaSpeedMult;
+    const zombieDamage =
+      (10 + timeMinutes * 3 + timeMinutes * timeMinutes * 0.5) * stage.getEnemyDamageMult();
 
     const maxZombies = 500;
     const currentCount = this.zombieManager.getZombies().length;
@@ -398,6 +413,10 @@ export class Game {
     }
   }
 
+  onWaveComplete() {
+    // Legacy stub — VS-style uses continuous spawning, not discrete waves
+  }
+
   addScore(points) {
     this.score += points;
 
@@ -415,9 +434,10 @@ export class Game {
 
   // Drop XP gem when zombie dies
   dropXPGem(position, baseXP = 1) {
-    // Apply growth stat
+    // Apply growth stat + stage XP multiplier
     const growthBonus = 1 + (this.playerStats.growth || 0) * 0.08;
-    const xpAmount = Math.floor(baseXP * growthBonus);
+    const stageXPMult = this.stageSystem ? this.stageSystem.getXPMult() : 1;
+    const xpAmount = Math.floor(baseXP * growthBonus * stageXPMult);
 
     this.xpSystem.spawnGem(position, xpAmount);
   }
@@ -441,6 +461,28 @@ export class Game {
     if (this.postProcessing) {
       this.postProcessing.pulseBloom(duration, maxStrength);
     }
+  }
+
+  showStageComplete(bonusGold) {
+    this.isPlaying = false;
+    this.isPaused = false;
+    this.touchControls.hide();
+
+    const stage = this.stageSystem.currentStage;
+    document.getElementById("stage-clear-stage").textContent = stage;
+    document.getElementById("stage-clear-kills").textContent = this.kills;
+    document.getElementById("stage-clear-gold").textContent = bonusGold.toLocaleString();
+    document.getElementById("stage-clear-time").textContent = this.ui.formatTime(this.gameTime);
+    document.getElementById("stage-complete-screen").classList.remove("hidden");
+
+    this.audioManager.stopMusic();
+    this.audioManager.playSound("evolution");
+  }
+
+  nextStage() {
+    document.getElementById("stage-complete-screen").classList.add("hidden");
+    this.stageSystem.advanceStage();
+    this.start();
   }
 
   gameLoop() {
@@ -491,6 +533,9 @@ export class Game {
 
       // Update passive items (for HP recovery, etc.)
       this.passiveItemSystem.update(delta);
+
+      // Update stage system (boss spawning, cursed ground, etc.)
+      this.stageSystem.update(delta);
 
       // Update treasure chests
       this.treasureChestSystem.update(delta);
