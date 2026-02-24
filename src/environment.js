@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   createAsphaltTexture,
   createAsphaltBumpMap,
@@ -16,6 +17,23 @@ import {
 } from "./environment/decorations.js";
 
 // ============================================================
+// Merge helper – batches an array of positioned geometries into
+// a single mesh, then disposes the source geometries.
+// ============================================================
+
+function addMergedMesh(scene, geos, material, opts = {}) {
+  if (geos.length === 0) return null;
+  const merged = mergeGeometries(geos, false);
+  if (!merged) return null;
+  const mesh = new THREE.Mesh(merged, material);
+  if (opts.castShadow) mesh.castShadow = true;
+  if (opts.receiveShadow) mesh.receiveShadow = true;
+  scene.add(mesh);
+  for (const g of geos) g.dispose();
+  return mesh;
+}
+
+// ============================================================
 // LIGHTING
 // ============================================================
 
@@ -23,11 +41,14 @@ export function setupEnhancedLighting(game) {
   const ambient = new THREE.AmbientLight(0x7788aa, 2.4);
   game.scene.add(ambient);
 
+  const isMobile = game.isMobile;
+  const shadowMapSize = isMobile ? 1024 : 2048;
+
   const moonLight = new THREE.DirectionalLight(0x8899cc, 2.8);
   moonLight.position.set(10, 60, 15);
   moonLight.castShadow = true;
-  moonLight.shadow.mapSize.width = 2048;
-  moonLight.shadow.mapSize.height = 2048;
+  moonLight.shadow.mapSize.width = shadowMapSize;
+  moonLight.shadow.mapSize.height = shadowMapSize;
   moonLight.shadow.camera.near = 1;
   moonLight.shadow.camera.far = 120;
   moonLight.shadow.camera.left = -65;
@@ -62,10 +83,7 @@ export function createEnhancedArena(game) {
   const bumpMap = createAsphaltBumpMap();
 
   const groundGeo = new THREE.PlaneGeometry(
-    arenaSize * 2,
-    arenaSize * 2,
-    64,
-    64,
+    arenaSize * 2, arenaSize * 2, 64, 64,
   );
   const posAttr = groundGeo.attributes.position;
   for (let i = 0; i < posAttr.count; i++) {
@@ -86,7 +104,7 @@ export function createEnhancedArena(game) {
   ground.receiveShadow = true;
   game.scene.add(ground);
 
-  // ---- PUDDLES (reflective patches) ----
+  // ---- PUDDLES (merged into a single mesh) ----
   const puddleMat = new THREE.MeshStandardMaterial({
     color: 0x0a1525,
     roughness: 0.05,
@@ -94,50 +112,58 @@ export function createEnhancedArena(game) {
     transparent: true,
     opacity: 0.55,
   });
+  const puddleGeos = [];
   for (let i = 0; i < 14; i++) {
     const pw = 1 + Math.random() * 3;
     const pd = 0.8 + Math.random() * 2;
-    const puddle = new THREE.Mesh(new THREE.PlaneGeometry(pw, pd), puddleMat);
-    puddle.rotation.x = -Math.PI / 2;
-    puddle.position.set(
-      (Math.random() - 0.5) * arenaSize * 1.4,
-      0.03,
-      (Math.random() - 0.5) * arenaSize * 1.4,
+    puddleGeos.push(
+      new THREE.PlaneGeometry(pw, pd)
+        .rotateX(-Math.PI / 2)
+        .translate(
+          (Math.random() - 0.5) * arenaSize * 1.4,
+          0.03,
+          (Math.random() - 0.5) * arenaSize * 1.4,
+        ),
     );
-    game.scene.add(puddle);
   }
+  addMergedMesh(game.scene, puddleGeos, puddleMat);
 
-  createEnhancedStreetMarkings(game);
-  createEnhancedSidewalks(game);
+  createMergedStreetMarkings(game);
+  createMergedSidewalks(game);
   game.obstacles = [];
   createEnhancedDecorations(game);
-  createBoundaryFence(game);
+  createMergedBoundaryFence(game);
 }
 
 // ============================================================
-// BOUNDARY FENCE
+// BOUNDARY FENCE (merged by material)
 // ============================================================
 
-function createBoundaryFence(game) {
+function createMergedBoundaryFence(game) {
   const s = game.arenaSize - 1;
   const postHeight = 1.8;
   const postSpacing = 4;
 
   const fenceMat = new THREE.MeshStandardMaterial({
-    color: 0x888899,
-    roughness: 0.4,
-    metalness: 0.7,
+    color: 0x888899, roughness: 0.4, metalness: 0.7,
   });
   const glowMat = new THREE.MeshBasicMaterial({
-    color: 0x4488ff,
-    transparent: true,
-    opacity: 0.35,
+    color: 0x4488ff, transparent: true, opacity: 0.35,
   });
   const wireMat = new THREE.MeshBasicMaterial({
-    color: 0x6699cc,
-    transparent: true,
-    opacity: 0.25,
+    color: 0x6699cc, transparent: true, opacity: 0.25,
   });
+  const groundGlowMat = new THREE.MeshBasicMaterial({
+    color: 0x4488ff, transparent: true, opacity: 0.06,
+  });
+
+  const postGeo = new THREE.CylinderGeometry(0.06, 0.06, postHeight, 6);
+  const tipGeo = new THREE.SphereGeometry(0.1, 6, 6);
+
+  const fenceGeos = [];
+  const glowGeos = [];
+  const wireGeos = [];
+  const groundGlowGeos = [];
 
   const sides = [
     { x1: -s, z1: -s, x2: s, z2: -s, axis: "x" },
@@ -157,205 +183,162 @@ function createBoundaryFence(game) {
       const px = side.x1 + (side.x2 - side.x1) * t;
       const pz = side.z1 + (side.z2 - side.z1) * t;
 
-      const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, postHeight, 6),
-        fenceMat,
-      );
-      post.position.set(px, postHeight / 2, pz);
-      post.castShadow = true;
-      game.scene.add(post);
-
-      const tip = new THREE.Mesh(
-        new THREE.SphereGeometry(0.1, 6, 6),
-        glowMat,
-      );
-      tip.position.set(px, postHeight, pz);
-      game.scene.add(tip);
+      fenceGeos.push(postGeo.clone().translate(px, postHeight / 2, pz));
+      glowGeos.push(tipGeo.clone().translate(px, postHeight, pz));
     }
 
     const midX = (side.x1 + side.x2) / 2;
     const midZ = (side.z1 + side.z2) / 2;
 
     for (const h of [0.6, 1.2]) {
-      const wire = new THREE.Mesh(
+      wireGeos.push(
         new THREE.BoxGeometry(
           side.axis === "x" ? len : 0.02,
           0.02,
           side.axis === "z" ? len : 0.02,
-        ),
-        wireMat,
+        ).translate(midX, h, midZ),
       );
-      wire.position.set(midX, h, midZ);
-      game.scene.add(wire);
     }
 
-    const groundGlow = new THREE.Mesh(
+    groundGlowGeos.push(
       new THREE.PlaneGeometry(
         side.axis === "x" ? len : 1.5,
         side.axis === "z" ? len : 1.5,
-      ),
-      new THREE.MeshBasicMaterial({
-        color: 0x4488ff,
-        transparent: true,
-        opacity: 0.06,
-      }),
+      )
+        .rotateX(-Math.PI / 2)
+        .translate(midX, 0.04, midZ),
     );
-    groundGlow.rotation.x = -Math.PI / 2;
-    groundGlow.position.set(midX, 0.04, midZ);
-    game.scene.add(groundGlow);
   }
+
+  addMergedMesh(game.scene, fenceGeos, fenceMat, { castShadow: true });
+  addMergedMesh(game.scene, glowGeos, glowMat);
+  addMergedMesh(game.scene, wireGeos, wireMat);
+  addMergedMesh(game.scene, groundGlowGeos, groundGlowMat);
+
+  postGeo.dispose();
+  tipGeo.dispose();
 }
 
 // ============================================================
-// STREET MARKINGS
+// STREET MARKINGS (merged by material)
 // ============================================================
 
-function createEnhancedStreetMarkings(game) {
+function createMergedStreetMarkings(game) {
   const arenaSize = game.arenaSize;
   const yellowMat = new THREE.MeshBasicMaterial({ color: 0xddaa00 });
   const whiteMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-  const fadedWhite = new THREE.MeshBasicMaterial({ color: 0x888888 });
+  const fadedWhiteMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+
+  const yellowGeos = [];
+  const whiteGeos = [];
+  const fadedWhiteGeos = [];
 
   const dashLen = 2.5;
   const gapLen = 1.5;
   const span = arenaSize * 0.9;
 
+  // Center line dashes
   for (let z = -span; z < span; z += dashLen + gapLen) {
-    const d1 = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.15, dashLen),
-      yellowMat,
+    yellowGeos.push(
+      new THREE.PlaneGeometry(0.15, dashLen)
+        .rotateX(-Math.PI / 2)
+        .translate(-0.15, 0.025, z),
     );
-    d1.rotation.x = -Math.PI / 2;
-    d1.position.set(-0.15, 0.025, z);
-    game.scene.add(d1);
-
-    const d2 = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.15, dashLen),
-      yellowMat,
+    yellowGeos.push(
+      new THREE.PlaneGeometry(0.15, dashLen)
+        .rotateX(-Math.PI / 2)
+        .translate(0.15, 0.025, z + gapLen * 0.5),
     );
-    d2.rotation.x = -Math.PI / 2;
-    d2.position.set(0.15, 0.025, z + gapLen * 0.5);
-    game.scene.add(d2);
   }
 
+  // Side lines
   for (const offset of [-10, 10]) {
-    const sideLine = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.12, arenaSize * 1.8),
-      fadedWhite,
+    fadedWhiteGeos.push(
+      new THREE.PlaneGeometry(0.12, arenaSize * 1.8)
+        .rotateX(-Math.PI / 2)
+        .translate(offset, 0.025, 0),
     );
-    sideLine.rotation.x = -Math.PI / 2;
-    sideLine.position.set(offset, 0.025, 0);
-    game.scene.add(sideLine);
   }
 
+  // Crosswalks
   for (const z of [-25, 25]) {
     for (let x = -6; x <= 6; x += 1.8) {
-      const stripe = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.7, 3.5),
-        whiteMat,
+      whiteGeos.push(
+        new THREE.PlaneGeometry(0.7, 3.5)
+          .rotateX(-Math.PI / 2)
+          .translate(x, 0.025, z),
       );
-      stripe.rotation.x = -Math.PI / 2;
-      stripe.position.set(x, 0.025, z);
-      game.scene.add(stripe);
     }
   }
 
-  for (const [x, z] of [
-    [-5, 10],
-    [5, -10],
-  ]) {
-    const shaft = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.6, 2.2),
-      fadedWhite,
+  // Arrows
+  for (const [x, z] of [[-5, 10], [5, -10]]) {
+    fadedWhiteGeos.push(
+      new THREE.PlaneGeometry(0.6, 2.2)
+        .rotateX(-Math.PI / 2)
+        .translate(x, 0.025, z),
     );
-    shaft.rotation.x = -Math.PI / 2;
-    shaft.position.set(x, 0.025, z);
-    game.scene.add(shaft);
-
-    const head = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.4, 0.5),
-      fadedWhite,
+    fadedWhiteGeos.push(
+      new THREE.PlaneGeometry(1.4, 0.5)
+        .rotateX(-Math.PI / 2)
+        .translate(x, 0.025, z - 1.35),
     );
-    head.rotation.x = -Math.PI / 2;
-    head.position.set(x, 0.025, z - 1.35);
-    game.scene.add(head);
   }
+
+  addMergedMesh(game.scene, yellowGeos, yellowMat);
+  addMergedMesh(game.scene, whiteGeos, whiteMat);
+  addMergedMesh(game.scene, fadedWhiteGeos, fadedWhiteMat);
 }
 
 // ============================================================
 // SIDEWALKS
 // ============================================================
 
-function createEnhancedSidewalks(game) {
+function createMergedSidewalks(game) {
   const arenaSize = game.arenaSize;
   const swMap = createSidewalkTexture();
 
   const swMat = new THREE.MeshStandardMaterial({
-    map: swMap,
-    color: 0x666668,
-    roughness: 0.85,
-    metalness: 0.02,
+    map: swMap, color: 0x666668, roughness: 0.85, metalness: 0.02,
   });
   const curbMat = new THREE.MeshStandardMaterial({
-    color: 0x555558,
-    roughness: 0.7,
+    color: 0x555558, roughness: 0.7,
   });
 
   const sw = 5;
   const ch = 0.25;
 
   const defs = [
-    {
-      x: -arenaSize + sw / 2,
-      z: 0,
-      w: sw,
-      l: arenaSize * 2,
-      cx: -arenaSize + sw,
-      dir: "z",
-    },
-    {
-      x: arenaSize - sw / 2,
-      z: 0,
-      w: sw,
-      l: arenaSize * 2,
-      cx: arenaSize - sw,
-      dir: "z",
-    },
-    {
-      x: 0,
-      z: -arenaSize + sw / 2,
-      w: arenaSize * 2 - sw * 2,
-      l: sw,
-      cz: -arenaSize + sw,
-      dir: "x",
-    },
-    {
-      x: 0,
-      z: arenaSize - sw / 2,
-      w: arenaSize * 2 - sw * 2,
-      l: sw,
-      cz: arenaSize - sw,
-      dir: "x",
-    },
+    { x: -arenaSize + sw / 2, z: 0, w: sw, l: arenaSize * 2,
+      cx: -arenaSize + sw, dir: "z" },
+    { x: arenaSize - sw / 2, z: 0, w: sw, l: arenaSize * 2,
+      cx: arenaSize - sw, dir: "z" },
+    { x: 0, z: -arenaSize + sw / 2, w: arenaSize * 2 - sw * 2, l: sw,
+      cz: -arenaSize + sw, dir: "x" },
+    { x: 0, z: arenaSize - sw / 2, w: arenaSize * 2 - sw * 2, l: sw,
+      cz: arenaSize - sw, dir: "x" },
   ];
 
   for (const d of defs) {
     const surface = new THREE.Mesh(
-      new THREE.BoxGeometry(d.w, 0.2, d.l),
-      swMat,
+      new THREE.BoxGeometry(d.w, 0.2, d.l), swMat,
     );
     surface.position.set(d.x, 0.1, d.z);
     surface.receiveShadow = true;
     game.scene.add(surface);
 
     if (d.dir === "z") {
-      const curb = new THREE.Mesh(new THREE.BoxGeometry(0.3, ch, d.l), curbMat);
+      const curb = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, ch, d.l), curbMat,
+      );
       curb.position.set(d.cx, ch / 2, d.z);
       curb.castShadow = true;
       curb.receiveShadow = true;
       game.scene.add(curb);
     } else {
-      const curb = new THREE.Mesh(new THREE.BoxGeometry(d.w, ch, 0.3), curbMat);
+      const curb = new THREE.Mesh(
+        new THREE.BoxGeometry(d.w, ch, 0.3), curbMat,
+      );
       curb.position.set(d.x, ch / 2, d.cz);
       curb.castShadow = true;
       curb.receiveShadow = true;
@@ -410,21 +393,17 @@ function createEnhancedDecorations(game) {
     const ox = (Math.random() - 0.5) * 10;
     const oz = (Math.random() - 0.5) * 10;
     const gx = Math.max(
-      -arenaSize + 6,
-      Math.min(arenaSize - 6, bp.x + ox),
+      -arenaSize + 6, Math.min(arenaSize - 6, bp.x + ox),
     );
     const gz = Math.max(
-      -arenaSize + 6,
-      Math.min(arenaSize - 6, bp.z + oz),
+      -arenaSize + 6, Math.min(arenaSize - 6, bp.z + oz),
     );
 
     const poolR = 2 + Math.random() * 2.5;
     const pool = new THREE.Mesh(
       new THREE.CircleGeometry(poolR, 16),
       new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity: 0.07 + Math.random() * 0.05,
+        color, transparent: true, opacity: 0.07 + Math.random() * 0.05,
       }),
     );
     pool.rotation.x = -Math.PI / 2;
@@ -434,9 +413,7 @@ function createEnhancedDecorations(game) {
     const core = new THREE.Mesh(
       new THREE.CircleGeometry(poolR * 0.4, 12),
       new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity: 0.04,
+        color, transparent: true, opacity: 0.04,
       }),
     );
     core.rotation.x = -Math.PI / 2;

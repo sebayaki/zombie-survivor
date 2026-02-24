@@ -87,8 +87,6 @@ function addPart(group, geometry, material, pos, rot) {
     if (rot.y) mesh.rotation.y = rot.y;
     if (rot.z) mesh.rotation.z = rot.z;
   }
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
   group.add(mesh);
   return mesh;
 }
@@ -613,6 +611,11 @@ export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) 
 
   if (!mesh.userData.body && mesh.children.length > 0) {
     mesh.userData.body = mesh.children[0];
+  }
+
+  // Only the body part casts shadow (saves thousands of shadow draw calls)
+  if (mesh.userData.body) {
+    mesh.userData.body.castShadow = true;
   }
 
   mesh.userData.type = type;

@@ -127,10 +127,11 @@ export class Game {
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    // Store for later use
     this.isMobile = isMobile;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = isMobile
+      ? THREE.PCFShadowMap
+      : THREE.PCFSoftShadowMap;
 
     const container = document.getElementById("game-container");
     container.appendChild(this.renderer.domElement);

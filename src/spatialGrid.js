@@ -3,8 +3,7 @@
  *
  * Usage:
  *   const grid = new SpatialGrid(cellSize);
- *   grid.clear();
- *   grid.insert(entity);          // entity must have .mesh.position or .position
+ *   grid.rebuild(entities);
  *   const nearby = grid.query(x, z, radius);
  */
 export class SpatialGrid {
@@ -12,6 +11,7 @@ export class SpatialGrid {
     this.cellSize = cellSize;
     this.invCellSize = 1 / cellSize;
     this.cells = new Map();
+    this._bucketPool = [];
   }
 
   _key(cx, cz) {
@@ -23,6 +23,10 @@ export class SpatialGrid {
   }
 
   clear() {
+    for (const bucket of this.cells.values()) {
+      bucket.length = 0;
+      this._bucketPool.push(bucket);
+    }
     this.cells.clear();
   }
 
@@ -34,7 +38,7 @@ export class SpatialGrid {
     const key = this._key(cx, cz);
     let bucket = this.cells.get(key);
     if (!bucket) {
-      bucket = [];
+      bucket = this._bucketPool.pop() || [];
       this.cells.set(key, bucket);
     }
     bucket.push(entity);

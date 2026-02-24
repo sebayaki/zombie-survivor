@@ -1,4 +1,3 @@
-// Post-processing effects - Bloom, Glow, Screen Shake
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
@@ -31,55 +30,6 @@ const VignetteShader = {
       vec2 uv = (vUv - vec2(0.5)) * vec2(offset);
       float vignette = 1.0 - dot(uv, uv);
       color.rgb = mix(color.rgb, color.rgb * vignette, darkness);
-      gl_FragColor = color;
-    }
-  `,
-};
-
-const ColorGradingShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    contrast: { value: 1.04 },
-    saturation: { value: 1.05 },
-  },
-  vertexShader: PASSTHROUGH_VERTEX,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float contrast;
-    uniform float saturation;
-    varying vec2 vUv;
-    void main() {
-      vec4 color = texture2D(tDiffuse, vUv);
-      color.rgb = (color.rgb - 0.5) * contrast + 0.5;
-      float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-      color.rgb = mix(vec3(gray), color.rgb, saturation);
-      vec3 coolTint = vec3(0.93, 0.95, 1.05);
-      vec3 warmTint = vec3(1.04, 1.01, 0.96);
-      color.rgb *= mix(coolTint, warmTint, gray);
-      gl_FragColor = color;
-    }
-  `,
-};
-
-const FilmGrainShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    time: { value: 0.0 },
-    intensity: { value: 0.035 },
-  },
-  vertexShader: PASSTHROUGH_VERTEX,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float time;
-    uniform float intensity;
-    varying vec2 vUv;
-    float rand(vec2 co) {
-      return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
-    }
-    void main() {
-      vec4 color = texture2D(tDiffuse, vUv);
-      float grain = (rand(vUv + vec2(time * 0.01, 0.0)) - 0.5) * 2.0;
-      color.rgb += vec3(grain) * intensity;
       gl_FragColor = color;
     }
   `,
@@ -126,37 +76,39 @@ export class PostProcessingManager {
     this.timeScale = 1.0;
     this.timeSlowDuration = 0;
 
-    // Bloom pulse (driven by update() instead of rAF)
+    // Bloom pulse
     this._bloomPulseTarget = 0;
     this._bloomPulseIntensity = 0;
     this._bloomPulseDuration = 0;
     this._bloomPulseElapsed = 0;
     this._bloomPulseBaseStrength = 0;
 
-    // Adaptive bloom - scales down when many bright effects are on screen
+    // Adaptive bloom
     this._activeEffectCount = 0;
     this._baseBloomStrength = 0.25;
+
+    this._isMobile = game.isMobile || false;
 
     this.init();
   }
 
   init() {
     const { renderer, scene, camera } = this.game;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
-    // Create composer
     this.composer = new EffectComposer(renderer);
 
-    // Render pass
     const renderPass = new RenderPass(scene, camera);
     this.composer.addPass(renderPass);
 
-    this.bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.25,
-      0.3,
-      0.95,
-    );
-    this.composer.addPass(this.bloomPass);
+    if (!this._isMobile) {
+      this.bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(width, height),
+        0.25, 0.3, 0.95,
+      );
+      this.composer.addPass(this.bloomPass);
+    }
 
     this.vignettePass = new ShaderPass(VignetteShader);
     this.vignettePass.uniforms.offset.value = 1.0;
@@ -165,35 +117,33 @@ export class PostProcessingManager {
 
     this.chromaticPass = new ShaderPass(ChromaticAberrationShader);
     this.chromaticPass.uniforms.amount.value = 0;
+    this.chromaticPass.enabled = false;
     this.composer.addPass(this.chromaticPass);
 
     const outputPass = new OutputPass();
     this.composer.addPass(outputPass);
   }
 
-  // Screen shake effect
   shake(intensity = 0.5, duration = 0.2) {
     this.shakeIntensity = intensity;
     this.shakeDuration = duration;
     this.shakeTimer = 0;
   }
 
-  // Damage flash (red tint + chromatic aberration)
   damageFlash(intensity = 1.0) {
     this.damageFlashIntensity = intensity;
+    this.chromaticPass.enabled = true;
     this.chromaticPass.uniforms.amount.value = intensity * 2;
     this.vignettePass.uniforms.darkness.value = 0.15 + intensity * 0.4;
   }
 
-  // Time slow for dramatic effects (boss death, evolution, etc.)
   slowTime(scale = 0.3, duration = 0.5) {
     this.timeScale = scale;
     this.timeSlowDuration = duration;
   }
 
-  // Set bloom intensity (for level ups, etc.)
   setBloomIntensity(strength) {
-    this.bloomPass.strength = strength;
+    if (this.bloomPass) this.bloomPass.strength = strength;
   }
 
   setActiveEffectCount(count) {
@@ -201,6 +151,7 @@ export class PostProcessingManager {
   }
 
   pulseBloom(duration = 0.3, maxStrength = 2.0) {
+    if (!this.bloomPass) return;
     this._bloomPulseBaseStrength = this.bloomPass.strength;
     this._bloomPulseTarget = Math.min(maxStrength, 1.8);
     this._bloomPulseDuration = duration;
@@ -208,46 +159,52 @@ export class PostProcessingManager {
   }
 
   update(delta) {
-    // Update screen shake timer
     if (this.shakeTimer < this.shakeDuration) {
       this.shakeTimer += delta;
     }
 
-    // Update damage flash
+    // Damage flash fade-out; disable chromatic pass when done
     if (this.damageFlashIntensity > 0) {
-      this.damageFlashIntensity -= delta * 4; // Fade out
-      if (this.damageFlashIntensity < 0) {
+      this.damageFlashIntensity -= delta * 4;
+      if (this.damageFlashIntensity <= 0) {
         this.damageFlashIntensity = 0;
+        this.chromaticPass.enabled = false;
+        this.chromaticPass.uniforms.amount.value = 0;
+        this.vignettePass.uniforms.darkness.value = 0.15;
+      } else {
+        this.chromaticPass.uniforms.amount.value = this.damageFlashIntensity * 2;
+        this.vignettePass.uniforms.darkness.value =
+          0.15 + this.damageFlashIntensity * 0.3;
       }
-      this.chromaticPass.uniforms.amount.value = this.damageFlashIntensity * 2;
-      this.vignettePass.uniforms.darkness.value =
-        0.15 + this.damageFlashIntensity * 0.3;
     }
 
-    // Adaptive bloom: attenuate when many effects are on screen
-    // At 10+ effects, bloom starts dropping; at 30+ it's halved
-    const effectAttenuation = 1 / (1 + Math.max(0, this._activeEffectCount - 5) * 0.04);
-    const adaptiveBase = this._baseBloomStrength * effectAttenuation;
+    // Bloom updates (skip when bloom is disabled on mobile)
+    if (this.bloomPass) {
+      const effectAttenuation =
+        1 / (1 + Math.max(0, this._activeEffectCount - 5) * 0.04);
+      const adaptiveBase = this._baseBloomStrength * effectAttenuation;
 
-    // Update bloom pulse
-    if (this._bloomPulseElapsed < this._bloomPulseDuration) {
-      this._bloomPulseElapsed += delta;
-      const t = Math.min(this._bloomPulseElapsed / this._bloomPulseDuration, 1);
-      const base = this._bloomPulseBaseStrength * effectAttenuation;
-      const peak = this._bloomPulseTarget * effectAttenuation;
-      if (t < 0.5) {
-        this.bloomPass.strength = base + (peak - base) * (t * 2);
+      if (this._bloomPulseElapsed < this._bloomPulseDuration) {
+        this._bloomPulseElapsed += delta;
+        const t = Math.min(
+          this._bloomPulseElapsed / this._bloomPulseDuration, 1,
+        );
+        const base = this._bloomPulseBaseStrength * effectAttenuation;
+        const peak = this._bloomPulseTarget * effectAttenuation;
+        if (t < 0.5) {
+          this.bloomPass.strength = base + (peak - base) * (t * 2);
+        } else {
+          this.bloomPass.strength = peak - (peak - base) * ((t - 0.5) * 2);
+        }
+        if (t >= 1) {
+          this.bloomPass.strength = adaptiveBase;
+        }
       } else {
-        this.bloomPass.strength = peak - (peak - base) * ((t - 0.5) * 2);
-      }
-      if (t >= 1) {
         this.bloomPass.strength = adaptiveBase;
       }
-    } else {
-      this.bloomPass.strength = adaptiveBase;
     }
 
-    // Update time slow
+    // Time slow
     if (this.timeSlowDuration > 0) {
       this.timeSlowDuration -= delta;
       if (this.timeSlowDuration <= 0) {
@@ -266,6 +223,8 @@ export class PostProcessingManager {
     const width = window.innerWidth;
     const height = window.innerHeight;
     this.composer.setSize(width, height);
-    this.bloomPass.resolution.set(width, height);
+    if (this.bloomPass) {
+      this.bloomPass.resolution.set(width, height);
+    }
   }
 }
