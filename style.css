@@ -249,29 +249,77 @@ body {
 /* Blood Drips */
 .blood-drip {
     position: absolute;
-    top: -100px;
-    width: 6px;
-    background: linear-gradient(180deg,
-        rgba(100, 0, 0, 0.95) 0%,
-        rgba(80, 0, 0, 0.8) 40%,
-        rgba(60, 0, 0, 0.4) 80%,
-        rgba(60, 0, 0, 0) 100%);
-    border-radius: 0 0 3px 3px;
-    animation: drip 5s ease-in infinite;
-    filter: blur(0.5px);
+    top: -60px;
+    width: 8px;
+    animation: drip 6s ease-in infinite;
+    filter: blur(0.3px);
 }
 
-.drip-1 { left: 8%; height: 140px; width: 5px; animation-delay: 0s; }
-.drip-2 { left: 22%; height: 90px; width: 4px; animation-delay: 2s; }
-.drip-3 { left: 48%; height: 170px; width: 7px; animation-delay: 0.5s; }
-.drip-4 { left: 72%; height: 110px; width: 5px; animation-delay: 3s; }
-.drip-5 { left: 91%; height: 100px; width: 4px; animation-delay: 1.2s; }
+.blood-drip::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg,
+        rgba(120, 10, 10, 0.0) 0%,
+        rgba(120, 10, 10, 0.3) 8%,
+        rgba(100, 5, 5, 0.7) 20%,
+        rgba(90, 0, 0, 0.85) 50%,
+        rgba(80, 0, 0, 0.9) 75%,
+        rgba(70, 0, 0, 0.95) 90%,
+        rgba(60, 0, 0, 0.95) 100%);
+    border-radius: 2px 2px 0 0;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 200' preserveAspectRatio='none'%3E%3Cpath d='M3,0 C4,0 6,0 7,0 L7,20 C8,30 8,40 7,50 L7,80 C8,95 7,110 7,130 L8,160 C8,170 7,180 6,190 L4,190 C3,180 2,170 2,160 L3,130 C3,110 2,95 3,80 L3,50 C2,40 2,30 3,20 Z' fill='white'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 200' preserveAspectRatio='none'%3E%3Cpath d='M3,0 C4,0 6,0 7,0 L7,20 C8,30 8,40 7,50 L7,80 C8,95 7,110 7,130 L8,160 C8,170 7,180 6,190 L4,190 C3,180 2,170 2,160 L3,130 C3,110 2,95 3,80 L3,50 C2,40 2,30 3,20 Z' fill='white'/%3E%3C/svg%3E");
+    mask-size: 100% 100%;
+    -webkit-mask-size: 100% 100%;
+}
+
+/* Bulging droplet at the tip */
+.blood-drip::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 14px;
+    background: radial-gradient(ellipse at 40% 35%,
+        rgba(140, 15, 15, 0.95) 0%,
+        rgba(100, 5, 5, 0.9) 40%,
+        rgba(70, 0, 0, 0.85) 70%,
+        rgba(50, 0, 0, 0.6) 100%);
+    border-radius: 45% 45% 50% 50% / 40% 40% 60% 60%;
+    animation: dropletWobble 1.2s ease-in-out infinite;
+    box-shadow: 0 2px 4px rgba(80, 0, 0, 0.4);
+}
+
+.drip-1 { left: 8%; height: 100px; width: 6px; animation-delay: 0s; animation-duration: 5.5s; }
+.drip-2 { left: 22%; height: 70px; width: 5px; animation-delay: 2.3s; animation-duration: 6.5s; }
+.drip-3 { left: 48%; height: 120px; width: 8px; animation-delay: 0.8s; animation-duration: 5s; }
+.drip-4 { left: 72%; height: 85px; width: 6px; animation-delay: 3.5s; animation-duration: 7s; }
+.drip-5 { left: 91%; height: 65px; width: 5px; animation-delay: 1.5s; animation-duration: 6s; }
+
+.drip-1::after { width: 10px; height: 12px; }
+.drip-2::after { width: 9px; height: 11px; }
+.drip-3::after { width: 14px; height: 16px; }
+.drip-4::after { width: 11px; height: 13px; }
+.drip-5::after { width: 9px; height: 11px; }
 
 @keyframes drip {
     0% { transform: translateY(-100%); opacity: 0; }
-    5% { opacity: 0.9; }
-    85% { opacity: 0.7; }
-    100% { transform: translateY(calc(100vh + 100px)); opacity: 0; }
+    3% { opacity: 0.5; }
+    8% { opacity: 0.85; }
+    70% { opacity: 0.75; }
+    90% { opacity: 0.4; }
+    100% { transform: translateY(calc(100vh + 60px)); opacity: 0; }
+}
+
+@keyframes dropletWobble {
+    0%, 100% { transform: translateX(-50%) scaleX(1) scaleY(1); }
+    25% { transform: translateX(-50%) scaleX(1.1) scaleY(0.92); }
+    50% { transform: translateX(-50%) scaleX(0.92) scaleY(1.08); }
+    75% { transform: translateX(-50%) scaleX(1.06) scaleY(0.96); }
 }
 
 /* Fog Effects */
