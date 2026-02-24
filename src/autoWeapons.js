@@ -2674,13 +2674,13 @@ export class AutoWeaponSystem {
     // Create bright burning holy plasma pool
     const group = new THREE.Group();
 
-    // Hot center
+    // Hot center (subtle additive glow)
     const core = new THREE.Mesh(
-      new THREE.CircleGeometry(proj.area * 0.6, 32),
+      new THREE.CircleGeometry(proj.area * 0.5, 32),
       new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: 0x88ccff,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.35,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
@@ -2689,14 +2689,13 @@ export class AutoWeaponSystem {
     core.rotation.x = -Math.PI / 2;
     group.add(core);
 
-    // Main pool
+    // Main pool (normal blend to prevent stacking)
     const pool = new THREE.Mesh(
       new THREE.CircleGeometry(proj.area, 32),
       new THREE.MeshBasicMaterial({
-        color: 0x00aaff,
+        color: 0x2288cc,
         transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.35,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -2704,14 +2703,13 @@ export class AutoWeaponSystem {
     pool.rotation.x = -Math.PI / 2;
     group.add(pool);
 
-    // Glowing border
+    // Border ring (normal blend)
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(proj.area * 0.9, proj.area * 1.05, 32),
       new THREE.MeshBasicMaterial({
-        color: 0x0055ff,
+        color: 0x3366aa,
         transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.4,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),

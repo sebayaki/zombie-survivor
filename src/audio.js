@@ -246,10 +246,28 @@ export class AudioManager {
       this.musicGain = this.context.createGain();
       this.musicGain.gain.value = 0.15;
       this.musicGain.connect(this.masterGain);
+      this._musicWasPlaying = false;
+      this._setupVisibilityHandler();
       this.initialized = true;
     } catch (e) {
       console.warn("Web Audio not supported:", e);
     }
+  }
+
+  _setupVisibilityHandler() {
+    document.addEventListener("visibilitychange", () => {
+      if (!this.context) return;
+      if (document.hidden) {
+        this._musicWasPlaying = this.musicOscillators.length > 0;
+      } else {
+        this.context.resume().then(() => {
+          if (this._musicWasPlaying && this.musicEnabled) {
+            this.stopMusic();
+            this._createAmbientMusic();
+          }
+        });
+      }
+    });
   }
 
   playSound(name) {

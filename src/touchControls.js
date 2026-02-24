@@ -59,7 +59,7 @@ export class TouchControls {
     document.addEventListener("touchend", (e) => this.onTouchEnd(e), {
       passive: false,
     });
-    document.addEventListener("touchcancel", (e) => this.onTouchEnd(e), {
+    document.addEventListener("touchcancel", (e) => this.onTouchCancel(e), {
       passive: false,
     });
   }
@@ -83,8 +83,18 @@ export class TouchControls {
     // Don't prevent default on UI elements
     e.preventDefault();
 
-    // Already have an active joystick
-    if (this.joystickActive) return;
+    // If joystick thinks it's active, verify the tracked touch still exists
+    if (this.joystickActive) {
+      let staleTouch = true;
+      for (const t of e.touches) {
+        if (t.identifier === this.joystickTouchId) {
+          staleTouch = false;
+          break;
+        }
+      }
+      if (!staleTouch) return;
+      this._resetJoystick();
+    }
 
     const touch = e.changedTouches[0];
     this.joystickTouchId = touch.identifier;
@@ -127,24 +137,38 @@ export class TouchControls {
   onTouchEnd(e) {
     if (!this.joystickActive) return;
 
-    // Check if our touch ended
     for (const touch of e.changedTouches) {
       if (touch.identifier === this.joystickTouchId) {
-        this.joystickActive = false;
-        this.joystickTouchId = null;
-        this.joystickVector = { x: 0, y: 0 };
-
-        // Hide joystick
-        if (this.joystickContainer) {
-          this.joystickContainer.classList.remove("active");
-        }
-
-        // Reset handle position
-        if (this.joystickHandle) {
-          this.joystickHandle.style.transform = "translate(0, 0)";
-        }
+        this._resetJoystick();
         break;
       }
+    }
+  }
+
+  onTouchCancel(e) {
+    if (!this.joystickActive) return;
+
+    // touchcancel can fire with mismatched identifiers, so always reset
+    // if our tracked touch is no longer in the active touches list
+    let found = false;
+    for (const t of e.touches) {
+      if (t.identifier === this.joystickTouchId) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) this._resetJoystick();
+  }
+
+  _resetJoystick() {
+    this.joystickActive = false;
+    this.joystickTouchId = null;
+    this.joystickVector = { x: 0, y: 0 };
+    if (this.joystickContainer) {
+      this.joystickContainer.classList.remove("active");
+    }
+    if (this.joystickHandle) {
+      this.joystickHandle.style.transform = "translate(0, 0)";
     }
   }
 
@@ -189,9 +213,7 @@ export class TouchControls {
 
   hide() {
     this.enabled = false;
-    this.joystickActive = false;
-    this.joystickVector = { x: 0, y: 0 };
-    this.joystickContainer?.classList.remove("active");
+    this._resetJoystick();
     this.settingsButton?.classList.add("hidden");
   }
 
