@@ -613,6 +613,12 @@ export class Game {
     this.keys[e.code] = false;
   }
 
+  clearKeys() {
+    for (const key in this.keys) {
+      this.keys[key] = false;
+    }
+  }
+
   handleMouseMove(e) {
     // Convert mouse screen position to world position for player movement
     const rect = this.renderer.domElement.getBoundingClientRect();

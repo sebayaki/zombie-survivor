@@ -1377,7 +1377,7 @@ export class AutoWeaponSystem {
     };
     requestAnimationFrame(animate);
 
-    this.game.audioManager.playSound("explosion");
+    this.game.audioManager.playSound("pentagram");
   }
 
   // Infinite Corridor - freeze + damage zone (clockLancet + stoneMask)
@@ -3471,7 +3471,7 @@ export class AutoWeaponSystem {
       });
     }
 
-    this.game.audioManager.playSound("shoot");
+    this.game.audioManager.playSound("magicMissile");
   }
 
   // Orbiting birds (Peachone and Ebony Wings)
@@ -3700,7 +3700,7 @@ export class AutoWeaponSystem {
     };
     requestAnimationFrame(animate);
 
-    this.game.audioManager.playSound("explosion");
+    this.game.audioManager.playSound("pentagram");
   }
 
   // Clock Lancet - freeze enemies

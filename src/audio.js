@@ -127,6 +127,71 @@ const SOUND_DEFS = {
 
   bfg: { type: "chord", frequencies: [50, 1500], wave: "sine", duration: 0.5, volume: 0.4, sweepEnd: [50, 200] },
 
+  pentagram: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      const freqs = [261.6, 329.6, 392, 523.3];
+      for (let i = 0; i < freqs.length; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freqs[i], now);
+        osc.frequency.exponentialRampToValueAtTime(freqs[i] * 1.5, now + 0.6);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.18, now + 0.05);
+        gain.gain.setValueAtTime(0.18, now + 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(now + i * 0.02);
+        osc.stop(now + 0.8);
+      }
+      const shimmer = ctx.createOscillator();
+      const sGain = ctx.createGain();
+      shimmer.type = "triangle";
+      shimmer.frequency.setValueAtTime(1047, now);
+      shimmer.frequency.exponentialRampToValueAtTime(523, now + 0.6);
+      sGain.gain.setValueAtTime(0.08, now + 0.1);
+      sGain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+      shimmer.connect(sGain);
+      sGain.connect(masterGain);
+      shimmer.start(now + 0.1);
+      shimmer.stop(now + 0.8);
+    },
+  },
+
+  magicMissile: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
+      osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.15);
+      const sparkle = ctx.createOscillator();
+      const spGain = ctx.createGain();
+      sparkle.type = "triangle";
+      sparkle.frequency.setValueAtTime(1200, now);
+      sparkle.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+      spGain.gain.setValueAtTime(0.06, now);
+      spGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      sparkle.connect(spGain);
+      spGain.connect(masterGain);
+      sparkle.start(now);
+      sparkle.stop(now + 0.12);
+    },
+  },
+
   evolution: {
     type: "custom",
     play: (ctx, masterGain) => {

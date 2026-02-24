@@ -58,6 +58,22 @@ export class TreasureChestSystem {
     for (let i = this.chests.length - 1; i >= 0; i--) {
       const chest = this.chests[i];
 
+      chest.age += delta;
+
+      // Despawn after lifetime
+      if (chest.age >= chest.lifetime) {
+        this.game.scene.remove(chest.mesh);
+        this.chests.splice(i, 1);
+        continue;
+      }
+
+      // Blink when about to despawn (last 5 seconds)
+      const remaining = chest.lifetime - chest.age;
+      if (remaining <= 5) {
+        const blinkRate = remaining <= 2 ? 12 : 6;
+        chest.mesh.visible = Math.sin(time * blinkRate) > 0;
+      }
+
       // Bobbing animation
       chest.mesh.position.y = 0.3 + Math.sin(time * 2 + chest.bobOffset) * 0.1;
 
@@ -144,6 +160,8 @@ export class TreasureChestSystem {
       position: position.clone(),
       bobOffset: Math.random() * Math.PI * 2,
       rarity: this.determineRarity(),
+      age: 0,
+      lifetime: 30,
     });
 
     // Announce chest spawn

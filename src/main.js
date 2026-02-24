@@ -109,8 +109,16 @@ function setupEventListeners() {
   });
 
   document.addEventListener("keyup", (e) => {
-    if (game.isPlaying && !game.isPaused) {
-      game.handleKeyUp(e);
+    game.handleKeyUp(e);
+  });
+
+  window.addEventListener("blur", () => {
+    game.clearKeys();
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      game.clearKeys();
     }
   });
 
