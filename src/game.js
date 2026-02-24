@@ -479,6 +479,12 @@ export class Game {
       // Update auto weapons (VS style)
       this.autoWeaponSystem.update(delta);
 
+      if (this.postProcessing) {
+        this.postProcessing.setActiveEffectCount(
+          this.autoWeaponSystem.effects.length + this.autoWeaponSystem.projectiles.length
+        );
+      }
+
       // Update XP system
       this.xpSystem.update(delta);
 

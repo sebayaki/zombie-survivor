@@ -133,6 +133,10 @@ export class PostProcessingManager {
     this._bloomPulseElapsed = 0;
     this._bloomPulseBaseStrength = 0;
 
+    // Adaptive bloom - scales down when many bright effects are on screen
+    this._activeEffectCount = 0;
+    this._baseBloomStrength = 0.25;
+
     this.init();
   }
 
@@ -148,9 +152,9 @@ export class PostProcessingManager {
 
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.35,
-      0.4,
-      0.92,
+      0.25,
+      0.3,
+      0.95,
     );
     this.composer.addPass(this.bloomPass);
 
@@ -192,9 +196,13 @@ export class PostProcessingManager {
     this.bloomPass.strength = strength;
   }
 
+  setActiveEffectCount(count) {
+    this._activeEffectCount = count;
+  }
+
   pulseBloom(duration = 0.3, maxStrength = 2.0) {
     this._bloomPulseBaseStrength = this.bloomPass.strength;
-    this._bloomPulseTarget = maxStrength;
+    this._bloomPulseTarget = Math.min(maxStrength, 1.8);
     this._bloomPulseDuration = duration;
     this._bloomPulseElapsed = 0;
   }
@@ -216,20 +224,27 @@ export class PostProcessingManager {
         0.15 + this.damageFlashIntensity * 0.3;
     }
 
+    // Adaptive bloom: attenuate when many effects are on screen
+    // At 10+ effects, bloom starts dropping; at 30+ it's halved
+    const effectAttenuation = 1 / (1 + Math.max(0, this._activeEffectCount - 5) * 0.04);
+    const adaptiveBase = this._baseBloomStrength * effectAttenuation;
+
     // Update bloom pulse
     if (this._bloomPulseElapsed < this._bloomPulseDuration) {
       this._bloomPulseElapsed += delta;
       const t = Math.min(this._bloomPulseElapsed / this._bloomPulseDuration, 1);
-      const base = this._bloomPulseBaseStrength;
-      const peak = this._bloomPulseTarget;
+      const base = this._bloomPulseBaseStrength * effectAttenuation;
+      const peak = this._bloomPulseTarget * effectAttenuation;
       if (t < 0.5) {
         this.bloomPass.strength = base + (peak - base) * (t * 2);
       } else {
         this.bloomPass.strength = peak - (peak - base) * ((t - 0.5) * 2);
       }
       if (t >= 1) {
-        this.bloomPass.strength = base;
+        this.bloomPass.strength = adaptiveBase;
       }
+    } else {
+      this.bloomPass.strength = adaptiveBase;
     }
 
     // Update time slow
