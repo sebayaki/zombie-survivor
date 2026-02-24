@@ -148,9 +148,9 @@ export class PostProcessingManager {
 
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.5,
       0.35,
-      0.88,
+      0.4,
+      0.92,
     );
     this.composer.addPass(this.bloomPass);
 

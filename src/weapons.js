@@ -213,10 +213,10 @@ export class WeaponSystem {
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: weapon.projectileColor,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.2,
     });
     const glow = new THREE.Mesh(this.projectileGeometry, glowMaterial);
-    glow.scale.setScalar(weapon.projectileSize * 1.3);
+    glow.scale.setScalar(weapon.projectileSize * 1.15);
     mesh.add(glow);
 
     // Store projectile data

@@ -29,6 +29,9 @@ export class AutoWeaponSystem {
     this.effects = [];
     this.cooldowns = {};
 
+    this.maxProjectiles = 120;
+    this.maxEffects = 40;
+
     this._activeExplosions = 0;
     this._maxActiveExplosions = 8;
     this._explosionLightCount = 0;
@@ -377,6 +380,7 @@ export class AutoWeaponSystem {
     if (zombies.length === 0) return;
 
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const targetIndex = i % zombies.length;
       const target = zombies[targetIndex];
       const direction = new THREE.Vector3();
@@ -491,6 +495,7 @@ export class AutoWeaponSystem {
   // Thousand Edge - knife storm
   fireThousandEdge(stats, playerPos, playerDir) {
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const spread = (i - (stats.projectileCount - 1) / 2) * 0.3;
       const dir = playerDir.clone();
       dir.x += spread;
@@ -528,6 +533,7 @@ export class AutoWeaponSystem {
     const orbitRadius = stats.orbitRadius || 5;
 
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const angle = (i / stats.projectileCount) * Math.PI * 2;
 
       const mesh = this.meshFactory.createAxeMesh();
@@ -650,6 +656,7 @@ export class AutoWeaponSystem {
     if (zombies.length === 0) return;
 
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const targetIndex = i % zombies.length;
       const target = zombies[targetIndex];
       const direction = new THREE.Vector3();
@@ -689,6 +696,7 @@ export class AutoWeaponSystem {
   // Hellfire - massive fire rain
   fireHellfire(stats, playerPos, zombies) {
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       let targetPos;
       if (zombies.length > 0) {
         const idx = Math.floor(Math.random() * zombies.length);
@@ -854,6 +862,7 @@ export class AutoWeaponSystem {
   // NO FUTURE - exploding bouncing doom orb
   fireNoFuture(stats, playerPos) {
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const angle = (i / stats.projectileCount) * Math.PI * 2;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
@@ -885,6 +894,7 @@ export class AutoWeaponSystem {
   // La Borra - massive slowing pools
   fireLaBorra(stats, playerPos, zombies) {
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddEffect()) break;
       let targetPos;
       if (zombies.length > 0) {
         const idx = Math.floor(Math.random() * Math.min(5, zombies.length));
@@ -1002,6 +1012,7 @@ export class AutoWeaponSystem {
     if (zombies.length === 0) return;
 
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const angle = (i / stats.projectileCount) * Math.PI * 2;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
@@ -1071,6 +1082,7 @@ export class AutoWeaponSystem {
   // Guided Meteor - giant homing explosions (magicMissile + spellbinder)
   fireGuidedMeteor(stats, playerPos, zombies) {
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const angle = (i / stats.projectileCount) * Math.PI * 2 + Math.random() * 0.5;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
@@ -1573,24 +1585,39 @@ export class AutoWeaponSystem {
   fireMagicWand(stats, playerPos, zombies, scale = 1) {
     if (zombies.length === 0) return;
 
+    // Use spatial grid for fast nearest-neighbor lookup instead of full sort
+    const grid = this.game.zombieGrid;
+    const nearby = grid
+      ? grid.query(playerPos.x, playerPos.z, this.game.autoAimRange)
+      : zombies;
+    if (nearby.length === 0) return;
+
+    // Partial sort: find N nearest where N = projectileCount (O(n*k) vs O(n log n))
+    const count = Math.min(stats.projectileCount, nearby.length);
+    const targets = [];
+    const used = new Set();
+    for (let k = 0; k < count; k++) {
+      let bestDist = Infinity;
+      let best = null;
+      for (const z of nearby) {
+        if (used.has(z)) continue;
+        const dx = z.mesh.position.x - playerPos.x;
+        const dz = z.mesh.position.z - playerPos.z;
+        const d = dx * dx + dz * dz;
+        if (d < bestDist) { bestDist = d; best = z; }
+      }
+      if (best) { targets.push(best); used.add(best); }
+    }
+
     for (let i = 0; i < stats.projectileCount; i++) {
-      // Find target (rotate through nearby enemies)
-      const sortedZombies = [...zombies].sort((a, b) => {
-        const distA = a.mesh.position.distanceTo(playerPos);
-        const distB = b.mesh.position.distanceTo(playerPos);
-        return distA - distB;
-      });
+      if (!this.canAddProjectile()) break;
 
-      const targetIndex = i % sortedZombies.length;
-      const target = sortedZombies[targetIndex];
-
-      // Calculate direction
+      const target = targets[i % targets.length];
       const direction = new THREE.Vector3();
       direction.subVectors(target.mesh.position, playerPos);
       direction.y = 0;
       direction.normalize();
 
-      // Create projectile with level-based scale
       this.createProjectile({
         type: "magicWand",
         position: playerPos.clone().add(new THREE.Vector3(0, 1, 0)),
@@ -1625,15 +1652,14 @@ export class AutoWeaponSystem {
       const group = new THREE.Group();
 
       const slashMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: 0xffddcc,
         transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.6,
         side: THREE.DoubleSide,
         depthWrite: false,
       });
       const slash = new THREE.Mesh(
-        new THREE.PlaneGeometry(width, 1.2),
+        new THREE.PlaneGeometry(width, 1.0),
         slashMat,
       );
       slash.position.set(width / 2, 1.0, 0);
@@ -1641,26 +1667,24 @@ export class AutoWeaponSystem {
       group.add(slash);
 
       const glowMat = new THREE.MeshBasicMaterial({
-        color: 0xff4400,
+        color: 0xcc4400,
         transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.25,
         side: THREE.DoubleSide,
         depthWrite: false,
       });
       const glow = new THREE.Mesh(
-        new THREE.PlaneGeometry(width * 1.1, 2.0),
+        new THREE.PlaneGeometry(width * 1.05, 1.6),
         glowMat,
       );
       glow.position.set(width / 2, 1.0, 0);
       group.add(glow);
 
-      const groundGeometry = new THREE.PlaneGeometry(width, 1.2);
+      const groundGeometry = new THREE.PlaneGeometry(width, 1.0);
       const groundMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffaa00,
+        color: 0xcc8800,
         transparent: true,
-        opacity: 0.4,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.2,
         side: THREE.DoubleSide,
         depthWrite: false,
       });
@@ -1698,13 +1722,13 @@ export class AutoWeaponSystem {
   // Knife - throws in facing direction
   fireKnife(stats, playerPos, playerDir, scale = 1) {
     for (let i = 0; i < stats.projectileCount; i++) {
-      // Slight spread for multiple knives
+      if (!this.canAddProjectile()) break;
+
       const spread = (i - (stats.projectileCount - 1) / 2) * 0.15;
       const dir = playerDir.clone();
       dir.x += spread;
       dir.normalize();
 
-      // Create detailed knife mesh with level scaling
       const mesh = this.meshFactory.createKnifeMesh();
       mesh.scale.setScalar(scale);
       mesh.position.copy(playerPos);
@@ -1732,7 +1756,8 @@ export class AutoWeaponSystem {
   // Axe - thrown in arc
   fireAxe(stats, playerPos, scale = 1) {
     for (let i = 0; i < stats.projectileCount; i++) {
-      // Random upward angle
+      if (!this.canAddProjectile()) break;
+
       const angle = (Math.random() - 0.5) * Math.PI * 0.5;
 
       // Create detailed axe mesh with level scaling
@@ -1764,16 +1789,16 @@ export class AutoWeaponSystem {
 
   // Garlic - damage aura around player
   fireGarlic(stats, playerPos, scale = 1) {
-    // Create expanding magical aura effect - DIVINE/TOXIC RUNE FIELD
+    if (!this.canAddEffect()) return;
+
     const group = new THREE.Group();
 
     const innerRing = new THREE.Mesh(
-      new THREE.RingGeometry(stats.area * 0.5, stats.area * 0.65, 16),
+      new THREE.RingGeometry(stats.area * 0.5, stats.area * 0.6, 12),
       new THREE.MeshBasicMaterial({
-        color: 0x88ff88,
+        color: 0x66cc66,
         transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.3,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -1782,12 +1807,11 @@ export class AutoWeaponSystem {
     group.add(innerRing);
 
     const fill = new THREE.Mesh(
-      new THREE.CircleGeometry(stats.area * 0.8, 16),
+      new THREE.CircleGeometry(stats.area * 0.7, 12),
       new THREE.MeshBasicMaterial({
-        color: 0x44ff44,
+        color: 0x44aa44,
         transparent: true,
-        opacity: 0.15,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.08,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -1831,7 +1855,8 @@ export class AutoWeaponSystem {
   // Cross - boomerang
   fireCross(stats, playerPos, zombies, scale = 1) {
     for (let i = 0; i < stats.projectileCount; i++) {
-      // Random direction or toward enemy
+      if (!this.canAddProjectile()) break;
+
       let direction;
       if (zombies.length > 0) {
         const targetIndex = i % zombies.length;
@@ -1876,6 +1901,7 @@ export class AutoWeaponSystem {
     if (zombies.length === 0) return;
 
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const targetIndex = i % zombies.length;
       const target = zombies[targetIndex];
 
@@ -1954,12 +1980,11 @@ export class AutoWeaponSystem {
       boltGroup.add(coreBolt);
 
       const glowBolt = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, segments * 2, 0.3 * scale, 6, false),
+        new THREE.TubeGeometry(curve, segments * 2, 0.22 * scale, 6, false),
         new THREE.MeshBasicMaterial({
-          color: 0x00ffff,
+          color: 0x44ccff,
           transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.35,
           depthWrite: false,
         }),
       );
@@ -2052,6 +2077,7 @@ export class AutoWeaponSystem {
   // Runetracer - bouncing projectile
   fireRunetracer(stats, playerPos, scale = 1) {
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const angle = Math.random() * Math.PI * 2;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
@@ -2121,7 +2147,17 @@ export class AutoWeaponSystem {
   }
 
   // Create a generic projectile (magic orb style)
+  canAddProjectile() {
+    return this.projectiles.length < this.maxProjectiles;
+  }
+
+  canAddEffect() {
+    return this.effects.length < this.maxEffects;
+  }
+
   createProjectile(config) {
+    if (!this.canAddProjectile()) return;
+
     const mesh = this.meshFactory.createMagicOrbMesh(config.color);
     const visualScale = (config.scale || 1) * Math.min(1.5, Math.sqrt(config.area || 1));
     mesh.scale.setScalar(visualScale);
@@ -3317,6 +3353,7 @@ export class AutoWeaponSystem {
     if (zombies.length === 0) return;
 
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       const targetIndex = i % zombies.length;
       const target = zombies[targetIndex];
       const direction = new THREE.Vector3();
@@ -3375,6 +3412,7 @@ export class AutoWeaponSystem {
   // Magic Missile - homing projectiles
   fireMagicMissile(stats, playerPos, zombies, scale = 1) {
     for (let i = 0; i < stats.projectileCount; i++) {
+      if (!this.canAddProjectile()) break;
       // Random initial direction
       const angle =
         (i / stats.projectileCount) * Math.PI * 2 + Math.random() * 0.5;

@@ -312,9 +312,13 @@ export class Game {
 
     this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.5);
 
-    // HP scales aggressively to maintain difficulty with fewer zombies
-    const zombieHealth = 99 + timeMinutes * 60 + timeMinutes * timeMinutes * 4;
-    const zombieSpeed = 1.5 + timeMinutes * 0.08;
+    // HP scales aggressively with stronger quadratic + cubic curve
+    const zombieHealth =
+      99 + timeMinutes * 80 + timeMinutes * timeMinutes * 12 + Math.pow(timeMinutes, 3) * 0.8;
+    // Speed ramps faster so enemies close gaps on high-DPS players
+    const zombieSpeed = 1.5 + timeMinutes * 0.15;
+    // Damage scales with time so enemies remain threatening
+    const zombieDamage = 10 + timeMinutes * 3 + timeMinutes * timeMinutes * 0.5;
 
     const maxZombies = 500;
     const currentCount = this.zombieManager.getZombies().length;
@@ -325,7 +329,7 @@ export class Game {
       const canSpawn = Math.max(0, maxZombies - currentCount);
       const toSpawn = Math.min(this.zombiesPerSpawn, canSpawn);
       for (let i = 0; i < toSpawn; i++) {
-        this.zombieManager.spawnZombie(zombieSpeed, zombieHealth);
+        this.zombieManager.spawnZombie(zombieSpeed, zombieHealth, null, zombieDamage);
       }
 
       if (
@@ -348,6 +352,8 @@ export class Game {
               this.zombieManager.spawnZombie(
                 zombieSpeed * 1.2,
                 zombieHealth * 1.8,
+                null,
+                zombieDamage * 1.5,
               );
             }
           }, i * 100);

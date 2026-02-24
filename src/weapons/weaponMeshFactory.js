@@ -116,19 +116,18 @@ export class WeaponMeshFactory {
 
     const core = new THREE.Mesh(
       new THREE.CylinderGeometry(0.04, 0.15, 1.2, 4),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      new THREE.MeshBasicMaterial({ color: 0xccddff }),
     );
     core.rotation.x = Math.PI / 2;
     core.position.z = 0.4;
     group.add(core);
 
     const aura = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.22, 1.4, 4),
+      new THREE.CylinderGeometry(0.08, 0.18, 1.3, 4),
       new THREE.MeshBasicMaterial({
-        color: 0x0088ff,
+        color: 0x4488cc,
         transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.25,
         depthWrite: false,
       }),
     );
@@ -177,16 +176,15 @@ export class WeaponMeshFactory {
     const group = new THREE.Group();
 
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      new THREE.SphereGeometry(0.25, 6, 6),
+      new THREE.MeshBasicMaterial({ color: 0xeeeeee }),
     );
     group.add(core);
 
     const bladeMat = new THREE.MeshBasicMaterial({
-      color: 0xff0044,
+      color: 0xcc2244,
       transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.7,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
@@ -202,12 +200,11 @@ export class WeaponMeshFactory {
     }
 
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(1.0, 1.2, 16),
+      new THREE.RingGeometry(1.0, 1.15, 12),
       new THREE.MeshBasicMaterial({
-        color: 0xff00aa,
+        color: 0xcc4488,
         transparent: true,
-        opacity: 0.4,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.2,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
@@ -227,18 +224,17 @@ export class WeaponMeshFactory {
 
     const core = new THREE.Mesh(
       new THREE.CylinderGeometry(0.06, 0.06, 0.8, 6),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      new THREE.MeshBasicMaterial({ color: color || 0x00ffff }),
     );
     core.rotation.x = Math.PI / 2;
     group.add(core);
 
     const glow1 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.12, 1.0, 6),
+      new THREE.CylinderGeometry(0.10, 0.10, 0.9, 6),
       new THREE.MeshBasicMaterial({
         color: color || 0x00ffff,
         transparent: true,
-        opacity: 0.7,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.3,
         depthWrite: false,
       }),
     );
@@ -254,23 +250,22 @@ export class WeaponMeshFactory {
 
     const group = new THREE.Group();
 
-    const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffcc });
     const glowMat = new THREE.MeshBasicMaterial({
-      color: 0xffaa00,
+      color: 0xddaa44,
       transparent: true,
-      opacity: 0.6,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.3,
       depthWrite: false,
     });
 
     group.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 1.4), coreMat));
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 1.6), glowMat));
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.30, 1.5), glowMat));
 
     const hCore = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.15, 0.15), coreMat);
     hCore.position.z = -0.2;
     group.add(hCore);
 
-    const hGlow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.35), glowMat);
+    const hGlow = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.30, 0.30), glowMat);
     hGlow.position.z = -0.2;
     group.add(hGlow);
 
@@ -285,31 +280,29 @@ export class WeaponMeshFactory {
 
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+        new THREE.SphereGeometry(0.3, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xffcc44 }),
       ),
     );
 
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(0.6, 8, 8),
+        new THREE.SphereGeometry(0.5, 6, 6),
         new THREE.MeshBasicMaterial({
-          color: 0xff8800,
+          color: 0xff6600,
           transparent: true,
-          opacity: 0.8,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.5,
           depthWrite: false,
         }),
       ),
     );
 
     const trail = new THREE.Mesh(
-      new THREE.ConeGeometry(0.8, 2.0, 8),
+      new THREE.ConeGeometry(0.6, 1.5, 6),
       new THREE.MeshBasicMaterial({
         color: 0xff2200,
         transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.3,
         depthWrite: false,
       }),
     );
@@ -329,18 +322,17 @@ export class WeaponMeshFactory {
     group.add(
       new THREE.Mesh(
         new THREE.OctahedronGeometry(0.35, 0),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+        new THREE.MeshBasicMaterial({ color: 0xee88ee }),
       ),
     );
 
     group.add(
       new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.7, 0),
+        new THREE.OctahedronGeometry(0.55, 0),
         new THREE.MeshBasicMaterial({
-          color: 0xff00ff,
+          color: 0xcc44cc,
           transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.3,
           depthWrite: false,
         }),
       ),
@@ -357,32 +349,19 @@ export class WeaponMeshFactory {
 
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(0.25, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+        new THREE.SphereGeometry(0.25, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0x88ccff }),
       ),
     );
 
     group.add(
       new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 8, 8),
+        new THREE.SphereGeometry(0.4, 6, 6),
         new THREE.MeshBasicMaterial({
-          color: 0x00aaff,
+          color: 0x0088cc,
           transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.35,
           depthWrite: false,
-        }),
-      ),
-    );
-
-    group.add(
-      new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.4, 0.7, 6),
-        new THREE.MeshBasicMaterial({
-          color: 0x000000,
-          transparent: true,
-          opacity: 0.4,
-          wireframe: true,
         }),
       ),
     );

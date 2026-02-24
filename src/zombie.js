@@ -79,7 +79,7 @@ export class ZombieManager {
     }, 500);
   }
 
-  spawnZombie(speed, health, type = null) {
+  spawnZombie(speed, health, type = null, baseDamage = 10) {
     const spawnPos = this.getSpawnPosition();
 
     if (type === null) {
@@ -93,7 +93,7 @@ export class ZombieManager {
 
     const finalHealth = health * typeDef.healthMult;
     const finalSpeed = speed * typeDef.speedMult;
-    const finalDamage = 10 * typeDef.damageMult;
+    const finalDamage = baseDamage * typeDef.damageMult;
 
     const zombie = {
       mesh,
