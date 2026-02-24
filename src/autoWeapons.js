@@ -1933,7 +1933,7 @@ export class AutoWeaponSystem {
     this.game.audioManager.playSound("fireball");
   }
 
-  // Lightning - random strikes (POWERFUL & VISIBLE)
+  // Lightning - random strikes (top-down visible ground arcs)
   fireLightning(stats, playerPos, zombies, scale = 1) {
     const inRangeZombies = zombies.filter((z) => {
       return z.mesh.position.distanceTo(playerPos) < stats.area;
@@ -1941,7 +1941,6 @@ export class AutoWeaponSystem {
 
     if (inRangeZombies.length === 0) return;
 
-    // Strike random enemies
     const targets = [];
     for (let i = 0; i < stats.projectileCount; i++) {
       const index = Math.floor(Math.random() * inRangeZombies.length);
@@ -1952,121 +1951,107 @@ export class AutoWeaponSystem {
       const endPos = target.mesh.position.clone();
       const boltGroup = new THREE.Group();
 
-      // Create jagged lightning bolt path with more segments
-      const startY = 15;
-      const segments = 8;
-      const points = [];
-
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        const y = startY * (1 - t);
-        // More dramatic zigzag - wider at top, narrower at bottom
-        const spread = (1 - t) * 3 * scale;
-        const x = endPos.x + (Math.random() - 0.5) * spread;
-        const z = endPos.z + (Math.random() - 0.5) * spread;
-        points.push(new THREE.Vector3(x, y, z));
-      }
-      // Ensure last point hits the target
-      points[points.length - 1] = endPos.clone();
-      points[points.length - 1].y = 0.2;
-
-      // Create thick glowing bolt using tube geometry
-      const curve = new THREE.CatmullRomCurve3(points);
-
-      const coreBolt = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, segments * 2, 0.12 * scale, 6, false),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      );
-      boltGroup.add(coreBolt);
-
-      const glowBolt = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, segments * 2, 0.22 * scale, 6, false),
-        new THREE.MeshBasicMaterial({
-          color: 0x44ccff,
-          transparent: true,
-          opacity: 0.35,
-          depthWrite: false,
-        }),
-      );
-      boltGroup.add(glowBolt);
-
-      for (let b = 0; b < 1; b++) {
-        const branchStart = Math.floor(Math.random() * (segments - 2)) + 1;
-        const branchPoints = [points[branchStart].clone()];
-        const branchLength = 3;
-        for (let j = 1; j <= branchLength; j++) {
-          const prevPoint = branchPoints[j - 1];
-          branchPoints.push(
-            new THREE.Vector3(
-              prevPoint.x + (Math.random() - 0.5) * 2 * scale,
-              prevPoint.y - 1.5,
-              prevPoint.z + (Math.random() - 0.5) * 2 * scale,
-            ),
-          );
-        }
-        const branchCurve = new THREE.CatmullRomCurve3(branchPoints);
-        const branchGeometry = new THREE.TubeGeometry(
-          branchCurve,
-          branchLength * 2,
-          0.08 * scale,
-          6,
-          false,
+      // Ground-level radial lightning arcs (visible from top-down)
+      const arcCount = 3 + Math.floor(scale * 3);
+      const arcRadius = (1.5 + scale) * 1.2;
+      for (let a = 0; a < arcCount; a++) {
+        const angle = (a / arcCount) * Math.PI * 2 + Math.random() * 0.5;
+        const startPt = new THREE.Vector3(
+          endPos.x + Math.cos(angle) * arcRadius,
+          0.3,
+          endPos.z + Math.sin(angle) * arcRadius,
         );
-        const branchMaterial = new THREE.MeshBasicMaterial({
-          color: 0x88ffff,
-          transparent: true,
-          opacity: 0.8,
-        });
-        const branch = new THREE.Mesh(branchGeometry, branchMaterial);
-        boltGroup.add(branch);
+        const arcSegments = 5;
+        const arcPoints = [startPt];
+        for (let s = 1; s <= arcSegments; s++) {
+          const t = s / arcSegments;
+          arcPoints.push(new THREE.Vector3(
+            startPt.x + (endPos.x - startPt.x) * t + (Math.random() - 0.5) * arcRadius * 0.4,
+            0.3 + Math.random() * 0.3,
+            startPt.z + (endPos.z - startPt.z) * t + (Math.random() - 0.5) * arcRadius * 0.4,
+          ));
+        }
+        arcPoints[arcPoints.length - 1].set(endPos.x, 0.3, endPos.z);
+
+        const arcCurve = new THREE.CatmullRomCurve3(arcPoints);
+        const coreArc = new THREE.Mesh(
+          new THREE.TubeGeometry(arcCurve, arcSegments * 3, 0.1 * scale, 5, false),
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+        );
+        boltGroup.add(coreArc);
+
+        const glowArc = new THREE.Mesh(
+          new THREE.TubeGeometry(arcCurve, arcSegments * 3, 0.25 * scale, 5, false),
+          new THREE.MeshBasicMaterial({
+            color: 0x44ccff,
+            transparent: true,
+            opacity: 0.4,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+        );
+        boltGroup.add(glowArc);
       }
 
       this.game.scene.add(boltGroup);
 
-      // Damage enemy
       this.game.zombieManager.damageZombie(target, stats.damage);
 
+      // Bright impact flash visible from top-down
       const impactGroup = new THREE.Group();
 
-      const flashGeometry = new THREE.CircleGeometry(0.8 * scale, 12);
-      const flashMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.8,
-        side: THREE.DoubleSide,
-      });
-      const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+      const flashSize = (1.2 + scale * 0.8);
+      const flash = new THREE.Mesh(
+        new THREE.CircleGeometry(flashSize, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xeeffff,
+          transparent: true,
+          opacity: 0.9,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
       flash.rotation.x = -Math.PI / 2;
       impactGroup.add(flash);
 
-      const ring1Geometry = new THREE.RingGeometry(0.7 * scale, 1.1 * scale, 12);
-      const ring1Material = new THREE.MeshBasicMaterial({
-        color: 0x44ffff,
-        transparent: true,
-        opacity: 0.6,
-        side: THREE.DoubleSide,
-      });
-      const ring1 = new THREE.Mesh(ring1Geometry, ring1Material);
-      ring1.rotation.x = -Math.PI / 2;
-      impactGroup.add(ring1);
+      const ringSize = flashSize * 1.5;
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(ringSize * 0.5, ringSize, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0x44ddff,
+          transparent: true,
+          opacity: 0.7,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      impactGroup.add(ring);
 
       impactGroup.position.copy(endPos);
       impactGroup.position.y = 0.15;
 
       this.game.scene.add(impactGroup);
 
-      // Store effects for cleanup
       this.effects.push({
         type: "lightning",
         mesh: boltGroup,
-        duration: 0.25,
+        duration: 0.3,
         elapsed: 0,
       });
 
       this.effects.push({
         type: "lightningImpact",
         mesh: impactGroup,
-        duration: 0.4,
+        duration: 0.45,
         elapsed: 0,
       });
     }
@@ -2721,7 +2706,7 @@ export class AutoWeaponSystem {
 
     // Glowing border
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(proj.area * 0.9, proj.area * 1.2, 32),
+      new THREE.RingGeometry(proj.area * 0.9, proj.area * 1.05, 32),
       new THREE.MeshBasicMaterial({
         color: 0x0055ff,
         transparent: true,
