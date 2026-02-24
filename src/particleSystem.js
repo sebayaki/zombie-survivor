@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const PARTICLE_PRESETS = {
   xpCollect: {
-    count: 3, colors: [0x00aaff, 0x00ffff],
+    count: 3, colors: [0xddaa44, 0xffcc66],
     size: { min: 0.03, max: 0.07 }, speed: { min: 2, max: 3 },
     gravity: -5, lifetime: 0.35, spread: 0.3, upward: true,
   },
@@ -12,14 +12,14 @@ const PARTICLE_PRESETS = {
     gravity: -3, lifetime: 1.0, spread: 2.5, upward: true, ring: true,
   },
   enemyDeath: {
-    count: 4, colors: [0x44ff44, 0x228822],
-    size: { min: 0.05, max: 0.1 }, speed: { min: 2, max: 4 },
-    gravity: 15, lifetime: 0.35, spread: 0.8, upward: false,
+    count: 5, colors: [0xcc2200, 0x880000, 0x661100],
+    size: { min: 0.05, max: 0.12 }, speed: { min: 2, max: 5 },
+    gravity: 18, lifetime: 0.4, spread: 1.0, upward: false,
   },
   bossDeath: {
-    count: 25, colors: [0xff0088, 0x8800ff, 0xffffff, 0x000000],
+    count: 25, colors: [0xcc0000, 0x880000, 0x440000, 0x220000],
     size: { min: 0.1, max: 0.3 }, speed: { min: 4, max: 12 },
-    gravity: 10, lifetime: 1.2, spread: 4, upward: false,
+    gravity: 12, lifetime: 1.2, spread: 4, upward: false,
   },
   fire: {
     count: 6, colors: [0xffff00, 0xff8800, 0xff4400, 0xff0000],
@@ -27,12 +27,12 @@ const PARTICLE_PRESETS = {
     gravity: -8, lifetime: 0.4, spread: 0.6, upward: true, fadeToBlack: true,
   },
   electric: {
-    count: 5, colors: [0xffffff, 0x88ffff, 0x0088ff],
+    count: 5, colors: [0xffffff, 0xffddaa, 0xccaa44],
     size: { min: 0.03, max: 0.06 }, speed: { min: 6, max: 10 },
     gravity: 0, lifetime: 0.2, spread: 1.2, upward: false, streak: true,
   },
   heal: {
-    count: 5, colors: [0x00ff00, 0x88ff88],
+    count: 5, colors: [0x66aa44, 0x88cc66],
     size: { min: 0.06, max: 0.12 }, speed: { min: 1, max: 3 },
     gravity: -3, lifetime: 0.6, spread: 0.6, upward: true,
   },
@@ -52,7 +52,7 @@ const PARTICLE_PRESETS = {
     gravity: 8, lifetime: 0.25, spread: 1.5, upward: false, streak: true,
   },
   evolution: {
-    count: 25, colors: [0xffdd00, 0xffffff, 0xff00ff, 0x00ffff],
+    count: 25, colors: [0xffdd00, 0xffffff, 0xff4400, 0xcc8800],
     size: { min: 0.08, max: 0.2 }, speed: { min: 2, max: 6 },
     gravity: -2, lifetime: 1.2, spread: 2.5, upward: true, spiral: true,
   },

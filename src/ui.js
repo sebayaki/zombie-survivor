@@ -11,7 +11,8 @@ export class UI {
     // Cache DOM elements
     this.elements = {
       healthFill: document.getElementById("health-fill"),
-      waveNumber: document.getElementById("wave-number"),
+      bossStatus: document.getElementById("boss-status"),
+      bossCountdown: document.getElementById("boss-countdown"),
       scoreValue: document.getElementById("score-value"),
       killsValue: document.getElementById("kills-value"),
       weaponName: document.getElementById("weapon-name"),
@@ -413,7 +414,7 @@ export class UI {
   createGoldDisplay() {
     const gold = document.createElement("div");
     gold.id = "gold-display";
-    gold.innerHTML = `<span class="gold-icon">💰</span><span id="gold-value">0</span>`;
+    gold.innerHTML = `<span class="gold-icon"><i class="fa-solid fa-coins"></i></span><span id="gold-value">0</span>`;
     document.getElementById("hud").appendChild(gold);
 
     this.elements.goldValue = document.getElementById("gold-value");
@@ -462,7 +463,7 @@ export class UI {
 
   updateAll() {
     this.updateHealth();
-    this.updateWave();
+    this.updateBossStatus();
     this.updateScore();
     this.updateKills();
     this.updateWeapon();
@@ -493,8 +494,26 @@ export class UI {
     }
   }
 
-  updateWave() {
-    this.elements.waveNumber.textContent = this.game.wave;
+  updateBossStatus() {
+    if (!this.elements.bossStatus || !this.game.stageSystem) return;
+
+    const stage = this.game.stageSystem;
+    const el = this.elements.bossStatus;
+
+    if (stage.stageCompleted) {
+      el.className = "boss-defeated";
+      el.innerHTML = `<i class="fa-solid fa-check"></i> STAGE CLEAR`;
+    } else if (stage.stageBossSpawned) {
+      el.className = "boss-active";
+      el.innerHTML = `<i class="fa-solid fa-skull-crossbones"></i> DEFEAT THE BOSS`;
+    } else {
+      el.className = "";
+      const bossTime = 7 * 60; // boss spawns at 420s (wave 8)
+      const remaining = Math.max(0, bossTime - this.game.gameTime);
+      const mins = Math.floor(remaining / 60);
+      const secs = Math.floor(remaining % 60);
+      el.innerHTML = `<i class="fa-solid fa-skull-crossbones"></i> BOSS IN <span id="boss-countdown">${mins}:${secs.toString().padStart(2, "0")}</span>`;
+    }
   }
 
   updateScore() {
@@ -586,22 +605,19 @@ export class UI {
     }
   }
 
-  announceWave(wave) {
-    this.elements.announceWaveNumber.textContent = wave;
+  announceMinute(minutes) {
+    this.elements.announceWaveNumber.textContent = `${minutes}:00`;
     this.elements.waveAnnouncement.classList.remove("hidden");
 
-    // Re-trigger animation
     this.elements.waveAnnouncement.style.animation = "none";
-    this.elements.waveAnnouncement.offsetHeight; // Trigger reflow
+    this.elements.waveAnnouncement.offsetHeight;
     this.elements.waveAnnouncement.style.animation = null;
 
-    // Hide after animation
     setTimeout(() => {
       this.elements.waveAnnouncement.classList.add("hidden");
     }, 2000);
 
-    // Update wave counter
-    this.updateWave();
+    this.updateBossStatus();
   }
 
   announceBoss() {

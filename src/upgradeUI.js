@@ -128,13 +128,13 @@ export class UpgradeUI {
       }
 
       .upgrade-choice.common { border-color: #555; }
-      .upgrade-choice.uncommon { border-color: #00aa00; }
-      .upgrade-choice.rare { border-color: #0088ff; }
-      .upgrade-choice.legendary { border-color: #ffaa00; }
+      .upgrade-choice.uncommon { border-color: #558833; }
+      .upgrade-choice.rare { border-color: #8855aa; }
+      .upgrade-choice.legendary { border-color: #d4a017; }
 
       .upgrade-choice.evolution {
-        border-color: #ff00ff;
-        background: linear-gradient(180deg, #442244 0%, #221133 100%);
+        border-color: #cc3333;
+        background: linear-gradient(180deg, #2a1414 0%, #1a0a0a 100%);
         animation: evolutionGlow 1s ease-in-out infinite alternate;
       }
 
@@ -146,10 +146,10 @@ export class UpgradeUI {
         text-shadow: 0 0 2px #000;
       }
       .rarity-common { color: #aaa; }
-      .rarity-uncommon { color: #00ff88; }
-      .rarity-rare { color: #00aaff; }
-      .rarity-legendary { color: #ffcc00; }
-      .rarity-evolution { color: #ff00ff; }
+      .rarity-uncommon { color: #77bb55; }
+      .rarity-rare { color: #aa77cc; }
+      .rarity-legendary { color: #d4a017; }
+      .rarity-evolution { color: #cc3333; }
 
       /* Hover effects ONLY for devices with hover capability (not touch) */
       @media (hover: hover) and (pointer: fine) {
@@ -164,18 +164,18 @@ export class UpgradeUI {
         }
 
         .upgrade-choice.uncommon:hover {
-          border-color: #00ff88;
-          box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+          border-color: #77bb55;
+          box-shadow: 0 10px 30px rgba(85, 136, 51, 0.3);
         }
 
         .upgrade-choice.rare:hover {
-          border-color: #00aaff;
-          box-shadow: 0 10px 30px rgba(0, 170, 255, 0.3);
+          border-color: #aa77cc;
+          box-shadow: 0 10px 30px rgba(136, 85, 170, 0.3);
         }
 
         .upgrade-choice.legendary:hover {
-          border-color: #ffcc00;
-          box-shadow: 0 10px 30px rgba(255, 204, 0, 0.3);
+          border-color: #d4a017;
+          box-shadow: 0 10px 30px rgba(212, 160, 23, 0.3);
         }
 
         .upgrade-choice.evolution:hover {
@@ -188,8 +188,8 @@ export class UpgradeUI {
       }
 
       @keyframes evolutionGlow {
-        from { box-shadow: 0 0 10px rgba(255, 0, 255, 0.3); }
-        to { box-shadow: 0 0 25px rgba(255, 0, 255, 0.6); }
+        from { box-shadow: 0 0 10px rgba(200, 50, 50, 0.3); }
+        to { box-shadow: 0 0 25px rgba(200, 50, 50, 0.6); }
       }
 
       .upgrade-choice.evolution::before {
@@ -198,7 +198,7 @@ export class UpgradeUI {
         top: -12px;
         left: 50%;
         transform: translateX(-50%);
-        background: linear-gradient(90deg, #ff00ff, #ffdd00);
+        background: linear-gradient(90deg, #cc3333, #d4a017);
         color: white;
         font-size: 10px;
         font-weight: bold;

@@ -240,7 +240,7 @@ export class StageSystem {
       timeMinutes * 80 +
       timeMinutes * timeMinutes * 12 +
       Math.pow(timeMinutes, 3) * 0.8;
-    const bossHealth = baseHealth * 20 * this.getEnemyHealthMult();
+    const bossHealth = baseHealth * this.getEnemyHealthMult();
     const bossSpeed = (1.5 + timeMinutes * 0.15) * 0.35 * this.getEnemySpeedMult();
     const bossDamage = (10 + timeMinutes * 3 + timeMinutes * timeMinutes * 0.5) * 3 * this.getEnemyDamageMult();
 

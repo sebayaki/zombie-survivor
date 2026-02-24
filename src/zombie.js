@@ -13,7 +13,7 @@ const _tmpHitPos = new THREE.Vector3();
 const ELITE_AFFIXES = {
   shielded: {
     name: "Shielded",
-    color: 0x4488ff,
+    color: 0x887744,
     healthMult: 1.0,
     speedMult: 1.0,
     shieldHP: 0.5, // 50% of max HP as shield
@@ -26,13 +26,13 @@ const ELITE_AFFIXES = {
   },
   splitter: {
     name: "Splitter",
-    color: 0x22ff44,
+    color: 0x88aa44,
     healthMult: 0.8,
     speedMult: 1.1,
   },
   frozenAura: {
     name: "Frozen Aura",
-    color: 0x44ffff,
+    color: 0x8899aa,
     healthMult: 1.2,
     speedMult: 0.9,
     auraRadius: 4,
@@ -40,7 +40,7 @@ const ELITE_AFFIXES = {
   },
   vampiric: {
     name: "Vampiric",
-    color: 0xaa00ff,
+    color: 0x880022,
     healthMult: 1.1,
     speedMult: 1.0,
     healOnHit: 0.05, // 5% of max HP healed per hit
@@ -257,10 +257,9 @@ export class ZombieManager {
     const s = (zombie.typeDef.scale || 1) * (zombie.isElite ? 1.25 : 1.0);
     const shieldGeo = new THREE.SphereGeometry(1.2 * s, 16, 16);
     const shieldMat = new THREE.MeshBasicMaterial({
-      color: 0x4488ff,
+      color: 0x887744,
       transparent: true,
-      opacity: 0.2,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.15,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
@@ -271,7 +270,7 @@ export class ZombieManager {
   }
 
   getRandomEnemyType() {
-    const waveNumber = this.game.wave || 1;
+    const waveNumber = Math.floor(this.game.gameTime / 60) + 1;
     const roll = Math.random();
 
     if (
@@ -796,7 +795,7 @@ export class ZombieManager {
             this.game.particleSystem.createShockwave(
               position,
               6 + i * 3,
-              i === 0 ? 0xff0088 : i === 1 ? 0x8800ff : 0xffffff,
+              i === 0 ? 0xcc2200 : i === 1 ? 0x881100 : 0xffaa44,
               0.8 + i * 0.3,
             );
           }

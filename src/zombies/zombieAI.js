@@ -401,7 +401,7 @@ export function updateZombieBehavior(
           game.particleSystem.createShockwave(
             zombie.mesh.position,
             4,
-            0x8800ff,
+            0xaa2200,
             0.5,
           );
         }
@@ -461,38 +461,47 @@ export function updateZombieBehavior(
     zombie.mesh.position.z += moveDir.z * (zombie._effectiveSpeed || zombie.speed) * delta;
   }
 
-  // Animation
+  // Animation — zombie-style: limping, staggering, asymmetric
   const time = Date.now() * 0.01;
   const speedAnim = zombie.speed * 0.5;
+  const ud = zombie.mesh.userData;
+  const limpL = ud.limpOffsetL || 0;
+  const limpR = ud.limpOffsetR || 0;
+  const phase = ud.animPhase || 0;
 
   if (zombie.state === "chase" || zombie.state === "ranged") {
     const legPhase = time * speedAnim;
-    if (zombie.mesh.userData.leftLeg)
-      zombie.mesh.userData.leftLeg.rotation.x = Math.sin(legPhase) * 0.4;
-    if (zombie.mesh.userData.rightLeg)
-      zombie.mesh.userData.rightLeg.rotation.x =
-        -Math.sin(legPhase + 0.5) * 0.4;
 
-    if (zombie.mesh.userData.leftArm)
-      zombie.mesh.userData.leftArm.rotation.x =
-        -Math.PI / 2.2 + Math.sin(legPhase) * 0.15;
-    if (zombie.mesh.userData.rightArm)
-      zombie.mesh.userData.rightArm.rotation.x =
-        -Math.PI / 1.8 - Math.sin(legPhase) * 0.15;
+    // Limping legs: one leg drags, uneven stride
+    if (ud.leftLeg)
+      ud.leftLeg.rotation.x = Math.sin(legPhase + limpL) * (0.35 + limpL * 0.3);
+    if (ud.rightLeg)
+      ud.rightLeg.rotation.x = -Math.sin(legPhase + 0.6 + limpR) * (0.3 + limpR * 0.4);
+
+    // Arms: asymmetric swing — one reaches forward, one hangs
+    if (ud.leftArm)
+      ud.leftArm.rotation.x = -Math.PI / 2.2 + Math.sin(legPhase + 0.3) * 0.2;
+    if (ud.rightArm)
+      ud.rightArm.rotation.x = -Math.PI / 2.0 - Math.sin(legPhase * 0.7 + limpR) * 0.12;
+
+    // Head bob (if head exists as first child)
+    if (ud.body)
+      ud.body.rotation.z = Math.sin(legPhase * 0.8 + phase) * 0.04;
   } else if (zombie.state === "attack") {
-    if (zombie.mesh.userData.leftArm)
-      zombie.mesh.userData.leftArm.rotation.x =
-        -Math.PI / 2 - Math.sin(time * 3) * 0.6;
-    if (zombie.mesh.userData.rightArm)
-      zombie.mesh.userData.rightArm.rotation.x =
-        -Math.PI / 2 - Math.cos(time * 2.5) * 0.6;
+    // Frenzied clawing — desynchronized arms
+    if (ud.leftArm)
+      ud.leftArm.rotation.x = -Math.PI / 2 - Math.sin(time * 4 + phase) * 0.7;
+    if (ud.rightArm)
+      ud.rightArm.rotation.x = -Math.PI / 2 - Math.cos(time * 3.2 + limpR) * 0.65;
   }
 
-  const wobbleAmount = zombie.isBoss ? 0.04 : 0.12;
+  // Body sway — lurching, drunken movement
+  const wobbleAmount = zombie.isBoss ? 0.03 : 0.15;
   zombie.mesh.rotation.z =
-    Math.sin(time * speedAnim * 0.4 + zombie.mesh.userData.animPhase) *
-    wobbleAmount;
+    Math.sin(time * speedAnim * 0.35 + phase) * wobbleAmount +
+    Math.sin(time * speedAnim * 0.15 + limpL) * (wobbleAmount * 0.4);
+  // Forward lean
   zombie.mesh.rotation.x =
-    Math.cos(time * speedAnim * 0.3 + zombie.mesh.userData.limpOffsetL) *
-    (wobbleAmount * 0.5);
+    0.05 +
+    Math.cos(time * speedAnim * 0.25 + limpR) * (wobbleAmount * 0.3);
 }

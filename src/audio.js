@@ -1,102 +1,182 @@
-// Sound definition types: 'sweep', 'noise', 'multi'
-// sweep: oscillator with frequency sweep
-// noise: white noise burst with optional filter
-// multi: multiple notes played in sequence
-
 const SOUND_DEFS = {
-  shoot:     { type: "sweep", wave: "square",   startFreq: 400,  endFreq: 100,  duration: 0.1,  volume: 0.3 },
-  machinegun:{ type: "sweep", wave: "sawtooth", startFreq: 200,  endFreq: 80,   duration: 0.05, volume: 0.2 },
-  rocket:    { type: "sweep", wave: "sawtooth", startFreq: 100,  endFreq: 50,   duration: 0.3,  volume: 0.4 },
-  railgun:   { type: "sweep", wave: "sine",     startFreq: 2000, endFreq: 100,  duration: 0.3,  volume: 0.3 },
-  zombieDeath:{ type: "sweep", wave: "sawtooth", startFreq: 200,  endFreq: 50,   duration: 0.2,  volume: 0.2 },
-  zombieAttack:{ type: "sweep", wave: "sawtooth", startFreq: 150, endFreq: 100,  duration: 0.1,  volume: 0.15 },
-  playerHit: { type: "sweep", wave: "square",   startFreq: 100,  endFreq: 50,   duration: 0.15, volume: 0.3 },
-  pickup:    { type: "sweep", wave: "sine",     startFreq: 400,  endFreq: 800,  duration: 0.15, volume: 0.2 },
-  xpPickup:  { type: "sweep", wave: "sine",     startFreq: 600,  endFreq: 1200, duration: 0.08, volume: 0.1 },
-  upgrade:   { type: "sweep", wave: "sine",     startFreq: 300,  endFreq: 600,  duration: 0.2,  volume: 0.25 },
-  knife:     { type: "sweep", wave: "sawtooth", startFreq: 800,  endFreq: 200,  duration: 0.05, volume: 0.15 },
-  axe:       { type: "sweep", wave: "sawtooth", startFreq: 300,  endFreq: 100,  duration: 0.15, volume: 0.25 },
-  cross:     { type: "sweep", wave: "triangle", startFreq: 500,  endFreq: 500,  duration: 0.1,  volume: 0.2 },
-  fireball:  { type: "sweep", wave: "sawtooth", startFreq: 200,  endFreq: 100,  duration: 0.2,  volume: 0.25 },
-  runetracer:{ type: "sweep", wave: "sine",     startFreq: 800,  endFreq: 400,  duration: 0.15, volume: 0.15 },
-  throw:     { type: "sweep", wave: "sine",     startFreq: 400,  endFreq: 200,  duration: 0.1,  volume: 0.15 },
+  // Gunshot: punchy noise burst (not a laser)
+  shoot: { type: "noise", duration: 0.08, volume: 0.35, decay: 25, filter: "lowpass", filterFreq: 2000 },
+  machinegun: { type: "noise", duration: 0.04, volume: 0.25, decay: 30, filter: "lowpass", filterFreq: 2500 },
+  shotgun: { type: "noise", duration: 0.12, volume: 0.5, decay: 8, filter: "lowpass", filterFreq: 1200 },
+  rocket: { type: "noise", duration: 0.25, volume: 0.4, decay: 5, filter: "lowpass", filterFreq: 400, modulate: 20 },
+  railgun: { type: "noise", duration: 0.15, volume: 0.35, decay: 12, filter: "bandpass", filterFreq: 800 },
 
-  weaponSwitch: {
-    type: "sweep", wave: "sine", startFreq: 600, endFreq: 400,
-    duration: 0.1, volume: 0.15, freqStepAt: 0.05,
+  // Zombie sounds: guttural, wet, organic
+  zombieDeath: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      // Guttural groan
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(90, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+      const dist = ctx.createWaveShaper();
+      const curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 3);
+      dist.curve = curve;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      osc.connect(dist);
+      dist.connect(gain);
+      gain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.3);
+      // Wet splat
+      const len = Math.floor(ctx.sampleRate * 0.15);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-(i / len) * 12);
+      const ns = ctx.createBufferSource();
+      ns.buffer = buf;
+      const nf = ctx.createBiquadFilter();
+      nf.type = "lowpass";
+      nf.frequency.value = 600;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.15, now + 0.05);
+      ng.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      ns.connect(nf);
+      nf.connect(ng);
+      ng.connect(masterGain);
+      ns.start(now + 0.05);
+    },
   },
 
-  shotgun:   { type: "noise", duration: 0.15, volume: 0.5, decay: 0.1 },
-  whip:      { type: "noise", duration: 0.1,  volume: 0.4, decay: 20, filter: "highpass", filterFreq: 1000, envelopeFn: "whip" },
-  lightning: { type: "noise", duration: 0.15, volume: 0.35, decay: 15, filter: "highpass", filterFreq: 2000 },
-  splash:    { type: "noise", duration: 0.2,  volume: 0.3, decay: 10, filter: "lowpass", filterFreq: 1500, modulate: 100 },
-  explosion: { type: "noise", duration: 0.5,  volume: 0.7, decay: 4, filter: "lowpass", filterFreq: 500, modulate: 50 },
+  zombieAttack: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
+      const dist = ctx.createWaveShaper();
+      const curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 5);
+      dist.curve = curve;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.connect(dist);
+      dist.connect(gain);
+      gain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    },
+  },
 
-  gameOver: { type: "sweep", wave: "sawtooth", startFreq: 400, endFreq: 50, duration: 1.0, volume: 0.3 },
+  playerHit: { type: "noise", duration: 0.12, volume: 0.35, decay: 15, filter: "lowpass", filterFreq: 800, modulate: 40 },
+  pickup: { type: "sweep", wave: "triangle", startFreq: 300, endFreq: 500, duration: 0.1, volume: 0.18 },
+  xpPickup: { type: "sweep", wave: "triangle", startFreq: 400, endFreq: 600, duration: 0.06, volume: 0.08 },
+  upgrade: { type: "sweep", wave: "triangle", startFreq: 250, endFreq: 450, duration: 0.15, volume: 0.2 },
+
+  // Melee weapons: sharp, physical impacts
+  knife: { type: "noise", duration: 0.04, volume: 0.18, decay: 35, filter: "highpass", filterFreq: 2000 },
+  axe: { type: "noise", duration: 0.1, volume: 0.28, decay: 12, filter: "lowpass", filterFreq: 800 },
+  cross: { type: "noise", duration: 0.06, volume: 0.2, decay: 20, filter: "bandpass", filterFreq: 1200 },
+  whip: { type: "noise", duration: 0.08, volume: 0.35, decay: 25, filter: "highpass", filterFreq: 1500, envelopeFn: "whip" },
+  fireball: { type: "noise", duration: 0.18, volume: 0.25, decay: 8, filter: "lowpass", filterFreq: 500, modulate: 30 },
+  runetracer: { type: "noise", duration: 0.08, volume: 0.15, decay: 18, filter: "bandpass", filterFreq: 1000 },
+  throw: { type: "noise", duration: 0.06, volume: 0.15, decay: 22, filter: "highpass", filterFreq: 1200 },
+  lightning: { type: "noise", duration: 0.12, volume: 0.3, decay: 18, filter: "highpass", filterFreq: 3000 },
+  splash: { type: "noise", duration: 0.2, volume: 0.25, decay: 8, filter: "lowpass", filterFreq: 800, modulate: 60 },
+  explosion: { type: "noise", duration: 0.4, volume: 0.6, decay: 4, filter: "lowpass", filterFreq: 400, modulate: 25 },
+
+  weaponSwitch: { type: "noise", duration: 0.06, volume: 0.12, decay: 25, filter: "bandpass", filterFreq: 1500 },
+
+  gameOver: {
+    type: "custom",
+    play: (ctx, masterGain) => {
+      const now = ctx.currentTime;
+      // Low ominous tone
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 1.2);
+      const dist = ctx.createWaveShaper();
+      const curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 2);
+      dist.curve = curve;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+      osc.connect(dist);
+      dist.connect(gain);
+      gain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 1.5);
+    },
+  },
 
   levelUp: {
     type: "multi",
     notes: [
-      { freq: 400, delay: 0,   duration: 0.2, wave: "sine", volume: 0.2 },
-      { freq: 500, delay: 80,  duration: 0.2, wave: "sine", volume: 0.2 },
-      { freq: 600, delay: 160, duration: 0.2, wave: "sine", volume: 0.2 },
-      { freq: 800, delay: 240, duration: 0.2, wave: "sine", volume: 0.2 },
+      { freq: 220, delay: 0,   duration: 0.15, wave: "triangle", volume: 0.2 },
+      { freq: 330, delay: 60,  duration: 0.15, wave: "triangle", volume: 0.2 },
+      { freq: 440, delay: 120, duration: 0.2,  wave: "triangle", volume: 0.22 },
     ],
   },
 
   chestSpawn: {
     type: "multi",
     notes: [
-      { freq: 523, delay: 0,   duration: 0.3, wave: "sine", volume: 0.15 },
-      { freq: 659, delay: 100, duration: 0.3, wave: "sine", volume: 0.15 },
-      { freq: 784, delay: 200, duration: 0.3, wave: "sine", volume: 0.15 },
+      { freq: 200, delay: 0,   duration: 0.2, wave: "triangle", volume: 0.12 },
+      { freq: 300, delay: 80,  duration: 0.2, wave: "triangle", volume: 0.12 },
+      { freq: 400, delay: 160, duration: 0.25, wave: "triangle", volume: 0.14 },
     ],
   },
 
-  chestOpen: { type: "chord", frequencies: [523, 659], wave: "sine", duration: 0.4, volume: 0.2 },
+  chestOpen: { type: "chord", frequencies: [220, 330], wave: "triangle", duration: 0.3, volume: 0.18 },
 
   bossRoar: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
+      // Deep guttural roar with distortion
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
       const dist = ctx.createWaveShaper();
       const curve = new Float32Array(256);
-      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 4);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 6);
       dist.curve = curve;
       osc1.type = "sawtooth";
-      osc1.frequency.setValueAtTime(80, now);
-      osc1.frequency.exponentialRampToValueAtTime(40, now + 0.8);
-      osc2.type = "square";
-      osc2.frequency.setValueAtTime(60, now);
-      osc2.frequency.exponentialRampToValueAtTime(30, now + 0.8);
+      osc1.frequency.setValueAtTime(65, now);
+      osc1.frequency.exponentialRampToValueAtTime(30, now + 1.0);
+      osc2.type = "sawtooth";
+      osc2.frequency.setValueAtTime(50, now);
+      osc2.frequency.exponentialRampToValueAtTime(25, now + 1.0);
       gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.6, now + 0.1);
-      gain.gain.setValueAtTime(0.6, now + 0.3);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+      gain.gain.linearRampToValueAtTime(0.7, now + 0.08);
+      gain.gain.setValueAtTime(0.7, now + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
       osc1.connect(dist);
       osc2.connect(dist);
       dist.connect(gain);
       gain.connect(masterGain);
       osc1.start(now);
-      osc1.stop(now + 1.0);
+      osc1.stop(now + 1.2);
       osc2.start(now);
-      osc2.stop(now + 1.0);
-
-      const noiseLen = Math.floor(ctx.sampleRate * 0.8);
-      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
-      const nd = noiseBuf.getChannelData(0);
-      for (let i = 0; i < noiseLen; i++) nd[i] = (Math.random() * 2 - 1) * Math.exp(-(i / noiseLen) * 3);
+      osc2.stop(now + 1.2);
+      // Throaty noise layer
+      const len = Math.floor(ctx.sampleRate * 1.0);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const nd = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) nd[i] = (Math.random() * 2 - 1) * Math.exp(-(i / len) * 3);
       const ns = ctx.createBufferSource();
-      ns.buffer = noiseBuf;
+      ns.buffer = buf;
       const nf = ctx.createBiquadFilter();
       nf.type = "lowpass";
-      nf.frequency.value = 300;
+      nf.frequency.value = 250;
       const ng = ctx.createGain();
-      ng.gain.setValueAtTime(0.3, now);
-      ng.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+      ng.gain.setValueAtTime(0.35, now);
+      ng.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
       ns.connect(nf);
       nf.connect(ng);
       ng.connect(masterGain);
@@ -104,7 +184,7 @@ const SOUND_DEFS = {
     },
   },
 
-  bossSlam: { type: "noise", duration: 0.6, volume: 0.8, decay: 3, filter: "lowpass", filterFreq: 200, modulate: 30 },
+  bossSlam: { type: "noise", duration: 0.5, volume: 0.7, decay: 3, filter: "lowpass", filterFreq: 180, modulate: 20 },
 
   bossCharge: {
     type: "custom",
@@ -113,51 +193,50 @@ const SOUND_DEFS = {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(60, now);
-      osc.frequency.exponentialRampToValueAtTime(300, now + 0.6);
+      osc.frequency.setValueAtTime(40, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.6);
       gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.4, now + 0.3);
+      gain.gain.linearRampToValueAtTime(0.35, now + 0.3);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
-      osc.connect(gain);
+      const dist = ctx.createWaveShaper();
+      const curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i / 128 - 1) * 4);
+      dist.curve = curve;
+      osc.connect(dist);
+      dist.connect(gain);
       gain.connect(masterGain);
       osc.start(now);
       osc.stop(now + 0.7);
     },
   },
 
-  bfg: { type: "chord", frequencies: [50, 1500], wave: "sine", duration: 0.5, volume: 0.4, sweepEnd: [50, 200] },
+  // Cannon (was BFG): heavy boom
+  bfg: { type: "noise", duration: 0.4, volume: 0.5, decay: 4, filter: "lowpass", filterFreq: 300, modulate: 15 },
 
   pentagram: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      const freqs = [261.6, 329.6, 392, 523.3];
+      // Deep ominous chord
+      const freqs = [55, 82.5, 110, 165];
       for (let i = 0; i < freqs.length; i++) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = "sine";
+        osc.type = "sawtooth";
         osc.frequency.setValueAtTime(freqs[i], now);
-        osc.frequency.exponentialRampToValueAtTime(freqs[i] * 1.5, now + 0.6);
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.18, now + 0.05);
-        gain.gain.setValueAtTime(0.18, now + 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
-        osc.connect(gain);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+        const dist = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let j = 0; j < 256; j++) curve[j] = Math.tanh((j / 128 - 1) * 3);
+        dist.curve = curve;
+        osc.connect(dist);
+        dist.connect(gain);
         gain.connect(masterGain);
         osc.start(now + i * 0.02);
-        osc.stop(now + 0.8);
+        osc.stop(now + 1.0);
       }
-      const shimmer = ctx.createOscillator();
-      const sGain = ctx.createGain();
-      shimmer.type = "triangle";
-      shimmer.frequency.setValueAtTime(1047, now);
-      shimmer.frequency.exponentialRampToValueAtTime(523, now + 0.6);
-      sGain.gain.setValueAtTime(0.08, now + 0.1);
-      sGain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
-      shimmer.connect(sGain);
-      sGain.connect(masterGain);
-      shimmer.start(now + 0.1);
-      shimmer.stop(now + 0.8);
     },
   },
 
@@ -165,30 +244,21 @@ const SOUND_DEFS = {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
-      osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.15, now + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-      osc.connect(gain);
-      gain.connect(masterGain);
-      osc.start(now);
-      osc.stop(now + 0.15);
-      const sparkle = ctx.createOscillator();
-      const spGain = ctx.createGain();
-      sparkle.type = "triangle";
-      sparkle.frequency.setValueAtTime(1200, now);
-      sparkle.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-      spGain.gain.setValueAtTime(0.06, now);
-      spGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-      sparkle.connect(spGain);
-      spGain.connect(masterGain);
-      sparkle.start(now);
-      sparkle.stop(now + 0.12);
+      // Whoosh + low thump
+      const len = Math.floor(ctx.sampleRate * 0.1);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) {
+        const t = i / len;
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 15) * Math.sin(t * 200);
+      }
+      const ns = ctx.createBufferSource();
+      ns.buffer = buf;
+      const ng = ctx.createGain();
+      ng.gain.value = 0.18;
+      ns.connect(ng);
+      ng.connect(masterGain);
+      ns.start(now);
     },
   },
 
@@ -196,31 +266,21 @@ const SOUND_DEFS = {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      const notes = [440, 554, 659, 880, 1108, 1318];
+      // Dark ascending tones
+      const notes = [110, 165, 220, 330];
       for (let i = 0; i < notes.length; i++) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(notes[i], now + i * 0.08);
-        gain.gain.setValueAtTime(0, now + i * 0.08);
-        gain.gain.linearRampToValueAtTime(0.3, now + i * 0.08 + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.4);
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(notes[i], now + i * 0.12);
+        gain.gain.setValueAtTime(0, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0.25, now + i * 0.12 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.4);
         osc.connect(gain);
         gain.connect(masterGain);
-        osc.start(now + i * 0.08);
-        osc.stop(now + i * 0.08 + 0.5);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.5);
       }
-      const shimmerOsc = ctx.createOscillator();
-      const shimmerGain = ctx.createGain();
-      shimmerOsc.type = "triangle";
-      shimmerOsc.frequency.setValueAtTime(1760, now + 0.5);
-      shimmerOsc.frequency.exponentialRampToValueAtTime(880, now + 1.5);
-      shimmerGain.gain.setValueAtTime(0.2, now + 0.5);
-      shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
-      shimmerOsc.connect(shimmerGain);
-      shimmerGain.connect(masterGain);
-      shimmerOsc.start(now + 0.5);
-      shimmerOsc.stop(now + 1.5);
     },
   },
 };
@@ -402,20 +462,35 @@ export class AudioManager {
   _createAmbientMusic() {
     const ctx = this.context;
 
-    // Bass drone
-    this._addMusicLayer("sine", 55, 0.15);
+    // Deep sub-bass drone (ominous rumble)
+    this._addMusicLayer("sine", 36, 0.18);
 
-    // Creepy pad with LFO
+    // Dissonant minor second drone (unsettling)
+    const droneOsc = ctx.createOscillator();
+    droneOsc.type = "sawtooth";
+    droneOsc.frequency.value = 55;
+    const droneFilter = ctx.createBiquadFilter();
+    droneFilter.type = "lowpass";
+    droneFilter.frequency.value = 200;
+    const droneGain = ctx.createGain();
+    droneGain.gain.value = 0.06;
+    droneOsc.connect(droneFilter);
+    droneFilter.connect(droneGain);
+    droneGain.connect(this.musicGain);
+    droneOsc.start();
+    this.musicOscillators.push({ osc: droneOsc, gain: droneGain });
+
+    // Slow LFO pad (breathing, pulsing dread)
     const padOsc = ctx.createOscillator();
     padOsc.type = "triangle";
-    padOsc.frequency.value = 110;
+    padOsc.frequency.value = 58.3; // Slightly detuned from 55Hz — creates beating
     const padGain = ctx.createGain();
-    padGain.gain.value = 0.08;
+    padGain.gain.value = 0.05;
     const lfo = ctx.createOscillator();
     lfo.type = "sine";
-    lfo.frequency.value = 0.1;
+    lfo.frequency.value = 0.05; // Very slow pulse
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 5;
+    lfoGain.gain.value = 3;
     lfo.connect(lfoGain);
     lfoGain.connect(padOsc.frequency);
     lfo.start();
@@ -424,17 +499,17 @@ export class AudioManager {
     padOsc.start();
     this.musicOscillators.push({ osc: padOsc, gain: padGain }, { osc: lfo, gain: lfoGain });
 
-    // High tension tone with tremolo
+    // High dissonant tone (tension) — tritone interval
     const highOsc = ctx.createOscillator();
     highOsc.type = "sine";
-    highOsc.frequency.value = 440;
+    highOsc.frequency.value = 311; // Eb — tritone from A
     const highGain = ctx.createGain();
-    highGain.gain.value = 0.03;
+    highGain.gain.value = 0.015;
     const tremolo = ctx.createOscillator();
     tremolo.type = "sine";
-    tremolo.frequency.value = 4;
+    tremolo.frequency.value = 0.3; // Slow tremolo
     const tremoloGain = ctx.createGain();
-    tremoloGain.gain.value = 0.02;
+    tremoloGain.gain.value = 0.012;
     tremolo.connect(tremoloGain);
     tremoloGain.connect(highGain.gain);
     tremolo.start();

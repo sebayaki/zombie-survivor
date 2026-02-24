@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Creepster&family=Special+Elite&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   </head>
   <body>
@@ -24,17 +24,17 @@
       </div>
 
       <div id="stats">
-        <div id="wave">WAVE <span id="wave-number">1</span></div>
+        <div id="boss-status"><i class="fa-solid fa-skull-crossbones"></i> BOSS IN <span id="boss-countdown">7:00</span></div>
         <div id="score">SCORE: <span id="score-value">0</span></div>
         <div id="kills">KILLS: <span id="kills-value">0</span></div>
       </div>
 
       <!-- Settings button for mobile (visible during gameplay) -->
-      <button id="settings-button" class="settings-btn hidden">⚙️</button>
+      <button id="settings-button" class="settings-btn hidden"><i class="fa-solid fa-gear"></i></button>
 
       <!-- Legacy weapon info (hidden by default) -->
       <div id="weapon-info" style="display: none">
-        <div id="weapon-name">BLASTER</div>
+        <div id="weapon-name">PISTOL</div>
         <div id="ammo">AMMO: <span id="ammo-value">∞</span></div>
       </div>
     </div>
@@ -80,38 +80,23 @@
         <div class="title-container">
           <div class="blood-scratch scratch-1"></div>
           <div class="blood-scratch scratch-2"></div>
-          <h1 class="game-title">
-            <span class="title-letter" style="--delay: 0">Z</span>
-            <span class="title-letter" style="--delay: 1">O</span>
-            <span class="title-letter" style="--delay: 2">M</span>
-            <span class="title-letter" style="--delay: 3">B</span>
-            <span class="title-letter" style="--delay: 4">I</span>
-            <span class="title-letter" style="--delay: 5">E</span>
-          </h1>
-          <p class="subtitle">
-            <span class="skull"><i class="fa-solid fa-skull"></i></span> SURVIVOR <span class="skull"><i class="fa-solid fa-skull"></i></span>
-          </p>
+          <h1 class="game-title">ZOMBIE</h1>
+          <div class="title-divider">
+            <span class="divider-line"></span>
+            <span class="skull"><i class="fa-solid fa-skull"></i></span>
+            <span class="divider-line"></span>
+          </div>
+          <p class="subtitle">SURVIVOR</p>
         </div>
 
-        <div class="instructions gore-box">
-          <div class="gore-corner tl"></div>
-          <div class="gore-corner tr"></div>
-          <div class="gore-corner bl"></div>
-          <div class="gore-corner br"></div>
-          <p><span class="key-highlight">WASD / Arrow Keys</span> - Move</p>
-          <p><span class="key-highlight">Mouse</span> - Move toward cursor</p>
-        </div>
-
-        <p class="hint">
-          <span class="hint-icon"><i class="fa-solid fa-triangle-exclamation"></i></span> Collect XP, level up, choose
-          upgrades!
-        </p>
 
         <div id="stage-select" class="stage-select-display">
           <span class="stage-select-label">STAGE</span>
-          <button id="stage-prev" class="stage-arrow-btn"><i class="fa-solid fa-caret-left"></i></button>
-          <span id="stage-select-num" class="stage-select-num">1</span>
-          <button id="stage-next" class="stage-arrow-btn"><i class="fa-solid fa-caret-right"></i></button>
+          <div class="stage-select-row">
+            <button id="stage-prev" class="stage-arrow-btn"><i class="fa-solid fa-caret-left"></i></button>
+            <span id="stage-select-num" class="stage-select-num">1</span>
+            <button id="stage-next" class="stage-arrow-btn"><i class="fa-solid fa-caret-right"></i></button>
+          </div>
         </div>
 
         <div class="button-container">
@@ -191,9 +176,9 @@
             <span class="stat-value" id="final-stage" style="color:#ff8844">1</span>
           </div>
           <div class="stat-row">
-            <span class="stat-icon"><i class="fa-solid fa-water"></i></span>
-            <span class="stat-label">Wave Reached</span>
-            <span class="stat-value" id="final-wave">1</span>
+            <span class="stat-icon"><i class="fa-solid fa-clock"></i></span>
+            <span class="stat-label">Survived</span>
+            <span class="stat-value" id="final-time">0:00</span>
           </div>
           <div class="stat-row">
             <span class="stat-icon"><i class="fa-solid fa-star"></i></span>
@@ -244,9 +229,9 @@
       <div id="version-display"></div>
     </div>
 
-    <!-- Wave Announcement -->
+    <!-- Boss Announcement -->
     <div id="wave-announcement" class="hidden">
-      <span>WAVE </span><span id="announce-wave-number">1</span>
+      <span id="announce-wave-number"></span>
     </div>
 
     <!-- Crosshair (hidden in VS mode) -->

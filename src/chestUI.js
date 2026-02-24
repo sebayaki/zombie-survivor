@@ -156,11 +156,11 @@ export class ChestUI {
         transform: scale(1) translateY(0);
       }
 
-      .chest-item.common { border-color: #555; box-shadow: 0 0 15px rgba(100,100,100,0.5); }
-      .chest-item.uncommon { border-color: #00aa00; box-shadow: 0 0 15px rgba(0,170,0,0.5); }
-      .chest-item.rare { border-color: #0088ff; box-shadow: 0 0 15px rgba(0,136,255,0.5); }
-      .chest-item.legendary { border-color: #ffaa00; box-shadow: 0 0 20px rgba(255,170,0,0.8); }
-      .chest-item.evolution { border-color: #ff00ff; box-shadow: 0 0 25px rgba(255,0,255,0.8); background: linear-gradient(180deg, #442244 0%, #221133 100%); }
+      .chest-item.common { border-color: #555; box-shadow: 0 0 12px rgba(100,100,100,0.4); }
+      .chest-item.uncommon { border-color: #558833; box-shadow: 0 0 12px rgba(85,136,51,0.4); }
+      .chest-item.rare { border-color: #8855aa; box-shadow: 0 0 12px rgba(136,85,170,0.4); }
+      .chest-item.legendary { border-color: #d4a017; box-shadow: 0 0 16px rgba(212,160,23,0.5); }
+      .chest-item.evolution { border-color: #cc3333; box-shadow: 0 0 20px rgba(200,50,50,0.5); background: linear-gradient(180deg, #2a1414 0%, #1a0a0a 100%); }
 
       .chest-item-icon {
         font-size: 50px;
@@ -193,12 +193,12 @@ export class ChestUI {
         font-size: 24px;
         font-weight: bold;
         color: #fff;
-        background: #0088ff;
-        border: none;
-        border-radius: 8px;
+        background: linear-gradient(180deg, #aa0000 0%, #770000 100%);
+        border: 1px solid rgba(180, 50, 50, 0.5);
+        border-radius: 4px;
         cursor: pointer;
         transition: all 0.2s;
-        box-shadow: 0 5px 15px rgba(0,136,255,0.4);
+        box-shadow: 0 4px 16px rgba(100,0,0,0.4);
         opacity: 0;
         transform: translateY(15px);
       }

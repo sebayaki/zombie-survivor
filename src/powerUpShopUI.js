@@ -37,12 +37,19 @@ export class PowerUpShopUI {
     this.itemsGrid.className = "powerup-shop-grid";
     this.container.appendChild(this.itemsGrid);
 
-    // Close button
+    // Close button (top-right X)
     const closeBtn = document.createElement("button");
     closeBtn.className = "powerup-shop-close";
-    closeBtn.textContent = "✕ Close";
+    closeBtn.textContent = "X";
     closeBtn.addEventListener("click", () => this.hide());
-    this.container.appendChild(closeBtn);
+    this.container.prepend(closeBtn);
+
+    // Close button (bottom)
+    const closeBtnBottom = document.createElement("button");
+    closeBtnBottom.className = "powerup-shop-close-bottom";
+    closeBtnBottom.textContent = "CLOSE";
+    closeBtnBottom.addEventListener("click", () => this.hide());
+    this.container.appendChild(closeBtnBottom);
 
     this.overlay.appendChild(this.container);
     document.body.appendChild(this.overlay);
@@ -70,14 +77,17 @@ export class PowerUpShopUI {
       }
 
       .powerup-shop-container {
-        background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
-        border: 2px solid #ffcc00;
-        border-radius: 15px;
+        position: relative;
+        background: linear-gradient(180deg, #1a1412 0%, #0f0a08 100%);
+        border: 1px solid rgba(212, 160, 23, 0.3);
+        border-radius: 8px;
         padding: 25px;
         max-width: 900px;
+        width: calc(100% - 40px);
         max-height: 80vh;
         overflow-y: auto;
         animation: shopSlideIn 0.3s ease-out;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8);
       }
 
       @keyframes shopSlideIn {
@@ -87,26 +97,35 @@ export class PowerUpShopUI {
 
       .powerup-shop-header {
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
         align-items: center;
         margin-bottom: 20px;
         padding-bottom: 15px;
-        border-bottom: 1px solid #333;
+        border-bottom: 1px solid rgba(100, 30, 20, 0.3);
+        gap: 10px;
       }
 
       .powerup-shop-header h2 {
-        color: #ffcc00;
-        font-size: 28px;
+        font-family: 'Creepster', cursive;
+        color: #d4a017;
+        font-size: 30px;
+        font-weight: 400;
         margin: 0;
-        text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+        letter-spacing: 3px;
+        text-shadow: 0 2px 8px rgba(212, 160, 23, 0.3);
       }
 
       .powerup-shop-gold {
-        font-size: 24px;
-        color: #ffdd00;
-        display: flex;
+        font-family: 'Special Elite', cursive;
+        font-size: 18px;
+        color: #ffd700;
+        display: inline-flex;
         align-items: center;
         gap: 8px;
+        background: rgba(212, 160, 23, 0.1);
+        border: 1px solid rgba(212, 160, 23, 0.25);
+        padding: 6px 16px;
+        border-radius: 6px;
       }
 
       .powerup-shop-grid {
@@ -117,9 +136,9 @@ export class PowerUpShopUI {
       }
 
       .powerup-shop-item {
-        background: linear-gradient(180deg, #2a2a3e 0%, #1a1a2e 100%);
-        border: 2px solid #444;
-        border-radius: 10px;
+        background: linear-gradient(180deg, #1e1814 0%, #151010 100%);
+        border: 1px solid rgba(100, 70, 50, 0.3);
+        border-radius: 6px;
         padding: 15px;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -127,29 +146,29 @@ export class PowerUpShopUI {
       }
 
       .powerup-shop-item:hover:not(.maxed):not(.cant-afford) {
-        border-color: #ffcc00;
-        transform: translateY(-3px);
-        box-shadow: 0 5px 20px rgba(255, 204, 0, 0.2);
+        border-color: rgba(212, 160, 23, 0.5);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(212, 160, 23, 0.15);
       }
 
       .powerup-shop-item.cant-afford {
-        opacity: 0.6;
+        opacity: 0.5;
         cursor: not-allowed;
       }
 
       .powerup-shop-item.maxed {
-        border-color: #00ff88;
-        background: linear-gradient(180deg, #1a3a2e 0%, #0a2a1e 100%);
+        border-color: rgba(80, 140, 60, 0.5);
+        background: linear-gradient(180deg, #141e14 0%, #0a150a 100%);
       }
 
       .powerup-shop-item.high-level {
-        border-color: #ff8800;
-        background: linear-gradient(180deg, #3a2a1e 0%, #2a1a0e 100%);
+        border-color: rgba(180, 100, 20, 0.5);
+        background: linear-gradient(180deg, #1e1610 0%, #15100a 100%);
       }
 
       .powerup-shop-item.high-level:hover:not(.cant-afford) {
-        border-color: #ffaa33;
-        box-shadow: 0 5px 25px rgba(255, 136, 0, 0.3);
+        border-color: rgba(200, 130, 30, 0.6);
+        box-shadow: 0 4px 20px rgba(180, 100, 20, 0.2);
       }
 
       .powerup-item-header {
@@ -160,8 +179,9 @@ export class PowerUpShopUI {
       }
 
       .powerup-item-icon {
-        font-size: 32px;
-        filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+        font-size: 26px;
+        color: #c8beb0;
+        filter: drop-shadow(0 0 3px rgba(200, 150, 100, 0.2));
       }
 
       .powerup-item-name {
@@ -180,9 +200,9 @@ export class PowerUpShopUI {
       .powerup-item-bonus {
         font-size: 16px;
         font-weight: bold;
-        color: #ffcc00;
+        color: #d4a017;
         margin-bottom: 6px;
-        text-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+        text-shadow: 0 0 6px rgba(212, 160, 23, 0.3);
       }
 
       .powerup-item-bonus .next-bonus {
@@ -223,15 +243,15 @@ export class PowerUpShopUI {
       }
 
       .powerup-level-pip.filled {
-        background: #ffcc00;
-        border-color: #ffcc00;
-        box-shadow: 0 0 5px #ffcc00;
+        background: #d4a017;
+        border-color: #d4a017;
+        box-shadow: 0 0 4px rgba(212, 160, 23, 0.5);
       }
 
       .powerup-level-pip.overflow {
-        background: #ff8800;
-        border-color: #ff8800;
-        box-shadow: 0 0 5px #ff8800;
+        background: #b86e14;
+        border-color: #b86e14;
+        box-shadow: 0 0 4px rgba(184, 110, 20, 0.5);
       }
 
       .powerup-infinite-badge {
@@ -256,38 +276,76 @@ export class PowerUpShopUI {
       }
 
       .powerup-shop-close {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        background: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        color: #cc2222;
+        font-family: 'Creepster', cursive;
+        font-size: 32px;
+        line-height: 1;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.2s ease;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .powerup-shop-close:hover {
+        color: #ff4444;
+        transform: scale(1.15);
+        background: none !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+
+      .powerup-shop-close-bottom {
         display: block;
         width: 100%;
+        margin-top: 15px;
         padding: 12px;
-        background: linear-gradient(180deg, #444 0%, #333 100%);
-        border: 2px solid #555;
-        border-radius: 8px;
-        color: #fff;
+        font-family: 'Special Elite', cursive;
         font-size: 16px;
-        font-weight: bold;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--color-text, #c8beb0);
+        background: linear-gradient(180deg, #2a2220 0%, #1a1412 100%);
+        border: 1px solid rgba(100, 70, 50, 0.3);
+        border-radius: 6px;
+        box-shadow: none;
         cursor: pointer;
         transition: all 0.2s ease;
       }
 
-      .powerup-shop-close:hover {
-        background: linear-gradient(180deg, #555 0%, #444 100%);
-        border-color: #666;
+      .powerup-shop-close-bottom:hover {
+        background: linear-gradient(180deg, #332a26 0%, #221a16 100%);
+        border-color: rgba(120, 80, 60, 0.4);
+        color: #fff;
+        transform: none;
+        box-shadow: none;
       }
 
-      .powerup-shop-container::-webkit-scrollbar { width: 8px; }
-      .powerup-shop-container::-webkit-scrollbar-track { background: #1a1a2e; border-radius: 4px; }
-      .powerup-shop-container::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-      .powerup-shop-container::-webkit-scrollbar-thumb:hover { background: #555; }
+      .powerup-shop-container::-webkit-scrollbar { width: 6px; }
+      .powerup-shop-container::-webkit-scrollbar-track { background: #0f0a08; border-radius: 3px; }
+      .powerup-shop-container::-webkit-scrollbar-thumb { background: #3a2820; border-radius: 3px; }
+      .powerup-shop-container::-webkit-scrollbar-thumb:hover { background: #4a3830; }
 
       @media (max-width: 768px), (pointer: coarse) {
         .powerup-shop-container {
           padding: 15px;
           max-height: 90vh;
           border-radius: 10px;
-          width: 95%;
+          width: calc(100% - 20px);
         }
         .powerup-shop-header h2 { font-size: 20px; }
-        .powerup-shop-gold { font-size: 18px; }
+        .powerup-shop-gold { font-size: 16px; }
         .powerup-shop-grid {
           grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
           gap: 10px;

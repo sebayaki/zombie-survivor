@@ -3,13 +3,13 @@ import * as THREE from "three";
 // Weapon definitions
 const WEAPONS = [
   {
-    name: "BLASTER",
+    name: "PISTOL",
     damage: 15,
-    fireRate: 0.3, // seconds between shots
+    fireRate: 0.3,
     ammo: Infinity,
     maxAmmo: Infinity,
     projectileSpeed: 50,
-    projectileColor: 0x00ff00,
+    projectileColor: 0xddaa44,
     projectileSize: 0.15,
     spread: 0,
     projectilesPerShot: 1,
@@ -60,13 +60,13 @@ const WEAPONS = [
     sound: "rocket",
   },
   {
-    name: "RAILGUN",
+    name: "CROSSBOW",
     damage: 100,
     fireRate: 1.5,
     ammo: 15,
     maxAmmo: 15,
     projectileSpeed: 100,
-    projectileColor: 0x00ffff,
+    projectileColor: 0xccaa55,
     projectileSize: 0.1,
     spread: 0,
     projectilesPerShot: 1,
@@ -75,13 +75,13 @@ const WEAPONS = [
     sound: "railgun",
   },
   {
-    name: "BFG",
+    name: "CANNON",
     damage: 200,
     fireRate: 2.0,
     ammo: 5,
     maxAmmo: 5,
     projectileSpeed: 20,
-    projectileColor: 0x00ff00,
+    projectileColor: 0xcc4400,
     projectileSize: 0.5,
     spread: 0,
     projectilesPerShot: 1,

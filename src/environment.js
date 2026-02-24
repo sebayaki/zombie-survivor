@@ -38,13 +38,13 @@ function addMergedMesh(scene, geos, material, opts = {}) {
 // ============================================================
 
 export function setupEnhancedLighting(game) {
-  const ambient = new THREE.AmbientLight(0x7788aa, 2.4);
+  const ambient = new THREE.AmbientLight(0x554444, 2.0);
   game.scene.add(ambient);
 
   const isMobile = game.isMobile;
   const shadowMapSize = isMobile ? 1024 : 2048;
 
-  const moonLight = new THREE.DirectionalLight(0x8899cc, 2.8);
+  const moonLight = new THREE.DirectionalLight(0x667799, 2.4);
   moonLight.position.set(10, 60, 15);
   moonLight.castShadow = true;
   moonLight.shadow.mapSize.width = shadowMapSize;
@@ -58,15 +58,15 @@ export function setupEnhancedLighting(game) {
   moonLight.shadow.bias = -0.001;
   game.scene.add(moonLight);
 
-  const cityGlow = new THREE.DirectionalLight(0xffaa66, 0.6);
+  const cityGlow = new THREE.DirectionalLight(0x884422, 0.5);
   cityGlow.position.set(-15, 30, -25);
   game.scene.add(cityGlow);
 
-  const rimLight = new THREE.DirectionalLight(0x445566, 0.8);
+  const rimLight = new THREE.DirectionalLight(0x334444, 0.6);
   rimLight.position.set(-30, 40, 20);
   game.scene.add(rimLight);
 
-  game.playerLight = new THREE.PointLight(0xffeedd, 30, 18);
+  game.playerLight = new THREE.PointLight(0xffccaa, 25, 16);
   game.playerLight.position.set(0, 8, 0);
   game.scene.add(game.playerLight);
 }
@@ -106,11 +106,11 @@ export function createEnhancedArena(game) {
 
   // ---- PUDDLES (merged into a single mesh) ----
   const puddleMat = new THREE.MeshStandardMaterial({
-    color: 0x0a1525,
-    roughness: 0.05,
-    metalness: 0.9,
+    color: 0x1a0808,
+    roughness: 0.1,
+    metalness: 0.7,
     transparent: true,
-    opacity: 0.55,
+    opacity: 0.6,
   });
   const puddleGeos = [];
   for (let i = 0; i < 14; i++) {
@@ -148,13 +148,13 @@ function createMergedBoundaryFence(game) {
     color: 0x888899, roughness: 0.4, metalness: 0.7,
   });
   const glowMat = new THREE.MeshBasicMaterial({
-    color: 0x4488ff, transparent: true, opacity: 0.35,
+    color: 0x992211, transparent: true, opacity: 0.3,
   });
   const wireMat = new THREE.MeshBasicMaterial({
-    color: 0x6699cc, transparent: true, opacity: 0.25,
+    color: 0x886655, transparent: true, opacity: 0.2,
   });
   const groundGlowMat = new THREE.MeshBasicMaterial({
-    color: 0x4488ff, transparent: true, opacity: 0.06,
+    color: 0x661100, transparent: true, opacity: 0.05,
   });
 
   const postGeo = new THREE.CylinderGeometry(0.06, 0.06, postHeight, 6);

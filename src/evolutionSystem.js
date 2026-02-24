@@ -8,7 +8,7 @@ export const EVOLUTION_RECIPES = {
     id: "holyWand",
     name: "Holy Wand",
     description: "Divine rapid-fire projectiles that pierce all enemies",
-    icon: "✨",
+    icon: '<i class="fa-solid fa-wand-sparkles"></i>',
     baseWeapon: "magicWand",
     requiredPassive: "emptyTome",
     stats: {
@@ -434,7 +434,7 @@ export const SUPER_EVOLUTION_RECIPES = {
     id: "archangelsFury",
     name: "Archangel's Fury",
     description: "Relentless divine blades that hunt down all enemies",
-    icon: "👼",
+    icon: '<i class="fa-solid fa-cross"></i>',
     baseEvolution: "heavenSword",
     requiredStage: 8,
     stats: {

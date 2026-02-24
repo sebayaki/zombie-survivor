@@ -557,10 +557,9 @@ export class AutoWeaponSystem {
       const aura = new THREE.Mesh(
         new THREE.SphereGeometry(0.6, 8, 8),
         new THREE.MeshBasicMaterial({
-          color: 0xaa00ff,
+          color: 0x660000,
           transparent: true,
-          opacity: 0.35,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.3,
           depthWrite: false,
         }),
       );
@@ -795,7 +794,7 @@ export class AutoWeaponSystem {
           false,
         );
         const tubeMaterial = new THREE.MeshBasicMaterial({
-          color: 0x0088ff,
+          color: 0xccaa44,
           transparent: true,
           opacity: 0.5,
           blending: THREE.AdditiveBlending,
@@ -924,14 +923,12 @@ export class AutoWeaponSystem {
       // Create massive bright cyan plasma pool
       const group = new THREE.Group();
 
-      // Main inner plasma core
       const poolCore = new THREE.Mesh(
         new THREE.CircleGeometry(stats.area * 0.7, 32),
         new THREE.MeshBasicMaterial({
-          color: 0x00ffff,
+          color: 0x882200,
           transparent: true,
-          opacity: 0.8,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.7,
           side: THREE.DoubleSide,
           depthWrite: false,
         }),
@@ -939,14 +936,12 @@ export class AutoWeaponSystem {
       poolCore.rotation.x = -Math.PI / 2;
       group.add(poolCore);
 
-      // Outer plasma aura
       const poolAura = new THREE.Mesh(
         new THREE.CircleGeometry(stats.area, 32),
         new THREE.MeshBasicMaterial({
-          color: 0x0044ff,
+          color: 0x440000,
           transparent: true,
-          opacity: 0.5,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.4,
           side: THREE.DoubleSide,
           depthWrite: false,
         }),
@@ -962,10 +957,9 @@ export class AutoWeaponSystem {
           16,
         ),
         new THREE.MeshBasicMaterial({
-          color: 0x88ccff,
+          color: 0xaa3300,
           transparent: true,
-          opacity: 0.5,
-          blending: THREE.AdditiveBlending,
+          opacity: 0.4,
           side: THREE.DoubleSide,
           depthWrite: false,
         }),
@@ -1490,7 +1484,7 @@ export class AutoWeaponSystem {
         zombie.mesh.traverse((child) => {
           if (child.material && child.material.color) {
             child.userData.originalColor = child.material.color.getHex();
-            child.material.color.setHex(0x88ccff);
+            child.material.color.setHex(0x99aabb);
           }
         });
 
@@ -1642,7 +1636,7 @@ export class AutoWeaponSystem {
         pierce: stats.pierce,
         duration: stats.duration,
         area: stats.area,
-        color: 0x00aaff,
+        color: 0xddaa44,
         scale: scale,
       });
     }
@@ -2004,9 +1998,9 @@ export class AutoWeaponSystem {
         const glowArc = new THREE.Mesh(
           new THREE.TubeGeometry(arcCurve, arcSegments * 3, 0.25 * scale, 5, false),
           new THREE.MeshBasicMaterial({
-            color: 0x44ccff,
+            color: 0xccaa44,
             transparent: true,
-            opacity: 0.4,
+            opacity: 0.35,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           }),
@@ -2686,17 +2680,14 @@ export class AutoWeaponSystem {
   }
 
   createHolyWaterPool(proj) {
-    // Create bright burning holy plasma pool
     const group = new THREE.Group();
 
-    // Hot center (subtle additive glow)
     const core = new THREE.Mesh(
       new THREE.CircleGeometry(proj.area * 0.5, 32),
       new THREE.MeshBasicMaterial({
-        color: 0x88ccff,
+        color: 0x668833,
         transparent: true,
-        opacity: 0.35,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.3,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -2704,11 +2695,10 @@ export class AutoWeaponSystem {
     core.rotation.x = -Math.PI / 2;
     group.add(core);
 
-    // Main pool (normal blend to prevent stacking)
     const pool = new THREE.Mesh(
       new THREE.CircleGeometry(proj.area, 32),
       new THREE.MeshBasicMaterial({
-        color: 0x2288cc,
+        color: 0x445522,
         transparent: true,
         opacity: 0.35,
         side: THREE.DoubleSide,
@@ -2722,9 +2712,9 @@ export class AutoWeaponSystem {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(proj.area * 0.9, proj.area * 1.05, 32),
       new THREE.MeshBasicMaterial({
-        color: 0x3366aa,
+        color: 0x556633,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.35,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -3422,30 +3412,28 @@ export class AutoWeaponSystem {
       // Core
       const core = new THREE.Mesh(
         new THREE.SphereGeometry(0.2 * scale, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffaaff }),
+        new THREE.MeshBasicMaterial({ color: 0xcc8844 }),
       );
       group.add(core);
 
-      // Glow trail
       const trail = new THREE.Mesh(
         new THREE.ConeGeometry(0.15 * scale, 0.6 * scale, 8),
         new THREE.MeshBasicMaterial({
-          color: 0xff00ff,
+          color: 0x884422,
           transparent: true,
-          opacity: 0.6,
+          opacity: 0.5,
         }),
       );
       trail.rotation.x = Math.PI / 2;
       trail.position.z = -0.3 * scale;
       group.add(trail);
 
-      // Outer glow
       const glow = new THREE.Mesh(
         new THREE.SphereGeometry(0.35 * scale, 8, 8),
         new THREE.MeshBasicMaterial({
-          color: 0xdd88ff,
+          color: 0x664422,
           transparent: true,
-          opacity: 0.4,
+          opacity: 0.35,
         }),
       );
       group.add(glow);
@@ -3724,9 +3712,9 @@ export class AutoWeaponSystem {
     const face = new THREE.Mesh(
       new THREE.CircleGeometry(stats.area * 0.92, 48),
       new THREE.MeshBasicMaterial({
-        color: 0x88ccff,
+        color: 0xccaa77,
         transparent: true,
-        opacity: 0.15,
+        opacity: 0.12,
         side: THREE.DoubleSide,
       }),
     );
@@ -3796,7 +3784,7 @@ export class AutoWeaponSystem {
         zombie.mesh.traverse((child) => {
           if (child.material && child.material.color) {
             child.userData.originalColor = child.material.color.getHex();
-            child.material.color.setHex(0x88ccff);
+            child.material.color.setHex(0x99aabb);
           }
         });
 

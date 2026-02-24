@@ -25,9 +25,9 @@ export const ENEMY_TYPES = {
   },
   tank: {
     name: "Brute",
-    color: 0x5c4a6d,
-    secondaryColor: 0x3d3248,
-    eyeColor: 0xff00ff,
+    color: 0x5c4a4d,
+    secondaryColor: 0x3d3238,
+    eyeColor: 0xff4422,
     scale: 1.6,
     speedMult: 0.45,
     healthMult: 5,
@@ -38,8 +38,8 @@ export const ENEMY_TYPES = {
     name: "Spitter",
     color: 0x2d5a4a,
     secondaryColor: 0x1d3a2a,
-    eyeColor: 0x00ff88,
-    glowColor: 0x44ff88,
+    eyeColor: 0xaacc22,
+    glowColor: 0x88aa11,
     scale: 0.9,
     speedMult: 0.65,
     healthMult: 0.7,
@@ -66,10 +66,10 @@ export const ENEMY_TYPES = {
   },
   boss: {
     name: "Abomination",
-    color: 0x1a0a2e,
-    secondaryColor: 0x0d0519,
-    eyeColor: 0xff0088,
-    glowColor: 0x8800ff,
+    color: 0x2a1210,
+    secondaryColor: 0x1a0808,
+    eyeColor: 0xff2200,
+    glowColor: 0xaa1100,
     scale: 3.5,
     speedMult: 0.35,
     healthMult: 20,
@@ -79,44 +79,50 @@ export const ENEMY_TYPES = {
   },
 };
 
-// Stage boss variants — cycled by stage number
 export const STAGE_BOSS_VARIANTS = [
   {
     name: "The Abomination",
-    color: 0x1a0a2e,
-    secondaryColor: 0x0d0519,
-    eyeColor: 0xff0088,
-    glowColor: 0x8800ff,
+    color: 0x2a1210,
+    secondaryColor: 0x1a0808,
+    eyeColor: 0xff2200,
+    glowColor: 0xaa1100,
   },
   {
     name: "The Warden",
-    color: 0x0a1a2e,
-    secondaryColor: 0x051930,
-    eyeColor: 0x00ccff,
-    glowColor: 0x0066ff,
+    color: 0x1a1a22,
+    secondaryColor: 0x0a0a14,
+    eyeColor: 0xccaa44,
+    glowColor: 0x886622,
   },
   {
     name: "The Devourer",
     color: 0x2e1a0a,
-    secondaryColor: 0x301905,
-    eyeColor: 0xff6600,
-    glowColor: 0xff3300,
+    secondaryColor: 0x201005,
+    eyeColor: 0xff4400,
+    glowColor: 0xcc2200,
   },
   {
     name: "The Plague Bearer",
-    color: 0x0a2e0a,
-    secondaryColor: 0x053005,
-    eyeColor: 0x44ff00,
-    glowColor: 0x22cc00,
+    color: 0x1a2e0a,
+    secondaryColor: 0x0a1a05,
+    eyeColor: 0x88aa00,
+    glowColor: 0x668800,
   },
   {
     name: "The Wraith King",
-    color: 0x2e0a2e,
-    secondaryColor: 0x300530,
-    eyeColor: 0xff00ff,
-    glowColor: 0xcc00cc,
+    color: 0x2a0a1a,
+    secondaryColor: 0x1a0510,
+    eyeColor: 0xcc3344,
+    glowColor: 0x881122,
   },
 ];
+
+// Shared materials created once
+const BONE_MAT = new THREE.MeshStandardMaterial({ color: 0xccccaa, roughness: 0.6, metalness: 0.1 });
+const WOUND_MAT = new THREE.MeshStandardMaterial({ color: 0x661111, roughness: 1.0, metalness: 0.0, emissive: 0x220000, emissiveIntensity: 0.3 });
+const BLOOD_MAT = new THREE.MeshStandardMaterial({ color: 0x440000, roughness: 1.0 });
+const TEETH_MAT = new THREE.MeshStandardMaterial({ color: 0xbbaa88, roughness: 0.5 });
+const CLOTH_MAT = new THREE.MeshStandardMaterial({ color: 0x222218, roughness: 1.0 });
 
 function addPart(group, geometry, material, pos, rot) {
   const mesh = new THREE.Mesh(geometry, material);
@@ -130,10 +136,52 @@ function addPart(group, geometry, material, pos, rot) {
   return mesh;
 }
 
+function addWound(group, s, x, y, z) {
+  addPart(group,
+    new THREE.SphereGeometry(0.06 * s, 6, 6),
+    WOUND_MAT,
+    { x: x * s, y: y * s, z: z * s },
+  );
+}
+
+function addTeeth(group, s, y, z, count, spread) {
+  for (let i = 0; i < count; i++) {
+    const xOff = (i - (count - 1) / 2) * spread * s;
+    addPart(group,
+      new THREE.ConeGeometry(0.02 * s, 0.08 * s, 4),
+      TEETH_MAT,
+      { x: xOff, y: (y - 0.04) * s, z: z * s },
+      { x: Math.PI },
+    );
+  }
+}
+
+function addExposedBone(group, s, x, y, z, rotX, rotZ) {
+  addPart(group,
+    new THREE.CylinderGeometry(0.03 * s, 0.02 * s, 0.2 * s, 5),
+    BONE_MAT,
+    { x: x * s, y: y * s, z: z * s },
+    { x: rotX || 0, z: rotZ || 0 },
+  );
+}
+
+function addClothStrip(group, mat, s, x, y, z, rotX) {
+  addPart(group,
+    new THREE.BoxGeometry(0.08 * s, 0.2 * s, 0.02 * s),
+    mat,
+    { x: x * s, y: y * s, z: z * s },
+    { x: rotX || 0.3 },
+  );
+}
+
 function addEyes(group, type, s, eyeColor) {
   const isBoss = type === "boss";
-  const eyeGeo = new THREE.SphereGeometry((isBoss ? 0.12 : 0.08) * s, 8, 8);
+  const eyeSize = (isBoss ? 0.12 : 0.07) * s;
+  const eyeGeo = new THREE.SphereGeometry(eyeSize, 6, 6);
   const eyeMat = new THREE.MeshBasicMaterial({ color: eyeColor });
+
+  const socketGeo = new THREE.SphereGeometry(eyeSize * 1.3, 6, 6);
+  const socketMat = new THREE.MeshStandardMaterial({ color: 0x111100, roughness: 1.0 });
 
   const EYE_POS = {
     fast: { y: 1.45, z: 0.28, spread: 0.12 },
@@ -145,459 +193,633 @@ function addEyes(group, type, s, eyeColor) {
   };
   const ep = EYE_POS[type] || EYE_POS.normal;
 
-  addPart(group, eyeGeo, eyeMat, {
-    x: -ep.spread * s,
-    y: ep.y * s,
-    z: ep.z * s,
-  });
-  addPart(group, eyeGeo, eyeMat, {
-    x: ep.spread * s,
-    y: ep.y * s,
-    z: ep.z * s,
-  });
+  // Sunken eye sockets
+  addPart(group, socketGeo, socketMat, { x: -ep.spread * s, y: ep.y * s, z: (ep.z - 0.02) * s });
+  addPart(group, socketGeo, socketMat, { x: ep.spread * s, y: ep.y * s, z: (ep.z - 0.02) * s });
+
+  addPart(group, eyeGeo, eyeMat, { x: -ep.spread * s, y: ep.y * s, z: ep.z * s });
+  addPart(group, eyeGeo, eyeMat, { x: ep.spread * s, y: ep.y * s, z: ep.z * s });
 
   if (isBoss) {
+    addPart(group, socketGeo, socketMat, { x: 0, y: 2.85 * s, z: 0.48 * s });
     addPart(group, eyeGeo, eyeMat, { x: 0, y: 2.85 * s, z: 0.5 * s });
   }
 }
 
 function buildNormalZombie(mesh, bodyMat, skinMat, pantsMat, s) {
-  const head = addPart(
-    mesh,
-    new THREE.SphereGeometry(0.3 * s, 12, 12),
-    skinMat,
-    { y: 1.55 * s },
-    { z: 0.15, x: 0.1 },
+  // Deformed head (slightly lopsided)
+  const headGeo = new THREE.SphereGeometry(0.28 * s, 10, 10);
+  headGeo.scale(1.05, 0.95, 1.0);
+  addPart(mesh, headGeo, skinMat, { y: 1.55 * s }, { z: 0.15, x: 0.15 });
+
+  // Open jaw
+  const jawGeo = new THREE.BoxGeometry(0.2 * s, 0.1 * s, 0.15 * s);
+  addPart(mesh, jawGeo, skinMat, { y: 1.38 * s, z: 0.18 * s }, { x: 0.25 });
+  addTeeth(mesh, s, 1.42, 0.25, 4, 0.05);
+
+  // Exposed skull patch
+  addPart(mesh,
+    new THREE.SphereGeometry(0.12 * s, 6, 6),
+    BONE_MAT,
+    { x: 0.12 * s, y: 1.62 * s, z: -0.05 * s },
   );
 
-  const bodyGeo = new THREE.CapsuleGeometry(0.3 * s, 0.6 * s, 8, 12);
-  const body = addPart(
-    mesh,
-    bodyGeo,
-    bodyMat,
-    { y: 0.9 * s, z: -0.05 * s },
-    { x: 0.15 },
-  );
+  // Hunched torso
+  const bodyGeo = new THREE.CapsuleGeometry(0.28 * s, 0.55 * s, 8, 10);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.88 * s, z: -0.05 * s }, { x: 0.2 });
   mesh.userData.body = body;
 
-  const armGeo = new THREE.CapsuleGeometry(0.12 * s, 0.5 * s, 6, 8);
-  mesh.userData.leftArm = addPart(
-    mesh,
-    armGeo,
-    skinMat,
-    { x: -0.4 * s, y: 1.1 * s, z: 0.2 * s },
+  // Exposed ribs on one side
+  for (let i = 0; i < 3; i++) {
+    addExposedBone(mesh, s, -0.25, 0.75 + i * 0.12, 0.1, 0, 0.8);
+  }
+
+  // Wounds on torso
+  addWound(mesh, s, 0.15, 0.95, 0.2);
+  addWound(mesh, s, -0.1, 0.8, 0.22);
+
+  // Tattered shirt scraps
+  addClothStrip(mesh, CLOTH_MAT, s, 0.2, 0.65, 0.15, 0.4);
+  addClothStrip(mesh, CLOTH_MAT, s, -0.15, 0.6, -0.1, -0.2);
+
+  // Left arm: reaching forward
+  const leftArmGeo = new THREE.CapsuleGeometry(0.1 * s, 0.5 * s, 6, 8);
+  mesh.userData.leftArm = addPart(mesh, leftArmGeo, skinMat,
+    { x: -0.38 * s, y: 1.1 * s, z: 0.2 * s },
     { x: -Math.PI / 2.2, z: 0.1 },
   );
-  mesh.userData.rightArm = addPart(
-    mesh,
-    armGeo,
-    skinMat,
-    { x: 0.4 * s, y: 1.15 * s, z: 0.2 * s },
-    { x: -Math.PI / 1.8, z: -0.1 },
-  );
 
-  const legGeo = new THREE.CylinderGeometry(0.12 * s, 0.1 * s, 0.6 * s, 8);
-  mesh.userData.leftLeg = addPart(mesh, legGeo, pantsMat, {
-    x: -0.18 * s,
-    y: 0.3 * s,
-  });
-  mesh.userData.rightLeg = addPart(mesh, legGeo, pantsMat, {
-    x: 0.18 * s,
-    y: 0.3 * s,
-  });
+  // Right arm: slightly shorter (torn off below elbow) with bone stump
+  const rightArmGeo = new THREE.CapsuleGeometry(0.1 * s, 0.35 * s, 6, 8);
+  mesh.userData.rightArm = addPart(mesh, rightArmGeo, skinMat,
+    { x: 0.38 * s, y: 1.12 * s, z: 0.15 * s },
+    { x: -Math.PI / 2.0, z: -0.15 },
+  );
+  addExposedBone(mesh, s, 0.55, 0.85, 0.3, -0.5, 0);
+  addWound(mesh, s, 0.5, 0.9, 0.28);
+
+  // Legs: uneven — one slightly bent
+  const leftLegGeo = new THREE.CylinderGeometry(0.11 * s, 0.09 * s, 0.6 * s, 7);
+  mesh.userData.leftLeg = addPart(mesh, leftLegGeo, pantsMat,
+    { x: -0.16 * s, y: 0.3 * s },
+    { z: 0.05 },
+  );
+  const rightLegGeo = new THREE.CylinderGeometry(0.12 * s, 0.1 * s, 0.55 * s, 7);
+  mesh.userData.rightLeg = addPart(mesh, rightLegGeo, pantsMat,
+    { x: 0.18 * s, y: 0.28 * s },
+    { x: 0.1, z: -0.08 },
+  );
 }
 
-function buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s, eyeColor) {
-  addPart(
-    mesh,
-    new THREE.CapsuleGeometry(0.2 * s, 0.3 * s, 8, 8),
-    skinMat,
-    { y: 1.45 * s, z: 0.15 * s },
-    { x: 0.4 },
+function buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s) {
+  // Feral, hunched runner — elongated skull, clawed hands
+
+  // Elongated skull tilted forward aggressively
+  const headGeo = new THREE.SphereGeometry(0.22 * s, 8, 8);
+  headGeo.scale(0.9, 1.2, 1.1);
+  addPart(mesh, headGeo, skinMat, { y: 1.42 * s, z: 0.2 * s }, { x: 0.5 });
+
+  // Wide-open jaw
+  const jawGeo = new THREE.BoxGeometry(0.18 * s, 0.1 * s, 0.14 * s);
+  addPart(mesh, jawGeo, skinMat, { y: 1.27 * s, z: 0.28 * s }, { x: 0.4 });
+  addTeeth(mesh, s, 1.32, 0.35, 5, 0.035);
+
+  // Missing scalp — exposed skull top
+  addPart(mesh,
+    new THREE.SphereGeometry(0.14 * s, 6, 6),
+    BONE_MAT,
+    { y: 1.52 * s, z: 0.1 * s },
   );
 
-  const body = addPart(
-    mesh,
-    new THREE.CapsuleGeometry(0.25 * s, 0.5 * s, 8, 10),
-    bodyMat,
-    { y: 0.85 * s, z: -0.1 * s },
-    { x: 0.4 },
-  );
+  // Lean, hunched torso
+  const bodyGeo = new THREE.CapsuleGeometry(0.2 * s, 0.45 * s, 8, 8);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.82 * s, z: -0.1 * s }, { x: 0.45 });
   mesh.userData.body = body;
 
-  const armGeo = new THREE.CylinderGeometry(0.08 * s, 0.05 * s, 0.7 * s, 6);
-  mesh.userData.leftArm = addPart(
-    mesh,
-    armGeo,
-    skinMat,
-    { x: -0.32 * s, y: 0.9 * s, z: 0.3 * s },
-    { x: -Math.PI / 2.5, z: 0.2 },
-  );
-  mesh.userData.rightArm = addPart(
-    mesh,
-    armGeo,
-    skinMat,
-    { x: 0.32 * s, y: 0.9 * s, z: 0.3 * s },
-    { x: -Math.PI / 2.5, z: -0.2 },
-  );
+  // Visible spine bumps along back
+  for (let i = 0; i < 4; i++) {
+    addPart(mesh,
+      new THREE.SphereGeometry(0.04 * s, 4, 4),
+      BONE_MAT,
+      { x: 0, y: (0.65 + i * 0.13) * s, z: (-0.15 - i * 0.02) * s },
+    );
+  }
 
-  const legGeo = new THREE.CapsuleGeometry(0.1 * s, 0.5 * s, 6, 8);
-  mesh.userData.leftLeg = addPart(
-    mesh,
-    legGeo,
-    pantsMat,
-    { x: -0.15 * s, y: 0.3 * s },
-    { x: 0.2 },
+  // Wound on side
+  addWound(mesh, s, 0.18, 0.85, 0.05);
+
+  // Long clawed arms reaching forward
+  const leftClawGeo = new THREE.CylinderGeometry(0.06 * s, 0.03 * s, 0.7 * s, 5);
+  mesh.userData.leftArm = addPart(mesh, leftClawGeo, skinMat,
+    { x: -0.28 * s, y: 0.88 * s, z: 0.3 * s },
+    { x: -Math.PI / 2.2, z: 0.25 },
   );
-  mesh.userData.rightLeg = addPart(
-    mesh,
-    legGeo,
-    pantsMat,
-    { x: 0.15 * s, y: 0.3 * s },
-    { x: 0.2 },
+  // Claw fingers on left hand
+  for (let i = 0; i < 3; i++) {
+    addPart(mesh,
+      new THREE.ConeGeometry(0.015 * s, 0.1 * s, 4),
+      BONE_MAT,
+      { x: (-0.42 + i * 0.03) * s, y: 0.6 * s, z: 0.55 * s },
+      { x: -0.3 },
+    );
+  }
+
+  const rightClawGeo = new THREE.CylinderGeometry(0.06 * s, 0.03 * s, 0.65 * s, 5);
+  mesh.userData.rightArm = addPart(mesh, rightClawGeo, skinMat,
+    { x: 0.28 * s, y: 0.85 * s, z: 0.3 * s },
+    { x: -Math.PI / 2.3, z: -0.25 },
+  );
+  for (let i = 0; i < 3; i++) {
+    addPart(mesh,
+      new THREE.ConeGeometry(0.015 * s, 0.1 * s, 4),
+      BONE_MAT,
+      { x: (0.38 + i * 0.03) * s, y: 0.58 * s, z: 0.52 * s },
+      { x: -0.3 },
+    );
+  }
+
+  // Digitigrade-style legs (bent forward for running pose)
+  const leftLegGeo = new THREE.CapsuleGeometry(0.08 * s, 0.45 * s, 5, 6);
+  mesh.userData.leftLeg = addPart(mesh, leftLegGeo, pantsMat,
+    { x: -0.14 * s, y: 0.28 * s },
+    { x: 0.25 },
+  );
+  const rightLegGeo = new THREE.CapsuleGeometry(0.08 * s, 0.45 * s, 5, 6);
+  mesh.userData.rightLeg = addPart(mesh, rightLegGeo, pantsMat,
+    { x: 0.14 * s, y: 0.28 * s },
+    { x: 0.25 },
   );
 }
 
 function buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
-  addPart(mesh, new THREE.SphereGeometry(0.3 * s, 12, 12), skinMat, {
-    y: 1.95 * s,
-    z: 0.2 * s,
-  });
+  // Massive mutated brute — exposed muscles, bone armor, asymmetric limbs
 
-  const bodyGeo = new THREE.SphereGeometry(0.7 * s, 16, 16);
-  bodyGeo.scale(1.2, 1.0, 0.8);
+  // Small head sunken into shoulders
+  const headGeo = new THREE.SphereGeometry(0.28 * s, 10, 10);
+  headGeo.scale(1.1, 0.85, 1.0);
+  addPart(mesh, headGeo, skinMat, { y: 1.92 * s, z: 0.25 * s });
+
+  // Heavy brow ridge
+  addPart(mesh,
+    new THREE.BoxGeometry(0.4 * s, 0.08 * s, 0.15 * s),
+    BONE_MAT,
+    { y: 2.0 * s, z: 0.3 * s },
+  );
+
+  // Jaw with large teeth
+  addPart(mesh,
+    new THREE.BoxGeometry(0.3 * s, 0.15 * s, 0.2 * s),
+    skinMat,
+    { y: 1.78 * s, z: 0.32 * s },
+    { x: 0.2 },
+  );
+  addTeeth(mesh, s, 1.82, 0.42, 5, 0.06);
+
+  // Massive torso — barrel-shaped
+  const bodyGeo = new THREE.SphereGeometry(0.7 * s, 14, 14);
+  bodyGeo.scale(1.15, 1.0, 0.85);
   const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.2 * s });
   mesh.userData.body = body;
 
-  const boneMat = new THREE.MeshStandardMaterial({
-    color: 0xddddcc,
-    roughness: 0.7,
-  });
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.1 * s, 0.4 * s, 6),
-    boneMat,
-    { x: -0.4 * s, y: 1.6 * s, z: -0.5 * s },
-    { x: -1, z: 0.3 },
-  );
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.12 * s, 0.5 * s, 6),
-    boneMat,
-    { x: 0.3 * s, y: 1.5 * s, z: -0.6 * s },
-    { x: -1.2, z: -0.2 },
-  );
-
-  const armGeo = new THREE.CapsuleGeometry(0.25 * s, 0.9 * s, 10, 10);
-  mesh.userData.leftArm = addPart(
-    mesh,
-    armGeo,
-    skinMat,
-    { x: -0.9 * s, y: 1.1 * s, z: 0.1 * s },
-    { x: -0.2, z: 0.1 },
-  );
-  const bigArmGeo = new THREE.CapsuleGeometry(0.35 * s, 1.1 * s, 10, 10);
-  mesh.userData.rightArm = addPart(
-    mesh,
-    bigArmGeo,
-    skinMat,
-    { x: 1.0 * s, y: 1.0 * s, z: 0.2 * s },
-    { x: -0.3, z: -0.1 },
-  );
-
-  const legGeo = new THREE.CylinderGeometry(0.3 * s, 0.2 * s, 0.7 * s, 10);
-  mesh.userData.leftLeg = addPart(mesh, legGeo, pantsMat, {
-    x: -0.35 * s,
-    y: 0.35 * s,
-  });
-  mesh.userData.rightLeg = addPart(mesh, legGeo, pantsMat, {
-    x: 0.35 * s,
-    y: 0.35 * s,
-  });
-}
-
-function buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
-  const headGeo = new THREE.SphereGeometry(0.28 * s, 10, 10);
-  headGeo.scale(1, 1.3, 1);
-  addPart(
-    mesh,
-    headGeo,
-    skinMat,
-    { y: 1.55 * s, z: 0.1 * s },
-    { x: 0.2 },
-  );
-
-  const body = addPart(
-    mesh,
-    new THREE.CapsuleGeometry(0.25 * s, 0.6 * s, 8, 8),
-    bodyMat,
-    { y: 0.9 * s },
-  );
-  mesh.userData.body = body;
-
-  const sackMat = new THREE.MeshStandardMaterial({
-    color: glowColor,
-    emissive: glowColor,
-    emissiveIntensity: 0.6,
-    transparent: true,
-    opacity: 0.9,
-  });
-  addPart(mesh, new THREE.SphereGeometry(0.2 * s, 12, 12), sackMat, {
-    x: -0.15 * s,
-    y: 1.25 * s,
-    z: -0.2 * s,
-  });
-  addPart(mesh, new THREE.SphereGeometry(0.25 * s, 12, 12), sackMat, {
-    x: 0.15 * s,
-    y: 1.35 * s,
-    z: -0.15 * s,
-  });
-  addPart(mesh, new THREE.SphereGeometry(0.15 * s, 12, 12), sackMat, {
-    x: 0,
-    y: 1.15 * s,
-    z: -0.25 * s,
-  });
-
-  const armGeo = new THREE.CylinderGeometry(0.08 * s, 0.05 * s, 0.6 * s, 6);
-  mesh.userData.leftArm = addPart(
-    mesh,
-    armGeo,
-    skinMat,
-    { x: -0.35 * s, y: 1.0 * s, z: 0.1 * s },
-    { x: -Math.PI / 3 },
-  );
-  const stubGeo = new THREE.CapsuleGeometry(0.08 * s, 0.2 * s, 6, 6);
-  mesh.userData.rightArm = addPart(
-    mesh,
-    stubGeo,
-    skinMat,
-    { x: 0.35 * s, y: 1.1 * s, z: 0.0 * s },
-    { x: -0.5 },
-  );
-
-  const legGeo = new THREE.CapsuleGeometry(0.12 * s, 0.5 * s, 6, 8);
-  mesh.userData.leftLeg = addPart(mesh, legGeo, pantsMat, {
-    x: -0.15 * s,
-    y: 0.3 * s,
-  });
-  mesh.userData.rightLeg = addPart(mesh, legGeo, pantsMat, {
-    x: 0.15 * s,
-    y: 0.3 * s,
-  });
-}
-
-function buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
-  addPart(mesh, new THREE.SphereGeometry(0.25 * s, 10, 10), skinMat, {
-    y: 1.55 * s,
-    z: 0.2 * s,
-  });
-
-  const bodyGeo = new THREE.SphereGeometry(0.65 * s, 16, 16);
-  bodyGeo.scale(1.1, 1.2, 1.1);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.9 * s });
-  mesh.userData.body = body;
-
-  const glowMat = new THREE.MeshBasicMaterial({ color: glowColor });
-  for (let i = 0; i < 6; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = (Math.random() - 0.5) * Math.PI;
-    const r = 0.65 * s * 1.05;
-    const gx = r * Math.cos(phi) * Math.cos(theta);
-    const gy = 0.9 * s + r * Math.sin(phi);
-    const gz = r * Math.cos(phi) * Math.sin(theta);
-
-    addPart(
-      mesh,
-      new THREE.CapsuleGeometry(0.05 * s, 0.2 * s, 4, 4),
-      glowMat,
-      { x: gx, y: gy, z: gz },
-      { x: Math.random() * 3, y: Math.random() * 3 },
+  // Exposed ribs and bone plates (natural armor)
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI - Math.PI / 2;
+    addPart(mesh,
+      new THREE.BoxGeometry(0.3 * s, 0.05 * s, 0.06 * s),
+      BONE_MAT,
+      {
+        x: Math.sin(angle) * 0.6 * s,
+        y: (1.0 + i * 0.1) * s,
+        z: Math.cos(angle) * 0.5 * s,
+      },
+      { y: angle },
     );
   }
 
-  const armGeo = new THREE.CapsuleGeometry(0.12 * s, 0.5 * s, 6, 8);
-  mesh.userData.leftArm = addPart(
-    mesh,
-    armGeo,
+  // Bone spurs from shoulders
+  addPart(mesh, new THREE.ConeGeometry(0.12 * s, 0.5 * s, 5), BONE_MAT,
+    { x: -0.6 * s, y: 1.7 * s, z: -0.3 * s },
+    { x: -0.8, z: 0.5 },
+  );
+  addPart(mesh, new THREE.ConeGeometry(0.1 * s, 0.4 * s, 5), BONE_MAT,
+    { x: 0.5 * s, y: 1.65 * s, z: -0.4 * s },
+    { x: -1.0, z: -0.3 },
+  );
+  addPart(mesh, new THREE.ConeGeometry(0.08 * s, 0.35 * s, 5), BONE_MAT,
+    { x: -0.3 * s, y: 1.8 * s, z: -0.5 * s },
+    { x: -1.2 },
+  );
+
+  // Wounds
+  addWound(mesh, s, 0.4, 1.3, 0.5);
+  addWound(mesh, s, -0.5, 1.1, 0.4);
+  addWound(mesh, s, 0.0, 0.9, 0.6);
+
+  // Massive club-like left arm
+  const leftArmGeo = new THREE.CapsuleGeometry(0.28 * s, 0.9 * s, 8, 8);
+  mesh.userData.leftArm = addPart(mesh, leftArmGeo, skinMat,
+    { x: -0.95 * s, y: 1.15 * s, z: 0.1 * s },
+    { x: -0.15, z: 0.1 },
+  );
+  // Bone knuckle on left fist
+  addPart(mesh, new THREE.SphereGeometry(0.15 * s, 6, 6), BONE_MAT,
+    { x: -0.95 * s, y: 0.55 * s, z: 0.15 * s },
+  );
+
+  // Oversized mutated right arm
+  const rightArmGeo = new THREE.CapsuleGeometry(0.38 * s, 1.1 * s, 8, 8);
+  mesh.userData.rightArm = addPart(mesh, rightArmGeo, skinMat,
+    { x: 1.05 * s, y: 1.0 * s, z: 0.2 * s },
+    { x: -0.25, z: -0.1 },
+  );
+  // Exposed bone on right forearm
+  addExposedBone(mesh, s, 1.2, 0.6, 0.25, 0.3, -0.5);
+
+  // Thick legs — one slightly shorter
+  mesh.userData.leftLeg = addPart(mesh,
+    new THREE.CylinderGeometry(0.28 * s, 0.2 * s, 0.65 * s, 8),
+    pantsMat,
+    { x: -0.35 * s, y: 0.33 * s },
+  );
+  mesh.userData.rightLeg = addPart(mesh,
+    new THREE.CylinderGeometry(0.3 * s, 0.22 * s, 0.7 * s, 8),
+    pantsMat,
+    { x: 0.38 * s, y: 0.35 * s },
+    { z: -0.08 },
+  );
+}
+
+function buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
+  // Hunched, bile-filled mutant with distended throat and acid sacks
+
+  // Bulbous deformed head
+  const headGeo = new THREE.SphereGeometry(0.26 * s, 9, 9);
+  headGeo.scale(1.0, 1.25, 1.1);
+  addPart(mesh, headGeo, skinMat, { y: 1.52 * s, z: 0.12 * s }, { x: 0.25 });
+
+  // Distended throat/gullet (filled with bile)
+  const gulletMat = new THREE.MeshStandardMaterial({
+    color: glowColor,
+    emissive: glowColor,
+    emissiveIntensity: 0.4,
+    transparent: true,
+    opacity: 0.85,
+    roughness: 0.8,
+  });
+  const gulletGeo = new THREE.SphereGeometry(0.18 * s, 8, 8);
+  gulletGeo.scale(1.2, 1.4, 1.0);
+  addPart(mesh, gulletGeo, gulletMat, { y: 1.35 * s, z: 0.2 * s });
+
+  // Open maw
+  addPart(mesh,
+    new THREE.BoxGeometry(0.16 * s, 0.12 * s, 0.1 * s),
     skinMat,
-    { x: -0.75 * s, y: 1.1 * s, z: 0.1 * s },
+    { y: 1.38 * s, z: 0.28 * s },
+    { x: 0.3 },
+  );
+
+  // Hunched torso
+  const body = addPart(mesh,
+    new THREE.CapsuleGeometry(0.24 * s, 0.55 * s, 7, 8),
+    bodyMat,
+    { y: 0.88 * s },
+    { x: 0.15 },
+  );
+  mesh.userData.body = body;
+
+  // Bile sacks on back (pulsating, organic)
+  const sackMat = new THREE.MeshStandardMaterial({
+    color: glowColor,
+    emissive: glowColor,
+    emissiveIntensity: 0.5,
+    transparent: true,
+    opacity: 0.85,
+    roughness: 0.7,
+  });
+  const sackPositions = [
+    { x: -0.12, y: 1.2, z: -0.2, r: 0.18 },
+    { x: 0.15, y: 1.3, z: -0.15, r: 0.22 },
+    { x: 0.0, y: 1.1, z: -0.25, r: 0.14 },
+    { x: -0.2, y: 1.0, z: -0.1, r: 0.1 },
+    { x: 0.1, y: 0.95, z: -0.2, r: 0.12 },
+  ];
+  for (const sp of sackPositions) {
+    addPart(mesh, new THREE.SphereGeometry(sp.r * s, 8, 8), sackMat,
+      { x: sp.x * s, y: sp.y * s, z: sp.z * s },
+    );
+  }
+
+  // Wounds/decay
+  addWound(mesh, s, 0.2, 0.85, 0.18);
+  addWound(mesh, s, -0.15, 1.0, 0.2);
+
+  // Visible spine
+  for (let i = 0; i < 3; i++) {
+    addPart(mesh,
+      new THREE.SphereGeometry(0.03 * s, 4, 4),
+      BONE_MAT,
+      { y: (0.7 + i * 0.12) * s, z: -0.2 * s },
+    );
+  }
+
+  // Left arm: long, reaching
+  mesh.userData.leftArm = addPart(mesh,
+    new THREE.CylinderGeometry(0.07 * s, 0.04 * s, 0.6 * s, 5),
+    skinMat,
+    { x: -0.32 * s, y: 0.98 * s, z: 0.12 * s },
+    { x: -Math.PI / 3, z: 0.1 },
+  );
+
+  // Right arm: mutated stump dripping acid
+  const stubGeo = new THREE.CapsuleGeometry(0.09 * s, 0.18 * s, 5, 5);
+  mesh.userData.rightArm = addPart(mesh, stubGeo, skinMat,
+    { x: 0.32 * s, y: 1.05 * s },
+    { x: -0.4 },
+  );
+  // Stump wound
+  addPart(mesh,
+    new THREE.SphereGeometry(0.06 * s, 5, 5),
+    WOUND_MAT,
+    { x: 0.38 * s, y: 0.92 * s, z: 0.02 * s },
+  );
+  addExposedBone(mesh, s, 0.36, 0.88, 0.02, -0.3, 0);
+
+  // Thin legs
+  mesh.userData.leftLeg = addPart(mesh,
+    new THREE.CapsuleGeometry(0.1 * s, 0.48 * s, 5, 6),
+    pantsMat,
+    { x: -0.14 * s, y: 0.28 * s },
+  );
+  mesh.userData.rightLeg = addPart(mesh,
+    new THREE.CapsuleGeometry(0.1 * s, 0.45 * s, 5, 6),
+    pantsMat,
+    { x: 0.14 * s, y: 0.27 * s },
+    { x: 0.05 },
+  );
+}
+
+function buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
+  // Bloated, about-to-burst corpse — stretched skin, visible intestines, cracks
+
+  // Small head sinking into bloated body
+  const headGeo = new THREE.SphereGeometry(0.22 * s, 8, 8);
+  headGeo.scale(1.0, 0.9, 1.0);
+  addPart(mesh, headGeo, skinMat, { y: 1.58 * s, z: 0.22 * s });
+
+  // Half-open mouth
+  addPart(mesh,
+    new THREE.BoxGeometry(0.14 * s, 0.08 * s, 0.1 * s),
+    skinMat,
+    { y: 1.48 * s, z: 0.3 * s },
+    { x: 0.15 },
+  );
+  addTeeth(mesh, s, 1.5, 0.35, 3, 0.04);
+
+  // Massively bloated torso
+  const bodyGeo = new THREE.SphereGeometry(0.65 * s, 14, 14);
+  bodyGeo.scale(1.1, 1.25, 1.1);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.9 * s });
+  mesh.userData.body = body;
+
+  // Stretched skin cracks (veiny lines on surface)
+  const crackMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.5 });
+  for (let i = 0; i < 8; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = (Math.random() - 0.5) * Math.PI * 0.6;
+    const r = 0.68 * s;
+    const cx = r * Math.cos(phi) * Math.cos(theta);
+    const cy = 0.9 * s + r * Math.sin(phi) * 0.9;
+    const cz = r * Math.cos(phi) * Math.sin(theta);
+
+    addPart(mesh,
+      new THREE.CylinderGeometry(0.015 * s, 0.015 * s, 0.25 * s, 4),
+      crackMat,
+      { x: cx, y: cy, z: cz },
+      { x: Math.random() * Math.PI, y: Math.random() * Math.PI },
+    );
+  }
+
+  // Visible intestines (bulging through cracks)
+  const gutsMat = new THREE.MeshStandardMaterial({
+    color: 0x883333,
+    emissive: glowColor,
+    emissiveIntensity: 0.3,
+    roughness: 0.9,
+  });
+  addPart(mesh,
+    new THREE.TorusGeometry(0.12 * s, 0.04 * s, 6, 8),
+    gutsMat,
+    { x: 0.2 * s, y: 0.8 * s, z: 0.55 * s },
+    { x: 0.5, y: 0.3 },
+  );
+  addPart(mesh,
+    new THREE.TorusGeometry(0.1 * s, 0.035 * s, 6, 8),
+    gutsMat,
+    { x: -0.15 * s, y: 0.7 * s, z: 0.5 * s },
+    { x: -0.3, y: 0.8 },
+  );
+
+  // Wounds that glow (internal pressure)
+  for (let i = 0; i < 4; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = (Math.random() - 0.3) * Math.PI * 0.5;
+    const r = 0.67 * s;
+    addWound(mesh, s,
+      (r * Math.cos(phi) * Math.cos(theta)) / s,
+      (0.9 + r * Math.sin(phi) * 0.8) / s * s / s,
+      (r * Math.cos(phi) * Math.sin(theta)) / s,
+    );
+  }
+
+  // Short stumpy arms
+  mesh.userData.leftArm = addPart(mesh,
+    new THREE.CapsuleGeometry(0.1 * s, 0.4 * s, 5, 6),
+    skinMat,
+    { x: -0.72 * s, y: 1.08 * s, z: 0.1 * s },
     { x: -0.3, z: 0.4 },
   );
-  mesh.userData.rightArm = addPart(
-    mesh,
-    armGeo,
+  mesh.userData.rightArm = addPart(mesh,
+    new THREE.CapsuleGeometry(0.1 * s, 0.38 * s, 5, 6),
     skinMat,
-    { x: 0.75 * s, y: 1.1 * s, z: 0.1 * s },
+    { x: 0.72 * s, y: 1.05 * s, z: 0.1 * s },
     { x: -0.3, z: -0.4 },
   );
 
-  const legGeo = new THREE.CapsuleGeometry(0.18 * s, 0.4 * s, 8, 8);
-  mesh.userData.leftLeg = addPart(
-    mesh,
-    legGeo,
+  // Stumpy legs (can barely support the weight)
+  mesh.userData.leftLeg = addPart(mesh,
+    new THREE.CapsuleGeometry(0.16 * s, 0.35 * s, 6, 6),
     pantsMat,
-    { x: -0.35 * s, y: 0.25 * s },
-    { z: 0.2 },
+    { x: -0.32 * s, y: 0.22 * s },
+    { z: 0.15 },
   );
-  mesh.userData.rightLeg = addPart(
-    mesh,
-    legGeo,
+  mesh.userData.rightLeg = addPart(mesh,
+    new THREE.CapsuleGeometry(0.17 * s, 0.35 * s, 6, 6),
     pantsMat,
-    { x: 0.35 * s, y: 0.25 * s },
-    { z: -0.2 },
+    { x: 0.32 * s, y: 0.22 * s },
+    { z: -0.15 },
   );
 }
 
 function buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
-  // More fearful and detailed head with horns
-  const headGeo = new THREE.SphereGeometry(0.45 * s, 16, 16);
-  headGeo.scale(1.1, 0.8, 1.2);
+  // Massive mutated horror — exposed organs, bone armor, multiple mouths
+
+  // Skull-like head with exposed bone
+  const headGeo = new THREE.SphereGeometry(0.42 * s, 14, 14);
+  headGeo.scale(1.1, 0.85, 1.15);
   addPart(mesh, headGeo, skinMat, { y: 2.7 * s, z: 0.3 * s }, { x: 0.1 });
-  
-  // Jaw
-  addPart(
-    mesh,
-    new THREE.BoxGeometry(0.5 * s, 0.3 * s, 0.4 * s),
+
+  // Skull plate visible on top
+  const skullGeo = new THREE.SphereGeometry(0.3 * s, 10, 10);
+  skullGeo.scale(1.2, 0.6, 1.1);
+  addPart(mesh, skullGeo, BONE_MAT, { y: 2.82 * s, z: 0.2 * s });
+
+  // Massive jaw with large teeth
+  addPart(mesh,
+    new THREE.BoxGeometry(0.5 * s, 0.25 * s, 0.35 * s),
     skinMat,
-    { y: 2.4 * s, z: 0.4 * s },
-    { x: 0.2 }
+    { y: 2.4 * s, z: 0.42 * s },
+    { x: 0.25 },
   );
+  addTeeth(mesh, s, 2.48, 0.6, 6, 0.075);
+  // Lower fangs
+  for (let i = 0; i < 2; i++) {
+    addPart(mesh,
+      new THREE.ConeGeometry(0.04 * s, 0.2 * s, 4),
+      TEETH_MAT,
+      { x: (i === 0 ? -0.15 : 0.15) * s, y: 2.28 * s, z: 0.55 * s },
+      { x: Math.PI },
+    );
+  }
 
-  const spikeMat = new THREE.MeshStandardMaterial({
-    color: 0x110a1a,
-    roughness: 0.3,
-    metalness: 0.8,
-  });
-
-  // Horns
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.08 * s, 0.5 * s, 8),
-    spikeMat,
-    { x: -0.3 * s, y: 3.0 * s, z: 0.1 * s },
-    { x: -0.3, z: 0.5 }
+  // Horn-like bone growths
+  const hornMat = new THREE.MeshStandardMaterial({ color: 0x332211, roughness: 0.4, metalness: 0.3 });
+  addPart(mesh, new THREE.ConeGeometry(0.1 * s, 0.6 * s, 6), hornMat,
+    { x: -0.32 * s, y: 3.05 * s, z: 0.1 * s },
+    { x: -0.3, z: 0.5 },
   );
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.08 * s, 0.5 * s, 8),
-    spikeMat,
-    { x: 0.3 * s, y: 3.0 * s, z: 0.1 * s },
-    { x: -0.3, z: -0.5 }
+  addPart(mesh, new THREE.ConeGeometry(0.09 * s, 0.45 * s, 6), hornMat,
+    { x: 0.32 * s, y: 3.0 * s, z: 0.1 * s },
+    { x: -0.3, z: -0.5 },
   );
 
   // Massive torso
-  const bodyGeo = new THREE.CapsuleGeometry(0.85 * s, 1.3 * s, 16, 16);
+  const bodyGeo = new THREE.CapsuleGeometry(0.85 * s, 1.3 * s, 14, 14);
   const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.5 * s }, { x: 0.1 });
   mesh.userData.body = body;
 
-  // Glowing core on chest
-  const coreGeo = new THREE.SphereGeometry(0.3 * s, 16, 16);
-  const coreMat = new THREE.MeshBasicMaterial({ color: glowColor });
-  addPart(mesh, coreGeo, coreMat, { y: 1.6 * s, z: 0.8 * s });
+  // Exposed ribcage (open wound on chest)
+  for (let i = 0; i < 5; i++) {
+    const ribAngle = (i - 2) * 0.25;
+    addPart(mesh,
+      new THREE.CylinderGeometry(0.04 * s, 0.03 * s, 0.6 * s, 5),
+      BONE_MAT,
+      { x: ribAngle * 0.8 * s, y: (1.6 + Math.abs(ribAngle) * 0.2) * s, z: 0.75 * s },
+      { z: ribAngle * 0.5 },
+    );
+  }
 
-  // Back spikes
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.15 * s, 0.8 * s, 8),
-    spikeMat,
-    { x: -0.5 * s, y: 2.2 * s, z: -0.4 * s },
-    { x: -0.5, z: 0.4 }
-  );
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.12 * s, 0.7 * s, 8),
-    spikeMat,
-    { x: 0.5 * s, y: 2.1 * s, z: -0.5 * s },
-    { x: -0.6, z: -0.3 }
-  );
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.18 * s, 1.0 * s, 8),
-    spikeMat,
-    { x: 0, y: 2.4 * s, z: -0.6 * s },
-    { x: -0.8 }
+  // Exposed heart/organ visible through ribcage
+  const heartMat = new THREE.MeshStandardMaterial({
+    color: 0x661111,
+    emissive: glowColor,
+    emissiveIntensity: 0.5,
+    roughness: 0.9,
+  });
+  addPart(mesh, new THREE.SphereGeometry(0.2 * s, 10, 10), heartMat,
+    { y: 1.6 * s, z: 0.65 * s },
   );
 
-  // Asymmetrical Arms: Massive left arm, mutated right arm
-  const leftArmGeo = new THREE.CapsuleGeometry(0.4 * s, 1.4 * s, 12, 12);
-  mesh.userData.leftArm = addPart(
-    mesh,
-    leftArmGeo,
+  // Back spines (bone protrusions)
+  const spinePositions = [
+    { x: -0.4, y: 2.2, z: -0.4, h: 0.8, rx: -0.5, rz: 0.4 },
+    { x: 0.4, y: 2.1, z: -0.5, h: 0.7, rx: -0.6, rz: -0.3 },
+    { x: 0, y: 2.4, z: -0.6, h: 1.0, rx: -0.8, rz: 0 },
+    { x: -0.2, y: 1.9, z: -0.5, h: 0.5, rx: -0.7, rz: 0.2 },
+    { x: 0.3, y: 1.8, z: -0.45, h: 0.55, rx: -0.65, rz: -0.15 },
+  ];
+  for (const sp of spinePositions) {
+    addPart(mesh, new THREE.ConeGeometry(0.1 * s, sp.h * s, 5), BONE_MAT,
+      { x: sp.x * s, y: sp.y * s, z: sp.z * s },
+      { x: sp.rx, z: sp.rz },
+    );
+  }
+
+  // Massive wounds
+  addWound(mesh, s, -0.6, 1.3, 0.5);
+  addWound(mesh, s, 0.5, 1.7, 0.6);
+  addWound(mesh, s, 0, 1.0, 0.7);
+
+  // Left arm: massive, club-like with bone spurs
+  mesh.userData.leftArm = addPart(mesh,
+    new THREE.CapsuleGeometry(0.42 * s, 1.4 * s, 10, 10),
     skinMat,
     { x: -1.2 * s, y: 1.6 * s, z: 0.4 * s },
-    { x: -Math.PI / 2.5, z: 0.2 }
+    { x: -Math.PI / 2.5, z: 0.2 },
   );
-  
-  // Left arm spikes
-  addPart(
-    mesh,
-    new THREE.ConeGeometry(0.1 * s, 0.6 * s, 6),
-    spikeMat,
-    { x: -1.4 * s, y: 1.6 * s, z: 0.4 * s },
-    { z: 1.0 }
+  // Bone spurs on left arm
+  addPart(mesh, new THREE.ConeGeometry(0.12 * s, 0.5 * s, 5), BONE_MAT,
+    { x: -1.5 * s, y: 1.5 * s, z: 0.4 * s },
+    { z: 1.0 },
+  );
+  addPart(mesh, new THREE.ConeGeometry(0.08 * s, 0.35 * s, 5), BONE_MAT,
+    { x: -1.3 * s, y: 1.2 * s, z: 0.5 * s },
+    { z: 0.8, x: -0.3 },
   );
 
-  const rightArmGeo = new THREE.CylinderGeometry(
-    0.15 * s,
-    0.3 * s,
-    1.6 * s,
-    12
-  );
-  mesh.userData.rightArm = addPart(
-    mesh,
-    rightArmGeo,
+  // Right arm: mutated blade arm (bone scythe)
+  mesh.userData.rightArm = addPart(mesh,
+    new THREE.CylinderGeometry(0.18 * s, 0.3 * s, 1.6 * s, 10),
     bodyMat,
     { x: 1.1 * s, y: 1.4 * s, z: 0.5 * s },
-    { x: -Math.PI / 3, z: -0.1 }
+    { x: -Math.PI / 3, z: -0.1 },
   );
-  
-  // Right arm scythe blade
-  addPart(
-    mesh,
-    new THREE.BoxGeometry(0.05 * s, 1.2 * s, 0.3 * s),
-    spikeMat,
+  // Bone blade
+  addPart(mesh,
+    new THREE.BoxGeometry(0.04 * s, 1.2 * s, 0.25 * s),
+    BONE_MAT,
     { x: 1.1 * s, y: 0.8 * s, z: 1.1 * s },
-    { x: -Math.PI / 4, z: -0.1 }
+    { x: -Math.PI / 4, z: -0.1 },
   );
 
-  // Thick legs
-  const legGeo = new THREE.CapsuleGeometry(0.35 * s, 0.9 * s, 10, 10);
-  mesh.userData.leftLeg = addPart(mesh, legGeo, pantsMat, {
-    x: -0.5 * s,
-    y: 0.45 * s,
-  });
-  mesh.userData.rightLeg = addPart(mesh, legGeo, pantsMat, {
-    x: 0.5 * s,
-    y: 0.45 * s,
-  });
+  // Thick uneven legs
+  mesh.userData.leftLeg = addPart(mesh,
+    new THREE.CapsuleGeometry(0.35 * s, 0.85 * s, 8, 8),
+    pantsMat,
+    { x: -0.5 * s, y: 0.43 * s },
+  );
+  mesh.userData.rightLeg = addPart(mesh,
+    new THREE.CapsuleGeometry(0.38 * s, 0.9 * s, 8, 8),
+    pantsMat,
+    { x: 0.52 * s, y: 0.45 * s },
+    { z: -0.05 },
+  );
 
+  // Dark miasma aura (not glowing/additive — more like darkness)
   const auraMat = new THREE.MeshBasicMaterial({
-    color: glowColor,
+    color: 0x110000,
     transparent: true,
-    opacity: 0.15,
-    blending: THREE.AdditiveBlending,
+    opacity: 0.1,
+    depthWrite: false,
   });
-  const aura = addPart(
-    mesh,
-    new THREE.SphereGeometry(2.5 * s, 24, 24),
+  const aura = addPart(mesh,
+    new THREE.SphereGeometry(2.5 * s, 16, 16),
     auraMat,
-    { y: 1.5 * s }
+    { y: 1.5 * s },
   );
   mesh.userData.aura = aura;
 
-  const hbBg = addPart(
-    mesh,
+  // Health bar
+  addPart(mesh,
     new THREE.PlaneGeometry(3.0 * s, 0.25),
     new THREE.MeshBasicMaterial({ color: 0x333333 }),
     { y: 4.5 * s },
-    { x: -Math.PI / 4 }
+    { x: -Math.PI / 4 },
   );
-  const hb = addPart(
-    mesh,
+  const hb = addPart(mesh,
     new THREE.PlaneGeometry(3.0 * s, 0.2),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+    new THREE.MeshBasicMaterial({ color: 0xcc0000 }),
     { y: 4.5 * s, z: 0.01 },
-    { x: -Math.PI / 4 }
+    { x: -Math.PI / 4 },
   );
   mesh.userData.healthBar = hb;
   mesh.userData.healthBarWidth = 3.0 * s;
@@ -611,8 +833,8 @@ export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) 
 
   const bodyMat = new THREE.MeshStandardMaterial({
     color: typeDef.color,
-    roughness: 0.9,
-    metalness: 0.1,
+    roughness: 0.95,
+    metalness: 0.05,
   });
   const skinColor = new THREE.Color(typeDef.secondaryColor || 0x5a7a51).lerp(
     new THREE.Color(0x332222),
@@ -620,23 +842,20 @@ export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) 
   );
   const skinMat = new THREE.MeshStandardMaterial({
     color: skinColor,
-    roughness: 0.9,
+    roughness: 0.95,
     metalness: 0.0,
   });
   const pantsMat = new THREE.MeshStandardMaterial({
-    color: 0x223322,
+    color: 0x1a1a15,
     roughness: 1.0,
   });
 
   const builders = {
-    fast: () => buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s, eyeColor),
+    fast: () => buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s),
     tank: () => buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
-    spitter: () =>
-      buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
-    exploder: () =>
-      buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
-    boss: () =>
-      buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+    spitter: () => buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+    exploder: () => buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+    boss: () => buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
   };
 
   const builder = builders[type];
@@ -652,7 +871,6 @@ export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) 
     mesh.userData.body = mesh.children[0];
   }
 
-  // Only the body part casts shadow (saves thousands of shadow draw calls)
   if (mesh.userData.body) {
     mesh.userData.body.castShadow = true;
   }

@@ -18,10 +18,10 @@ const _scale = new THREE.Vector3();
 const _euler = new THREE.Euler();
 
 const GEM_SIZES = [
-  { key: "small",  threshold: 0,  scale: 0.3,  color: 0x00aaff },
-  { key: "medium", threshold: 5,  scale: 0.38, color: 0x00ff00 },
-  { key: "large",  threshold: 10, scale: 0.45, color: 0xffff00 },
-  { key: "huge",   threshold: 25, scale: 0.6,  color: 0xff00ff },
+  { key: "small",  threshold: 0,  scale: 0.3,  color: 0xddaa44 },
+  { key: "medium", threshold: 5,  scale: 0.38, color: 0x88aa44 },
+  { key: "large",  threshold: 10, scale: 0.45, color: 0xffcc00 },
+  { key: "huge",   threshold: 25, scale: 0.6,  color: 0xcc4422 },
 ];
 
 function sizeKeyForXP(xpValue) {

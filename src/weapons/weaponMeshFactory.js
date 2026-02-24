@@ -114,26 +114,29 @@ export class WeaponMeshFactory {
 
     const group = new THREE.Group();
 
-    const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.15, 1.2, 4),
-      new THREE.MeshBasicMaterial({ color: 0xccddff }),
-    );
-    core.rotation.x = Math.PI / 2;
-    core.position.z = 0.4;
-    group.add(core);
-
-    const aura = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.18, 1.3, 4),
-      new THREE.MeshBasicMaterial({
-        color: 0x4488cc,
-        transparent: true,
-        opacity: 0.25,
-        depthWrite: false,
+    const blade = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.14, 1.2, 4),
+      new THREE.MeshStandardMaterial({
+        color: 0xaaaaaa,
+        roughness: 0.3,
+        metalness: 0.8,
       }),
     );
-    aura.rotation.x = Math.PI / 2;
-    aura.position.z = 0.45;
-    group.add(aura);
+    blade.rotation.x = Math.PI / 2;
+    blade.position.z = 0.4;
+    group.add(blade);
+
+    const handle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.05, 0.3, 6),
+      new THREE.MeshStandardMaterial({
+        color: 0x553322,
+        roughness: 0.9,
+        metalness: 0.1,
+      }),
+    );
+    handle.rotation.x = Math.PI / 2;
+    handle.position.z = -0.25;
+    group.add(handle);
 
     this._knifeMeshCache = this.markShared(group);
     return group.clone();
@@ -144,27 +147,30 @@ export class WeaponMeshFactory {
 
     const group = new THREE.Group();
 
-    const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.18, 1.4, 4),
-      new THREE.MeshBasicMaterial({ color: 0x88ccff }),
+    const blade = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.2, 1.5, 4),
+      new THREE.MeshStandardMaterial({
+        color: 0xcccccc,
+        roughness: 0.2,
+        metalness: 0.9,
+      }),
     );
-    core.rotation.x = Math.PI / 2;
-    core.position.z = 0.45;
-    group.add(core);
+    blade.rotation.x = Math.PI / 2;
+    blade.position.z = 0.45;
+    group.add(blade);
 
-    const aura = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.28, 1.6, 4),
+    const bloodEdge = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.22, 1.6, 4),
       new THREE.MeshBasicMaterial({
-        color: 0x0044ff,
+        color: 0x880000,
         transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.3,
         depthWrite: false,
       }),
     );
-    aura.rotation.x = Math.PI / 2;
-    aura.position.z = 0.5;
-    group.add(aura);
+    bloodEdge.rotation.x = Math.PI / 2;
+    bloodEdge.position.z = 0.5;
+    group.add(bloodEdge);
 
     this._evolvedKnifeMeshCache = this.markShared(group);
     return group.clone();
@@ -175,42 +181,30 @@ export class WeaponMeshFactory {
 
     const group = new THREE.Group();
 
-    const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 6, 6),
-      new THREE.MeshBasicMaterial({ color: 0xeeeeee }),
-    );
-    group.add(core);
-
-    const bladeMat = new THREE.MeshBasicMaterial({
-      color: 0xcc2244,
-      transparent: true,
-      opacity: 0.7,
-      depthWrite: false,
-      side: THREE.DoubleSide,
+    const handleMat = new THREE.MeshStandardMaterial({
+      color: 0x553322,
+      roughness: 0.8,
+      metalness: 0.1,
     });
-
-    const bladeGeo = new THREE.PlaneGeometry(1.2, 0.5);
-    for (let i = 0; i < 4; i++) {
-      const blade = new THREE.Mesh(bladeGeo, bladeMat);
-      blade.rotation.x = Math.PI / 2;
-      blade.position.x = Math.cos((i * Math.PI) / 2) * 0.6;
-      blade.position.z = Math.sin((i * Math.PI) / 2) * 0.6;
-      blade.rotation.y = (-i * Math.PI) / 2;
-      group.add(blade);
-    }
-
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(1.0, 1.15, 12),
-      new THREE.MeshBasicMaterial({
-        color: 0xcc4488,
-        transparent: true,
-        opacity: 0.2,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
+    const handle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6),
+      handleMat,
     );
-    ring.rotation.x = Math.PI / 2;
-    group.add(ring);
+    group.add(handle);
+
+    const bladeMat = new THREE.MeshStandardMaterial({
+      color: 0x888888,
+      roughness: 0.3,
+      metalness: 0.7,
+    });
+    const bladeGeo = new THREE.BoxGeometry(0.8, 0.06, 0.4);
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.position.y = 0.5;
+    group.add(blade);
+
+    const blade2 = new THREE.Mesh(bladeGeo, bladeMat);
+    blade2.position.y = -0.5;
+    group.add(blade2);
 
     this._axeMeshCache = this.markShared(group);
     return group.clone();
@@ -223,22 +217,20 @@ export class WeaponMeshFactory {
     const group = new THREE.Group();
 
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.06, 0.8, 6),
-      new THREE.MeshBasicMaterial({ color: color || 0x00ffff }),
+      new THREE.SphereGeometry(0.15, 8, 8),
+      new THREE.MeshBasicMaterial({ color: color || 0xddaa44 }),
     );
-    core.rotation.x = Math.PI / 2;
     group.add(core);
 
     const glow1 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.10, 0.10, 0.9, 6),
+      new THREE.SphereGeometry(0.22, 8, 8),
       new THREE.MeshBasicMaterial({
-        color: color || 0x00ffff,
+        color: color || 0xddaa44,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.25,
         depthWrite: false,
       }),
     );
-    glow1.rotation.x = Math.PI / 2;
     group.add(glow1);
 
     this._orbMeshCaches[color] = this.markShared(group);
@@ -322,7 +314,7 @@ export class WeaponMeshFactory {
     group.add(
       new THREE.Mesh(
         new THREE.OctahedronGeometry(0.35, 0),
-        new THREE.MeshBasicMaterial({ color: 0xee88ee }),
+        new THREE.MeshBasicMaterial({ color: 0xcc8844 }),
       ),
     );
 
@@ -330,7 +322,7 @@ export class WeaponMeshFactory {
       new THREE.Mesh(
         new THREE.OctahedronGeometry(0.55, 0),
         new THREE.MeshBasicMaterial({
-          color: 0xcc44cc,
+          color: 0x884422,
           transparent: true,
           opacity: 0.3,
           depthWrite: false,
@@ -350,7 +342,7 @@ export class WeaponMeshFactory {
     group.add(
       new THREE.Mesh(
         new THREE.SphereGeometry(0.25, 6, 6),
-        new THREE.MeshBasicMaterial({ color: 0x88ccff }),
+        new THREE.MeshBasicMaterial({ color: 0x88aa55 }),
       ),
     );
 
@@ -358,7 +350,7 @@ export class WeaponMeshFactory {
       new THREE.Mesh(
         new THREE.SphereGeometry(0.4, 6, 6),
         new THREE.MeshBasicMaterial({
-          color: 0x0088cc,
+          color: 0x556633,
           transparent: true,
           opacity: 0.35,
           depthWrite: false,
@@ -378,8 +370,7 @@ export class WeaponMeshFactory {
     const core = new THREE.Mesh(
       new THREE.CylinderGeometry(0.07, 0.07, 1.0, 6),
       new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
+        color: 0xddaa44,
         depthWrite: false,
       }),
     );
@@ -387,27 +378,16 @@ export class WeaponMeshFactory {
     group.add(core);
 
     const glow = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.18, 1.3, 6),
+      new THREE.CylinderGeometry(0.16, 0.16, 1.2, 6),
       new THREE.MeshBasicMaterial({
-        color: 0xffaa00,
+        color: 0x996622,
         transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.4,
         depthWrite: false,
       }),
     );
     glow.rotation.x = Math.PI / 2;
     group.add(glow);
-
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.25, 0.03, 6, 12),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(ring);
 
     this._holyWandMeshCache = this.markShared(group);
     return group.clone();
@@ -418,64 +398,47 @@ export class WeaponMeshFactory {
 
     const group = new THREE.Group();
 
-    const core = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 1.8, 0.3),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
+    const blade = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 1.8, 0.25),
+      new THREE.MeshStandardMaterial({
+        color: 0xbbbbbb,
+        roughness: 0.2,
+        metalness: 0.9,
       }),
     );
-    group.add(core);
+    group.add(blade);
 
-    const bladeGlow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 2.0, 0.5),
+    const bloodGlow = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 2.0, 0.4),
       new THREE.MeshBasicMaterial({
-        color: 0xffdd00,
+        color: 0x882200,
         transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.3,
         depthWrite: false,
       }),
     );
-    group.add(bladeGlow);
+    group.add(bloodGlow);
 
-    const halo = new THREE.Mesh(
-      new THREE.RingGeometry(0.6, 0.75, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffaa,
-        transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false,
+    const guard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.8, 0.1, 0.12),
+      new THREE.MeshStandardMaterial({
+        color: 0x664422,
+        roughness: 0.6,
+        metalness: 0.4,
       }),
     );
-    halo.rotation.x = Math.PI / 2;
-    group.add(halo);
+    guard.position.y = -0.7;
+    group.add(guard);
 
-    const wingMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const leftWing = new THREE.Mesh(
-      new THREE.ConeGeometry(0.25, 0.8, 4),
-      wingMat,
+    const handle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6),
+      new THREE.MeshStandardMaterial({
+        color: 0x442211,
+        roughness: 0.9,
+      }),
     );
-    leftWing.position.set(-0.4, 0.2, 0);
-    leftWing.rotation.z = Math.PI / 2;
-    group.add(leftWing);
-
-    const rightWing = new THREE.Mesh(
-      new THREE.ConeGeometry(0.25, 0.8, 4),
-      wingMat,
-    );
-    rightWing.position.set(0.4, 0.2, 0);
-    rightWing.rotation.z = -Math.PI / 2;
-    group.add(rightWing);
+    handle.position.y = -1.0;
+    group.add(handle);
 
     this._heavenSwordMeshCache = this.markShared(group);
     return group.clone();
@@ -489,8 +452,7 @@ export class WeaponMeshFactory {
     const core = new THREE.Mesh(
       new THREE.SphereGeometry(0.3, 8, 8),
       new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        blending: THREE.AdditiveBlending,
+        color: 0xcc2200,
         depthWrite: false,
       }),
     );
@@ -499,10 +461,9 @@ export class WeaponMeshFactory {
     const innerAura = new THREE.Mesh(
       new THREE.SphereGeometry(0.55, 8, 8),
       new THREE.MeshBasicMaterial({
-        color: 0xaa00ff,
+        color: 0x440000,
         transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.5,
         depthWrite: false,
       }),
     );
@@ -510,10 +471,9 @@ export class WeaponMeshFactory {
 
     const lineGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.8, 6);
     const lineMat = new THREE.MeshBasicMaterial({
-      color: 0xffaaff,
+      color: 0x882211,
       transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.6,
       depthWrite: false,
     });
     const line1 = new THREE.Mesh(lineGeo, lineMat);

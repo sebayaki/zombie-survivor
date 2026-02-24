@@ -6,7 +6,7 @@ export const AUTO_WEAPONS = {
     name: "Magic Wand",
     rarity: "common",
     description: "Fires at the nearest enemy",
-    iconColor: "#00ccff",
+    iconColor: "#ddaa44",
     icon: `<i class="fa-solid fa-wand-magic-sparkles"></i>`,
     maxLevel: 8,
     baseStats: {
@@ -65,7 +65,7 @@ export const AUTO_WEAPONS = {
     name: "Knife",
     rarity: "common",
     description: "Throws knives in facing direction",
-    iconColor: "#88aaff",
+    iconColor: "#aaaaaa",
     icon: '<i class="fa-solid fa-khanda"></i>',
     maxLevel: 8,
     baseStats: {
@@ -241,7 +241,7 @@ export const AUTO_WEAPONS = {
     name: "Runetracer",
     rarity: "rare",
     description: "Bouncing projectile that lasts a long time",
-    iconColor: "#ff44ff",
+    iconColor: "#cc8844",
     icon: '<i class="fa-solid fa-gem"></i>',
     maxLevel: 8,
     baseStats: {
@@ -271,7 +271,7 @@ export const AUTO_WEAPONS = {
     name: "Holy Water",
     rarity: "uncommon",
     description: "Throws bottles that create damaging pools",
-    iconColor: "#44aaff",
+    iconColor: "#88aa55",
     icon: '<i class="fa-solid fa-droplet"></i>',
     maxLevel: 8,
     baseStats: {
@@ -332,7 +332,7 @@ export const AUTO_WEAPONS = {
     name: "Magic Missile",
     rarity: "common",
     description: "Slow but relentless homing missiles",
-    iconColor: "#ff88ff",
+    iconColor: "#cc6644",
     icon: '<i class="fa-solid fa-star"></i>',
     maxLevel: 8,
     baseStats: {
@@ -364,7 +364,7 @@ export const AUTO_WEAPONS = {
     name: "Peachone",
     rarity: "rare",
     description: "A bird that orbits around you, dealing damage",
-    iconColor: "#ffaadd",
+    iconColor: "#ccaa88",
     icon: '<i class="fa-solid fa-dove"></i>',
     maxLevel: 8,
     baseStats: {
@@ -393,7 +393,7 @@ export const AUTO_WEAPONS = {
     name: "Ebony Wings",
     rarity: "rare",
     description: "A dark bird that orbits opposite to Peachone",
-    iconColor: "#aa88ff",
+    iconColor: "#554433",
     icon: '<i class="fa-solid fa-crow"></i>',
     maxLevel: 8,
     baseStats: {
@@ -449,7 +449,7 @@ export const AUTO_WEAPONS = {
     name: "Clock Lancet",
     rarity: "rare",
     description: "Freezes enemies in place temporarily",
-    iconColor: "#88ddff",
+    iconColor: "#aa9977",
     icon: '<i class="fa-solid fa-clock"></i>',
     maxLevel: 8,
     baseStats: {
@@ -477,7 +477,7 @@ export const AUTO_WEAPONS = {
     name: "Laurel",
     rarity: "rare",
     description: "Grants brief invincibility when taking fatal damage",
-    iconColor: "#44cc44",
+    iconColor: "#668844",
     icon: '<i class="fa-solid fa-leaf"></i>',
     maxLevel: 8,
     baseStats: {

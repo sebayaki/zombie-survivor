@@ -101,9 +101,8 @@ export class Player {
         // Set initial animation
         this.setAnimation("stand");
 
-        // Set initial skin (blue team skin for player)
         try {
-          this.character.setSkin(1); // ctf_b.png - blue team
+          this.character.setSkin(2); // ctf_r.png — red/dark survivor look
         } catch (e) {
           console.warn("Could not set skin:", e);
         }
@@ -151,12 +150,11 @@ export class Player {
     // Create a glowing ring under the player for visibility
     const indicatorGroup = new THREE.Group();
 
-    // Outer ring (bright cyan glow)
     const ringGeometry = new THREE.RingGeometry(0.8, 1.0, 32);
     const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+      color: 0xddaa44,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.7,
       side: THREE.DoubleSide,
     });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
@@ -167,9 +165,9 @@ export class Player {
     // Inner glow circle
     const innerGlowGeometry = new THREE.CircleGeometry(0.8, 32);
     const innerGlowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+      color: 0xddaa44,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.2,
       side: THREE.DoubleSide,
     });
     const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
@@ -208,118 +206,141 @@ export class Player {
   createPlayerMesh() {
     const group = new THREE.Group();
 
-    // Materials
-    const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2266aa,
-      roughness: 0.6,
-      metalness: 0.3,
+    // Survivor clothing — rugged, worn
+    const jacketMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3530,
+      roughness: 0.9,
+      metalness: 0.05,
     });
-
-    const skinMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffcc99,
+    const skinMat = new THREE.MeshStandardMaterial({
+      color: 0xd4a574,
+      roughness: 0.85,
+    });
+    const pantsMat = new THREE.MeshStandardMaterial({
+      color: 0x2a2520,
+      roughness: 0.95,
+    });
+    const bootsMat = new THREE.MeshStandardMaterial({
+      color: 0x221a15,
       roughness: 0.8,
+      metalness: 0.1,
     });
-
-    const armorMaterial = new THREE.MeshStandardMaterial({
-      color: 0x444444,
+    const metalMat = new THREE.MeshStandardMaterial({
+      color: 0x555555,
       roughness: 0.3,
-      metalness: 0.8,
+      metalness: 0.7,
     });
 
-    // Body (torso)
+    // Torso (jacket)
     const torso = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.35, 0.6, 4, 8),
-      bodyMaterial,
+      new THREE.CapsuleGeometry(0.33, 0.55, 4, 8),
+      jacketMat,
     );
     torso.position.y = 1.3;
     torso.castShadow = true;
     group.add(torso);
 
+    // Backpack
+    const backpack = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.35, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0x44403a, roughness: 0.9 }),
+    );
+    backpack.position.set(0, 1.35, -0.3);
+    group.add(backpack);
+
     // Head
     const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 12, 12),
-      skinMaterial,
+      new THREE.SphereGeometry(0.24, 10, 10),
+      skinMat,
     );
     head.position.y = 2.0;
     head.castShadow = true;
     group.add(head);
 
-    // Helmet
-    const helmet = new THREE.Mesh(
-      new THREE.SphereGeometry(0.28, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-      armorMaterial,
+    // Baseball cap / bandana
+    const cap = new THREE.Mesh(
+      new THREE.SphereGeometry(0.26, 10, 10, 0, Math.PI * 2, 0, Math.PI / 2.5),
+      new THREE.MeshStandardMaterial({ color: 0x332822, roughness: 0.9 }),
     );
-    helmet.position.y = 2.05;
-    helmet.castShadow = true;
-    group.add(helmet);
-
-    // Visor
-    const visor = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4, 0.1, 0.15),
-      new THREE.MeshStandardMaterial({
-        color: 0x00ff88,
-        emissive: 0x00ff88,
-        emissiveIntensity: 0.5,
-      }),
+    cap.position.y = 2.08;
+    group.add(cap);
+    // Cap brim
+    const brim = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.28, 0.03, 8, 1, false, -Math.PI / 2, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x332822, roughness: 0.9 }),
     );
-    visor.position.set(0, 2.0, 0.2);
-    group.add(visor);
+    brim.position.set(0, 2.0, 0.15);
+    brim.rotation.x = -0.1;
+    group.add(brim);
 
     // Legs
-    const legGeometry = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);
-
-    this.leftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
+    const legGeometry = new THREE.CapsuleGeometry(0.11, 0.45, 4, 7);
+    this.leftLeg = new THREE.Mesh(legGeometry, pantsMat);
     this.leftLeg.position.set(-0.15, 0.5, 0);
     this.leftLeg.castShadow = true;
     group.add(this.leftLeg);
 
-    this.rightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
+    this.rightLeg = new THREE.Mesh(legGeometry, pantsMat);
     this.rightLeg.position.set(0.15, 0.5, 0);
     this.rightLeg.castShadow = true;
     group.add(this.rightLeg);
 
-    // Arms
-    const armGeometry = new THREE.CapsuleGeometry(0.08, 0.4, 4, 8);
+    // Boots
+    const bootGeo = new THREE.BoxGeometry(0.12, 0.12, 0.18);
+    const leftBoot = new THREE.Mesh(bootGeo, bootsMat);
+    leftBoot.position.set(-0.15, 0.2, 0.03);
+    group.add(leftBoot);
+    const rightBoot = new THREE.Mesh(bootGeo, bootsMat);
+    rightBoot.position.set(0.15, 0.2, 0.03);
+    group.add(rightBoot);
 
-    this.leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
-    this.leftArm.position.set(-0.45, 1.4, 0);
+    // Arms (jacket sleeves)
+    const armGeometry = new THREE.CapsuleGeometry(0.08, 0.38, 4, 7);
+    this.leftArm = new THREE.Mesh(armGeometry, jacketMat);
+    this.leftArm.position.set(-0.42, 1.4, 0);
     this.leftArm.rotation.z = 0.3;
     this.leftArm.castShadow = true;
     group.add(this.leftArm);
 
-    this.rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
-    this.rightArm.position.set(0.45, 1.4, 0.2);
+    this.rightArm = new THREE.Mesh(armGeometry, jacketMat);
+    this.rightArm.position.set(0.42, 1.4, 0.2);
     this.rightArm.rotation.z = -0.3;
     this.rightArm.rotation.x = -0.8;
     this.rightArm.castShadow = true;
     group.add(this.rightArm);
 
-    // Gun
+    // Gun (rugged, not sci-fi)
     this.gun = new THREE.Group();
-
     const gunBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.08, 0.5),
-      armorMaterial,
+      new THREE.BoxGeometry(0.07, 0.07, 0.45),
+      metalMat,
     );
     this.gun.add(gunBody);
 
+    // Wooden stock
+    const stock = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 0.08, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0x553322, roughness: 0.8 }),
+    );
+    stock.position.z = -0.3;
+    this.gun.add(stock);
+
     const gunBarrel = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8),
-      armorMaterial,
+      new THREE.CylinderGeometry(0.025, 0.025, 0.25, 6),
+      metalMat,
     );
     gunBarrel.rotation.x = Math.PI / 2;
     gunBarrel.position.z = 0.35;
     this.gun.add(gunBarrel);
 
-    // Gun glow
     this.gunGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.04, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+      new THREE.SphereGeometry(0.03, 6, 6),
+      new THREE.MeshBasicMaterial({ color: 0xddaa44 }),
     );
-    this.gunGlow.position.z = 0.5;
+    this.gunGlow.position.z = 0.48;
     this.gun.add(this.gunGlow);
 
-    this.gun.position.set(0.5, 1.2, 0.5);
+    this.gun.position.set(0.48, 1.2, 0.5);
     this.gun.rotation.x = -0.2;
     group.add(this.gun);
 

@@ -35,7 +35,6 @@ export class Game {
 
     // Game state
     this.score = 0;
-    this.wave = 1;
     this.kills = 0;
     this.gold = 0;
     this.gameTime = 0; // Survival time in seconds
@@ -97,8 +96,8 @@ export class Game {
   async init() {
     // Create scene - NYC night atmosphere
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x111a2a);
-    this.scene.fog = new THREE.Fog(0x111a2a, 50, 100);
+    this.scene.background = new THREE.Color(0x0a0808);
+    this.scene.fog = new THREE.Fog(0x0a0808, 45, 90);
 
     // Create camera - top-down orthographic for VS-style view
     const viewSize = 20; // How much of the world to show
@@ -204,7 +203,6 @@ export class Game {
 
     // Reset game state
     this.score = 0;
-    this.wave = 1;
     this.kills = 0;
     this.gold = 0;
     this.gameTime = 0;
@@ -259,7 +257,7 @@ export class Game {
     this.isPaused = false;
     this.touchControls.hide();
 
-    document.getElementById("final-wave").textContent = this.wave;
+    document.getElementById("final-time").textContent = this.ui.formatTime(this.gameTime);
     document.getElementById("final-score").textContent = this.score;
     document.getElementById("final-kills").textContent = this.kills;
     document.getElementById("final-gold").textContent = (
@@ -352,11 +350,11 @@ export class Game {
         Math.floor(this.gameTime) % 60 === 0 &&
         Math.floor(this.gameTime) !== 0
       ) {
-        this.wave = Math.floor(this.gameTime / 60) + 1;
-        this.ui.announceWave(this.wave);
+        const minute = Math.floor(this.gameTime / 60);
+        this.ui.announceMinute(minute);
 
         const waveBurst = Math.min(
-          4 + Math.floor(this.wave * 2),
+          4 + Math.floor((minute + 1) * 2),
           maxZombies - currentCount,
         );
         for (let i = 0; i < waveBurst; i++) {
@@ -498,6 +496,7 @@ export class Game {
       // Update game time
       this.gameTime += delta;
       this.ui.updateTimer();
+      this.ui.updateBossStatus();
 
       // Auto-aim at nearest enemy (Vampire Survivors style)
       if (this.autoAim) {

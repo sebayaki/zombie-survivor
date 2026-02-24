@@ -5,8 +5,8 @@ import { findSpawnPosition } from "./utils.js";
 const PICKUP_TYPES = {
   HEALTH: {
     name: "Health Pack",
-    color: 0x00ff00,
-    emissive: 0x004400,
+    color: 0x66aa44,
+    emissive: 0x223311,
     effect: (game) => {
       game.player.heal(30);
     },
@@ -42,9 +42,9 @@ const PICKUP_TYPES = {
     },
   },
   RAILGUN_AMMO: {
-    name: "Railgun Cells",
-    color: 0x00ffff,
-    emissive: 0x004444,
+    name: "Crossbow Bolts",
+    color: 0xccaa55,
+    emissive: 0x443311,
     weaponIndex: 4,
     ammo: 8,
     effect: (game) => {
@@ -52,9 +52,9 @@ const PICKUP_TYPES = {
     },
   },
   BFG_AMMO: {
-    name: "BFG Cells",
-    color: 0x00ff00,
-    emissive: 0x004400,
+    name: "Cannon Shells",
+    color: 0xcc4400,
+    emissive: 0x441100,
     weaponIndex: 5,
     ammo: 2,
     effect: (game) => {
@@ -159,7 +159,7 @@ export class PickupManager {
     if (type === "HEALTH") {
       const crossMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
-        emissive: 0x00ff00,
+        emissive: 0x336622,
       });
 
       const crossH = new THREE.Mesh(
