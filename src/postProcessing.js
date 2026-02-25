@@ -150,6 +150,12 @@ export class PostProcessingManager {
     this._activeEffectCount = count;
   }
 
+  setQuality(level) {
+    if (this.bloomPass) {
+      this.bloomPass.enabled = level >= 2;
+    }
+  }
+
   pulseBloom(duration = 0.3, maxStrength = 2.0) {
     if (!this.bloomPass) return;
     this._bloomPulseBaseStrength = this.bloomPass.strength;

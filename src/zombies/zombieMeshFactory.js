@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 export const ENEMY_TYPES = {
   normal: {
@@ -1307,6 +1308,50 @@ function buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Geometry merging — collapse static child meshes by material
+// ═══════════════════════════════════════════════════════════════
+
+function _mergeStaticParts(group) {
+  const animated = new Set();
+  for (const key of ['body', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg', 'aura', 'healthBar']) {
+    if (group.userData[key]) animated.add(group.userData[key]);
+  }
+
+  const byMat = new Map();
+  const removable = [];
+
+  for (let i = 0; i < group.children.length; i++) {
+    const child = group.children[i];
+    if (!child.isMesh || animated.has(child)) continue;
+    child.updateMatrix();
+    const mat = child.material;
+    if (!byMat.has(mat)) byMat.set(mat, []);
+    byMat.get(mat).push(child);
+    removable.push(child);
+  }
+
+  for (const [mat, meshes] of byMat) {
+    if (meshes.length < 2) {
+      const idx = removable.indexOf(meshes[0]);
+      if (idx >= 0) removable.splice(idx, 1);
+      continue;
+    }
+
+    const geos = meshes.map(m => {
+      const g = m.geometry.clone();
+      g.applyMatrix4(m.matrix);
+      return g;
+    });
+
+    const merged = mergeGeometries(geos, false);
+    if (merged) group.add(new THREE.Mesh(merged, mat));
+    for (const g of geos) g.dispose();
+  }
+
+  for (const child of removable) group.remove(child);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Template cache — build each zombie type once, then clone
 // ═══════════════════════════════════════════════════════════════
 
@@ -1396,9 +1441,8 @@ function _buildTemplate(type, typeDef) {
     mesh.userData.body = mesh.children[0];
   }
 
-  if (mesh.userData.body) {
-    mesh.userData.body.castShadow = true;
-  }
+  // Merge non-animated children by material to slash draw calls (~40 meshes → ~8)
+  _mergeStaticParts(mesh);
 
   // Record traversal indices for animated parts so clones can restore refs
   const partKeys = ['body', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg', 'aura', 'healthBar'];

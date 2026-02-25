@@ -121,20 +121,21 @@ export class Game {
         navigator.userAgent,
       );
 
-    // Cap pixel ratio for performance (mobile: 1.5, desktop: 2.0)
-    // iPhone Pro has devicePixelRatio of 3.0 which is way too expensive
-    const maxPixelRatio = isMobile ? 1.5 : 2.0;
-    const pixelRatio = Math.min(window.devicePixelRatio, maxPixelRatio);
-
-    this.renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
-    this.renderer.setPixelRatio(pixelRatio);
+    // Start at 1.0 pixel ratio — adaptive quality will raise it if FPS is good
+    this.renderer = new THREE.WebGLRenderer({ antialias: false });
+    this.renderer.setPixelRatio(1.0);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.isMobile = isMobile;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = isMobile
-      ? THREE.PCFShadowMap
-      : THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = !isMobile;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+
+    // Adaptive quality state
+    this._qualityLevel = 2;          // 0=low, 1=medium, 2=high
+    this._fpsFrames = 0;
+    this._fpsAccum = 0;
+    this._fpsCheckInterval = 3;      // seconds between FPS checks
+    this._qualityCooldown = 0;       // cooldown between quality changes
 
     const container = document.getElementById("game-container");
     container.appendChild(this.renderer.domElement);
@@ -483,8 +484,47 @@ export class Game {
     this.start();
   }
 
+  _updateAdaptiveQuality(delta) {
+    this._fpsFrames++;
+    this._fpsAccum += delta;
+    if (this._qualityCooldown > 0) this._qualityCooldown -= delta;
+
+    if (this._fpsAccum >= this._fpsCheckInterval) {
+      const fps = this._fpsFrames / this._fpsAccum;
+      this._fpsFrames = 0;
+      this._fpsAccum = 0;
+
+      if (this._qualityCooldown > 0) return;
+
+      if (fps < 24 && this._qualityLevel > 0) {
+        this._qualityLevel--;
+        this._applyQuality();
+        this._qualityCooldown = 8;
+      } else if (fps > 50 && this._qualityLevel < 2) {
+        this._qualityLevel++;
+        this._applyQuality();
+        this._qualityCooldown = 10;
+      }
+    }
+  }
+
+  _applyQuality() {
+    const q = this._qualityLevel;
+    const pr = q === 0 ? 0.6 : q === 1 ? 0.85 : 1.0;
+    this.renderer.setPixelRatio(pr);
+
+    this.renderer.shadowMap.enabled = q >= 2 && !this.isMobile;
+
+    if (this.postProcessing) {
+      this.postProcessing.setQuality(q);
+    }
+  }
+
   gameLoop() {
     let delta = this.clock.getDelta();
+
+    // Adaptive quality — monitor FPS and adjust renderer settings
+    this._updateAdaptiveQuality(delta);
 
     // Apply time scale from post-processing (for slow-mo effects)
     if (this.postProcessing) {
