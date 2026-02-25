@@ -1,25 +1,4 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-
-// Global cache for the loaded GLTF model
-let sharedZombieModel = null;
-const loader = new GLTFLoader();
-loader.load(
-  "/assets/Soldier.glb",
-  (gltf) => {
-    sharedZombieModel = gltf.scene;
-    sharedZombieModel.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-  },
-  undefined,
-  (error) => {
-    console.error("Error loading zombie model:", error);
-  }
-);
 
 export const ENEMY_TYPES = {
   normal: {
@@ -139,132 +118,6 @@ export const STAGE_BOSS_VARIANTS = [
 ];
 
 // ─── Shared materials ───────────────────────────────────────────
-
-const ZOMBIE_NOISE_CHUNK = `
-// Simplex 3D Noise 
-vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
-vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
-float snoise(vec3 v){ 
-  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
-  vec3 i  = floor(v + dot(v, C.yyy) );
-  vec3 x0 = v - i + dot(i, C.xxx) ;
-  vec3 g = step(x0.yzx, x0.xyz);
-  vec3 l = 1.0 - g;
-  vec3 i1 = min( g.xyz, l.zxy );
-  vec3 i2 = max( g.xyz, l.zxy );
-  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
-  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
-  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
-  i = mod(i, 289.0 ); 
-  vec4 p = permute( permute( permute( 
-             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
-           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-  float n_ = 1.0/7.0;
-  vec3  ns = n_ * D.wyz - D.xzx;
-  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
-  vec4 x_ = floor(j * ns.z);
-  vec4 y_ = floor(j - 7.0 * x_ );
-  vec4 x = x_ *ns.x + ns.yyyy;
-  vec4 y = y_ *ns.x + ns.yyyy;
-  vec4 h = 1.0 - abs(x) - abs(y);
-  vec4 b0 = vec4( x.xy, y.xy );
-  vec4 b1 = vec4( x.zw, y.zw );
-  vec4 s0 = floor(b0)*2.0 + 1.0;
-  vec4 s1 = floor(b1)*2.0 + 1.0;
-  vec4 sh = -step(h, vec4(0.0));
-  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-  vec3 p0 = vec3(a0.xy,h.x);
-  vec3 p1 = vec3(a0.zw,h.y);
-  vec3 p2 = vec3(a1.xy,h.z);
-  vec3 p3 = vec3(a1.zw,h.w);
-  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-  p0 *= norm.x;
-  p1 *= norm.y;
-  p2 *= norm.z;
-  p3 *= norm.w;
-  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-  m = m * m;
-  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
-                                dot(p2,x2), dot(p3,x3) ) );
-}
-`;
-
-function injectOrganicShader(mat, type = 'generic') {
-  mat.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <common>',
-      `#include <common>
-      varying vec3 vLocalPos;
-      ${ZOMBIE_NOISE_CHUNK}
-      `
-    );
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <begin_vertex>',
-      `#include <begin_vertex>
-      vLocalPos = position;
-      float n = snoise(position * 20.0);
-      transformed += normal * n * 0.02;
-      `
-    );
-    
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <common>',
-      `#include <common>
-      varying vec3 vLocalPos;
-      ${ZOMBIE_NOISE_CHUNK}
-      `
-    );
-    
-    let colorMixChunk = `
-      float n1 = snoise(vLocalPos * 15.0);
-      float dirt = smoothstep(0.0, 1.0, snoise(vLocalPos * 25.0 + vec3(10.0)));
-      vec3 dirtColor = vec3(0.1, 0.08, 0.05);
-      vec3 finalColor = mix(diffuseColor.rgb, diffuseColor.rgb * 0.6, smoothstep(0.0, 0.8, n1));
-      finalColor = mix(finalColor, dirtColor, dirt * 0.4);
-      diffuseColor.rgb = finalColor;
-    `;
-    
-    if (type === 'skin') {
-      colorMixChunk = `
-      float n1 = snoise(vLocalPos * 12.0);
-      float blood = smoothstep(0.4, 0.8, snoise(vLocalPos * 18.0 - vec3(15.0)));
-      float decay = smoothstep(0.2, 0.9, snoise(vLocalPos * 10.0 + vec3(5.0)));
-      
-      vec3 baseColor = diffuseColor.rgb;
-      vec3 decayColor = baseColor * 0.3 * vec3(0.6, 1.2, 0.6);
-      vec3 bloodColor = vec3(0.25, 0.02, 0.02);
-      
-      vec3 finalColor = mix(baseColor, decayColor, decay * 0.8);
-      finalColor = mix(finalColor, baseColor * 0.5, smoothstep(0.0, 0.8, n1));
-      finalColor = mix(finalColor, bloodColor, blood * 0.85);
-      
-      diffuseColor.rgb = finalColor;
-      `;
-    } else if (type === 'body') {
-      colorMixChunk = `
-      float dirt = smoothstep(0.1, 0.9, snoise(vLocalPos * 20.0));
-      float blood = smoothstep(0.5, 0.9, snoise(vLocalPos * 15.0 + vec3(20.0)));
-      vec3 dirtColor = vec3(0.12, 0.1, 0.08);
-      vec3 bloodColor = vec3(0.2, 0.0, 0.0);
-      
-      vec3 finalColor = mix(diffuseColor.rgb, dirtColor, dirt * 0.7);
-      finalColor = mix(finalColor, bloodColor, blood * 0.6);
-      diffuseColor.rgb = finalColor;
-      `;
-    }
-    
-    shader.fragmentShader = shader.fragmentShader.replace(
-      'vec4 diffuseColor = vec4( diffuse, opacity );',
-      `vec4 diffuseColor = vec4( diffuse, opacity );
-      ${colorMixChunk}
-      `
-    );
-  };
-}
-
 const BONE_MAT = new THREE.MeshStandardMaterial({ color: 0xd4c8a0, roughness: 0.7, metalness: 0.05 });
 const WOUND_MAT = new THREE.MeshStandardMaterial({ color: 0x661111, roughness: 1.0, emissive: 0x220000, emissiveIntensity: 0.3 });
 const BLOOD_MAT = new THREE.MeshStandardMaterial({ color: 0x440000, roughness: 1.0 });
@@ -274,32 +127,17 @@ const MUSCLE_MAT = new THREE.MeshStandardMaterial({ color: 0x8b2222, roughness: 
 const TENDON_MAT = new THREE.MeshStandardMaterial({ color: 0x996644, roughness: 0.8 });
 const CAVITY_MAT = new THREE.MeshStandardMaterial({ color: 0x080804, roughness: 1.0 });
 const DECAY_MAT = new THREE.MeshStandardMaterial({ color: 0x2a3020, roughness: 1.0 });
-[BONE_MAT, WOUND_MAT, BLOOD_MAT, TEETH_MAT, CLOTH_MAT, MUSCLE_MAT, TENDON_MAT, DECAY_MAT].forEach(m => injectOrganicShader(m, 'generic'));
-
 
 // ─── Geometry utilities ─────────────────────────────────────────
-
-function createOrganicLimb(radius, length, segments=10) {
-  const capLen = Math.max(0.01, length - radius * 2);
-  return new THREE.CapsuleGeometry(radius, capLen, 8, segments);
-}
-
-function createEllipsoid(w, h, d, segments=12) {
-  const geo = new THREE.SphereGeometry(0.5, segments, segments);
-  geo.scale(w, h, d);
-  return geo;
-}
-
 
 function deformVerts(geo, intensity = 0.07, seed = Math.random() * 1000) {
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
     const n = Math.sin(x * 17.3 + seed) * Math.cos(y * 13.1 + seed * 1.3) * Math.sin(z * 19.7 + seed * 0.7);
-    const n2 = Math.sin(x * 30.1) * Math.sin(y * 25.3) * Math.cos(z * 22.1);
-    pos.setX(i, x * (1 + n * intensity + n2 * intensity * 0.5));
-    pos.setY(i, y * (1 + n * intensity * 0.6 + n2 * intensity * 0.5));
-    pos.setZ(i, z * (1 + n * intensity + n2 * intensity * 0.5));
+    pos.setX(i, x * (1 + n * intensity));
+    pos.setY(i, y * (1 + n * intensity * 0.6));
+    pos.setZ(i, z * (1 + n * intensity));
   }
   pos.needsUpdate = true;
   geo.computeVertexNormals();
@@ -342,7 +180,7 @@ function addTeeth(group, s, y, z, count, spread) {
 
 function addExposedBone(group, s, x, y, z, rotX, rotZ) {
   addPart(group,
-    deformVerts(createOrganicLimb((0.03 * s + 0.02 * s) / 2, 0.2 * s, 5), 0.08),
+    deformVerts(new THREE.CylinderGeometry(0.03 * s, 0.02 * s, 0.2 * s, 5), 0.08),
     BONE_MAT,
     { x: x * s, y: y * s, z: z * s },
     { x: rotX || 0, z: rotZ || 0 },
@@ -350,7 +188,7 @@ function addExposedBone(group, s, x, y, z, rotX, rotZ) {
 }
 
 function addClothStrip(group, mat, s, x, y, z, rotX) {
-  const geo = createEllipsoid(0.09 * s, 0.22 * s, 0.015 * s);
+  const geo = new THREE.BoxGeometry(0.09 * s, 0.22 * s, 0.015 * s);
   deformVerts(geo, 0.2);
   addPart(group, geo, mat, { x: x * s, y: y * s, z: z * s }, { x: rotX || 0.3 });
 }
@@ -373,7 +211,7 @@ function addDecayPatch(group, s, x, y, z) {
 }
 
 function addFingers(armMesh, mat, s, tipY, count, spread) {
-  const palmGeo = deformVerts(createEllipsoid(0.07 * s, 0.045 * s, 0.035 * s), 0.15);
+  const palmGeo = deformVerts(new THREE.BoxGeometry(0.07 * s, 0.045 * s, 0.035 * s), 0.15);
   const palm = new THREE.Mesh(palmGeo, mat);
   palm.position.y = tipY * s;
   armMesh.add(palm);
@@ -392,35 +230,19 @@ function addFingers(armMesh, mat, s, tipY, count, spread) {
 }
 
 function addFoot(legMesh, mat, s, tipY) {
-  const footGeo = deformVerts(createEllipsoid(0.08 * s, 0.035 * s, 0.13 * s), 0.12);
+  const footGeo = deformVerts(new THREE.BoxGeometry(0.08 * s, 0.035 * s, 0.13 * s), 0.12);
   const foot = new THREE.Mesh(footGeo, mat);
   foot.position.set(0, tipY * s, 0.025 * s);
   legMesh.add(foot);
 }
 
 function addNeck(mesh, skinMat, s, y, z) {
-  const neckGeo = deformVerts(createOrganicLimb((0.12 * s + 0.16 * s) / 2, 0.18 * s, 9), 0.15);
+  const neckGeo = deformVerts(new THREE.CylinderGeometry(0.1 * s, 0.13 * s, 0.14 * s, 8), 0.09);
   addPart(mesh, neckGeo, skinMat, { y: y * s, z: (z || 0) * s });
-  
-  // Throttle tendons exposed
   addPart(mesh,
-    deformVerts(createOrganicLimb((0.02 * s + 0.015 * s) / 2, 0.15 * s, 4), 0.1),
+    new THREE.CylinderGeometry(0.018 * s, 0.013 * s, 0.12 * s, 4),
     TENDON_MAT,
-    { x: -0.09 * s, y: y * s, z: (z || 0) * s + 0.08 * s },
-    { z: -0.1, x: 0.1 }
-  );
-  addPart(mesh,
-    deformVerts(createOrganicLimb((0.015 * s + 0.02 * s) / 2, 0.14 * s, 4), 0.1),
-    TENDON_MAT,
-    { x: 0.08 * s, y: (y - 0.02) * s, z: (z || 0) * s + 0.07 * s },
-    { z: 0.15, x: 0.05 }
-  );
-  
-  // Trachea visible
-  addPart(mesh,
-    deformVerts(createOrganicLimb((0.035 * s + 0.035 * s) / 2, 0.16 * s, 6), 0.1),
-    BONE_MAT,
-    { x: 0, y: y * s, z: (z || 0) * s + 0.12 * s },
+    { x: -0.08 * s, y: y * s, z: (z || 0) * s + 0.05 * s },
   );
 }
 
@@ -436,90 +258,73 @@ function buildSkullHead(mesh, skinMat, s, opts = {}) {
 
   const hs = s * headScale;
 
-  // Cranium — deformed, slightly lopsided, heavily decayed
-  const crGeo = deformVerts(new THREE.SphereGeometry(0.26 * hs, 16, 12), 0.12);
-  crGeo.scale(1.0, 1.15, 1.05);
+  // Cranium — deformed, slightly lopsided
+  const crGeo = deformVerts(new THREE.SphereGeometry(0.26 * hs, 12, 10), 0.07);
+  crGeo.scale(1.0, 1.08, 1.02);
   addPart(mesh, crGeo, skinMat, { y: hY * s, z: hZ * s }, { x: tiltX, z: tiltZ });
 
-  // Exposed skull bone on top/side (larger, jagged)
-  const skullGeo = deformVerts(new THREE.SphereGeometry(0.18 * hs, 9, 9), 0.08);
+  // Exposed skull bone on top/side
+  const skullGeo = deformVerts(new THREE.SphereGeometry(0.15 * hs, 7, 7), 0.05);
   addPart(mesh, skullGeo, BONE_MAT,
-    { x: 0.08 * hs, y: (hY + 0.16) * s, z: (hZ - 0.02) * s },
+    { x: 0.08 * hs, y: (hY + 0.14) * s, z: (hZ - 0.02) * s },
   );
 
   // Brow ridge — heavy, menacing
-  const browGeo = deformVerts(createEllipsoid(0.4 * hs, 0.07 * hs, 0.12 * hs), 0.15);
+  const browGeo = deformVerts(new THREE.BoxGeometry(0.36 * hs, 0.055 * hs, 0.09 * hs), 0.1);
   addPart(mesh, browGeo, BONE_MAT,
-    { y: (hY + 0.08) * s, z: (hZ + 0.22) * s },
+    { y: (hY + 0.06) * s, z: (hZ + 0.2) * s },
   );
 
-  // Cheekbones protruding through skin (sharper)
+  // Cheekbones protruding through skin
   for (const side of [-1, 1]) {
     addPart(mesh,
-      deformVerts(new THREE.ConeGeometry(0.06 * hs, 0.1 * hs, 5), 0.1),
+      deformVerts(new THREE.SphereGeometry(0.045 * hs, 5, 5), 0.08),
       BONE_MAT,
-      { x: side * 0.16 * hs, y: (hY - 0.05) * s, z: (hZ + 0.18) * s },
-      { x: Math.PI / 2, z: side * Math.PI / 4 }
+      { x: side * 0.14 * hs, y: (hY - 0.06) * s, z: (hZ + 0.18) * s },
     );
   }
 
-  // Nose cavity — dark hole where the nose rotted away, more jagged
+  // Nose cavity — dark hole where the nose rotted away
   if (!opts.noNose) {
     addPart(mesh,
-      deformVerts(new THREE.SphereGeometry(0.045 * hs, 6, 6), 0.15),
+      new THREE.SphereGeometry(0.035 * hs, 5, 5),
       CAVITY_MAT,
-      { y: (hY - 0.03) * s, z: (hZ + 0.26) * s },
-    );
-    // Bloody rim around nose
-    addPart(mesh,
-      deformVerts(new THREE.TorusGeometry(0.05 * hs, 0.015 * hs, 5, 8), 0.2),
-      WOUND_MAT,
-      { y: (hY - 0.03) * s, z: (hZ + 0.25) * s },
-      { x: 0.2 }
+      { y: (hY - 0.02) * s, z: (hZ + 0.25) * s },
     );
   }
 
-  // Lower jaw — hanging open, mangled
-  const jawGeo = deformVerts(createEllipsoid(0.24 * hs, 0.08 * hs, 0.16 * hs), 0.15);
+  // Lower jaw — hanging open
+  const jawGeo = deformVerts(new THREE.BoxGeometry(0.2 * hs, 0.07 * hs, 0.13 * hs), 0.1);
   addPart(mesh, jawGeo, skinMat,
-    { y: (hY - 0.22) * s, z: (hZ + 0.15) * s },
+    { y: (hY - 0.2) * s, z: (hZ + 0.13) * s },
     { x: jawOpen },
   );
 
   // Upper teeth
-  addTeeth(mesh, hs, hY - 0.1, hZ + 0.25, opts.teethUpper ?? 5, 0.05);
+  addTeeth(mesh, hs, hY - 0.1 + (hY - hY), hZ + 0.23, opts.teethUpper ?? 4, 0.045);
 
   // Lower teeth (fewer, some missing)
-  const lowerCount = opts.teethLower ?? 4;
+  const lowerCount = opts.teethLower ?? 3;
   for (let i = 0; i < lowerCount; i++) {
     const xOff = (i - (lowerCount - 1) / 2) * 0.05 * hs;
-    if (Math.random() > 0.3) {
-      addPart(mesh,
-        new THREE.ConeGeometry(0.015 * hs, 0.06 * hs, 4),
-        TEETH_MAT,
-        { x: xOff, y: (hY - 0.18) * s, z: (hZ + 0.18) * s },
-        { x: 0.1, z: (Math.random() - 0.5) * 0.2 }
-      );
-    }
+    addPart(mesh,
+      new THREE.ConeGeometry(0.013 * hs, 0.05 * hs, 4),
+      TEETH_MAT,
+      { x: xOff, y: (hY - 0.17) * s, z: (hZ + 0.17) * s },
+    );
   }
 
   // One torn ear
   if (!opts.noEars) {
     addPart(mesh,
-      deformVerts(createOrganicLimb((0.04 * hs + 0.02 * hs) / 2, 0.08 * hs, 5), 0.25),
+      deformVerts(new THREE.SphereGeometry(0.035 * hs, 4, 4), 0.2),
       skinMat,
-      { x: -0.28 * hs, y: (hY - 0.02) * s, z: hZ * s },
-      { z: Math.PI / 4, x: -0.2 }
+      { x: -0.26 * hs, y: (hY - 0.02) * s, z: hZ * s },
     );
   }
 
-  // Massive decay patch on cheek exposing muscle
-  addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.09 * hs, 6, 6), 0.15),
-    MUSCLE_MAT,
-    { x: 0.18 * hs, y: (hY - 0.05) * s, z: (hZ + 0.14) * s }
-  );
-  addDecayPatch(mesh, hs, 0.18, hY - 0.05, hZ + 0.14);
+  // Decay patch on cheek
+  addDecayPatch(mesh, hs, 0.16, hY - 0.04, hZ + 0.12);
 }
 
 // ─── Eye construction (proper sunken zombie eyes) ───────────────
@@ -582,129 +387,104 @@ function buildNormalZombie(mesh, bodyMat, skinMat, pantsMat, s) {
   // Neck
   addNeck(mesh, skinMat, s, 1.35, 0);
 
-  // Hunched torso (more emaciated)
-  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.24 * s, 0.55 * s, 10, 12), 0.12);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.88 * s, z: -0.05 * s }, { x: 0.25 });
+  // Hunched torso
+  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.28 * s, 0.55 * s, 8, 10), 0.06);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.88 * s, z: -0.05 * s }, { x: 0.2 });
   mesh.userData.body = body;
 
-  // Collarbone protruding aggressively
+  // Collarbone visible through skin
   addPart(mesh,
-    deformVerts(createOrganicLimb((0.018 * s + 0.018 * s) / 2, 0.45 * s, 6), 0.1),
+    deformVerts(new THREE.CylinderGeometry(0.016 * s, 0.016 * s, 0.38 * s, 5), 0.06),
     BONE_MAT,
-    { y: 1.18 * s, z: 0.1 * s },
-    { z: Math.PI / 2, x: 0.2 },
+    { y: 1.18 * s, z: 0.08 * s },
+    { z: Math.PI / 2 },
   );
 
-  // Exposed ribs (more jagged and irregular)
-  for (let i = 0; i < 4; i++) {
-    addExposedBone(mesh, s, -0.22, 0.72 + i * 0.1, 0.14, 0, 0.8 - i * 0.05);
+  // Exposed ribs
+  for (let i = 0; i < 3; i++) {
+    addExposedBone(mesh, s, -0.25, 0.75 + i * 0.12, 0.12, 0, 0.8);
   }
-  // Exposed muscle and organs under ribs
+  // Exposed muscle under ribs
   addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.12 * s, 8, 8), 0.15),
+    deformVerts(new THREE.SphereGeometry(0.09 * s, 6, 6), 0.1),
     MUSCLE_MAT,
-    { x: -0.18 * s, y: 0.85 * s, z: 0.12 * s },
+    { x: -0.2 * s, y: 0.82 * s, z: 0.1 * s },
   );
 
-  // Gut wound with spilling intestines
-  const intestineGeo = deformVerts(new THREE.TorusKnotGeometry(0.06 * s, 0.025 * s, 20, 6), 0.2);
-  addPart(mesh, intestineGeo, MUSCLE_MAT,
-    { x: 0.12 * s, y: 0.68 * s, z: 0.25 * s },
-    { x: 0.6, y: 0.4 },
-  );
-  addPart(mesh, deformVerts(new THREE.SphereGeometry(0.08 * s, 6, 6), 0.2), WOUND_MAT,
-    { x: 0.08 * s, y: 0.7 * s, z: 0.22 * s }
+  // Gut wound with intestine loop
+  addPart(mesh,
+    deformVerts(new THREE.TorusGeometry(0.055 * s, 0.02 * s, 5, 8), 0.15),
+    MUSCLE_MAT,
+    { x: 0.1 * s, y: 0.72 * s, z: 0.22 * s },
+    { x: 0.5 },
   );
 
-  // Deep wounds on back and shoulders
-  addWound(mesh, s, 0.2, 0.95, -0.25);
-  addWound(mesh, s, -0.15, 1.05, 0.15);
+  // Wounds
+  addWound(mesh, s, 0.18, 0.95, 0.2);
+  addWound(mesh, s, -0.12, 0.78, 0.22);
 
   // Decay patches
   addDecayPatch(mesh, s, 0.12, 1.0, -0.15);
   addDecayPatch(mesh, s, -0.18, 0.85, 0.15);
 
-  // Tattered shirt remnants (more tattered)
-  addClothStrip(mesh, CLOTH_MAT, s, 0.22, 0.72, 0.18, 0.5);
-  addClothStrip(mesh, CLOTH_MAT, s, -0.18, 0.58, -0.12, -0.3);
-  addClothStrip(mesh, CLOTH_MAT, s, 0.05, 0.55, 0.24, 0.7);
-  addClothStrip(mesh, CLOTH_MAT, s, 0.1, 1.1, 0.15, -0.2);
+  // Tattered shirt remnants
+  addClothStrip(mesh, CLOTH_MAT, s, 0.22, 0.68, 0.15, 0.4);
+  addClothStrip(mesh, CLOTH_MAT, s, -0.18, 0.62, -0.1, -0.2);
+  addClothStrip(mesh, CLOTH_MAT, s, 0.0, 0.55, 0.2, 0.6);
 
   // Hanging flesh from torso
-  addFleshStrip(mesh, skinMat, s, -0.16, 0.75, 0.22);
-  addFleshStrip(mesh, skinMat, s, 0.1, 0.6, 0.26);
+  addFleshStrip(mesh, skinMat, s, -0.14, 0.7, 0.18);
+  addFleshStrip(mesh, skinMat, s, 0.08, 0.65, 0.2);
 
-  // Left arm — gaunt, reaching forward with twisted hand
-  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.07 * s, 0.55 * s, 7, 10), 0.1);
+  // Left arm — reaching forward with hand
+  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.09 * s, 0.5 * s, 6, 8), 0.06);
   const leftArm = addPart(mesh, leftArmGeo, skinMat,
     { x: -0.38 * s, y: 1.08 * s, z: 0.2 * s },
-    { x: -Math.PI / 2.2, z: 0.15, y: -0.2 },
+    { x: -Math.PI / 2.2, z: 0.1 },
   );
   mesh.userData.leftArm = leftArm;
-  addFingers(leftArm, skinMat, s, -0.32, 4, 0.025);
-  
-  // Exposed bone on left arm
-  addPart(leftArm, deformVerts(createOrganicLimb((0.015 * s + 0.015 * s) / 2, 0.2 * s, 4), 0.1), BONE_MAT,
-    { x: -0.06 * s, y: 0.1 * s, z: 0 },
-    { z: 0.1 }
-  );
+  addFingers(leftArm, skinMat, s, -0.3, 4, 0.022);
 
-  // Right arm — torn off below elbow with jagged bone stump and flesh strings
-  const rightArmGeo = deformVerts(new THREE.CapsuleGeometry(0.08 * s, 0.35 * s, 7, 8), 0.1);
+  // Right arm — torn off below elbow with bone stump
+  const rightArmGeo = deformVerts(new THREE.CapsuleGeometry(0.09 * s, 0.35 * s, 6, 8), 0.06);
   const rightArm = addPart(mesh, rightArmGeo, skinMat,
     { x: 0.38 * s, y: 1.1 * s, z: 0.15 * s },
-    { x: -Math.PI / 2.0, z: -0.2 },
+    { x: -Math.PI / 2.0, z: -0.15 },
   );
   mesh.userData.rightArm = rightArm;
-  // Jagged bone stump
-  const stumpBone1 = new THREE.Mesh(
-    deformVerts(createOrganicLimb((0.02 * s + 0.01 * s) / 2, 0.15 * s, 5), 0.15),
+  // Bone stump at end
+  const stumpBone = new THREE.Mesh(
+    deformVerts(new THREE.CylinderGeometry(0.025 * s, 0.015 * s, 0.12 * s, 5), 0.08),
     BONE_MAT,
   );
-  stumpBone1.position.set(0.02 * s, -0.25 * s, 0);
-  stumpBone1.rotation.z = -0.1;
-  rightArm.add(stumpBone1);
-  const stumpBone2 = new THREE.Mesh(
-    deformVerts(createOrganicLimb((0.015 * s + 0.005 * s) / 2, 0.1 * s, 4), 0.2),
-    BONE_MAT,
-  );
-  stumpBone2.position.set(-0.02 * s, -0.22 * s, 0.02 * s);
-  stumpBone2.rotation.x = 0.2;
-  rightArm.add(stumpBone2);
-  
+  stumpBone.position.y = -0.24 * s;
+  rightArm.add(stumpBone);
   const stumpWound = new THREE.Mesh(
-    deformVerts(new THREE.SphereGeometry(0.06 * s, 7, 7), 0.2),
+    deformVerts(new THREE.SphereGeometry(0.045 * s, 5, 5), 0.12),
     WOUND_MAT,
   );
-  stumpWound.position.y = -0.18 * s;
+  stumpWound.position.y = -0.2 * s;
   rightArm.add(stumpWound);
-  
-  // Drip from stump
-  addPart(rightArm, new THREE.ConeGeometry(0.01 * s, 0.1 * s, 4), BLOOD_MAT, { y: -0.25 * s, x: -0.02 * s });
 
-  // Legs — uneven, bony, emaciated
-  const leftLegGeo = deformVerts(createOrganicLimb((0.09 * s + 0.06 * s) / 2, 0.58 * s, 8), 0.1);
+  // Legs — uneven, one slightly twisted
+  const leftLegGeo = deformVerts(new THREE.CylinderGeometry(0.11 * s, 0.08 * s, 0.58 * s, 7), 0.05);
   const leftLeg = addPart(mesh, leftLegGeo, pantsMat,
     { x: -0.16 * s, y: 0.3 * s },
-    { z: 0.08, x: 0.05 },
+    { z: 0.05 },
   );
   mesh.userData.leftLeg = leftLeg;
   addFoot(leftLeg, pantsMat, s, -0.3);
-  
-  // Exposed knee bone
-  addPart(leftLeg, deformVerts(new THREE.SphereGeometry(0.04 * s, 5, 5), 0.1), BONE_MAT, { y: -0.05 * s, z: 0.08 * s });
 
-  const rightLegGeo = deformVerts(createOrganicLimb((0.1 * s + 0.07 * s) / 2, 0.54 * s, 8), 0.1);
+  const rightLegGeo = deformVerts(new THREE.CylinderGeometry(0.12 * s, 0.09 * s, 0.54 * s, 7), 0.05);
   const rightLeg = addPart(mesh, rightLegGeo, pantsMat,
     { x: 0.18 * s, y: 0.28 * s },
-    { x: 0.15, z: -0.1 },
+    { x: 0.1, z: -0.08 },
   );
   mesh.userData.rightLeg = rightLeg;
   addFoot(rightLeg, pantsMat, s, -0.28);
 
-  // Torn pant legs
-  addClothStrip(mesh, pantsMat, s, 0.22, 0.15, 0.06, 0.2);
-  addClothStrip(mesh, pantsMat, s, -0.18, 0.18, 0.05, -0.1);
+  // Torn pant leg on one side
+  addClothStrip(mesh, pantsMat, s, 0.22, 0.18, 0.05, 0.1);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -712,133 +492,128 @@ function buildNormalZombie(mesh, bodyMat, skinMat, pantsMat, s) {
 // ═══════════════════════════════════════════════════════════════
 
 function buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s) {
-  // Elongated skull tilted aggressively forward, very bony
+  // Elongated skull tilted aggressively forward
   buildSkullHead(mesh, skinMat, s, {
     headY: 1.42,
     headZ: 0.18,
-    tiltX: 0.55,
+    tiltX: 0.45,
     tiltZ: 0,
-    jawOpen: 0.5,
+    jawOpen: 0.4,
     headScale: 0.85,
-    teethUpper: 6,
-    teethLower: 5,
+    teethUpper: 5,
+    teethLower: 4,
   });
 
-  // Hair remnants — thin strips hanging from scalp, matted with blood
-  for (let i = 0; i < 4; i++) {
+  // Hair remnants — thin strips hanging from scalp
+  for (let i = 0; i < 3; i++) {
     const hairMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1208,
+      color: 0x2a2218,
       roughness: 1.0,
       side: THREE.DoubleSide,
     });
-    const hairGeo = deformVerts(new THREE.PlaneGeometry(0.02 * s, 0.15 * s), 0.3);
+    const hairGeo = deformVerts(new THREE.PlaneGeometry(0.02 * s, 0.1 * s), 0.3);
     addPart(mesh, hairGeo, hairMat,
-      { x: (i - 1.5) * 0.05 * s, y: 1.55 * s, z: -0.12 * s },
-      { x: -0.5 + Math.random() * 0.4, z: (Math.random() - 0.5) * 0.2 },
+      { x: (i - 1) * 0.06 * s, y: 1.52 * s, z: -0.12 * s },
+      { x: -0.5 + Math.random() * 0.3 },
     );
   }
 
-  // Short neck — heavily hunched forward
-  addNeck(mesh, skinMat, s, 1.22, 0.15);
+  // Short neck — hunched
+  addNeck(mesh, skinMat, s, 1.26, 0.1);
 
-  // Lean, hunched torso (almost skeletal)
-  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.18 * s, 0.5 * s, 8, 10), 0.1);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.82 * s, z: -0.1 * s }, { x: 0.45 });
+  // Lean, hunched torso
+  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.2 * s, 0.45 * s, 8, 8), 0.06);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.82 * s, z: -0.1 * s }, { x: 0.4 });
   mesh.userData.body = body;
 
-  // Visible spine bumping aggressively out of back
-  for (let i = 0; i < 6; i++) {
+  // Visible spine bumps along back
+  for (let i = 0; i < 5; i++) {
     addPart(mesh,
-      deformVerts(new THREE.ConeGeometry(0.03 * s, 0.08 * s, 4), 0.1),
+      deformVerts(new THREE.SphereGeometry(0.035 * s, 4, 4), 0.1),
       BONE_MAT,
-      { y: (0.6 + i * 0.1) * s, z: (-0.18 - i * 0.02) * s },
-      { x: -Math.PI / 2 + 0.2, z: (Math.random() - 0.5) * 0.1 }
+      { y: (0.62 + i * 0.12) * s, z: (-0.16 - i * 0.02) * s },
     );
   }
 
-  // Fresh bite wound on shoulder spraying blood
-  addWound(mesh, s, -0.18, 1.05, 0.05);
+  // Fresh bite wound on shoulder
+  addWound(mesh, s, -0.2, 1.05, 0.08);
   addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.06 * s, 5, 5), 0.2),
+    deformVerts(new THREE.SphereGeometry(0.05 * s, 5, 5), 0.12),
     BLOOD_MAT,
-    { x: -0.18 * s, y: 1.0 * s, z: 0.08 * s },
+    { x: -0.2 * s, y: 1.0 * s, z: 0.1 * s },
   );
 
-  // Blood smeared all over front
-  const bloodSpat1 = deformVerts(new THREE.PlaneGeometry(0.15 * s, 0.25 * s), 0.2);
-  const bloodMatPlane = BLOOD_MAT.clone();
-  bloodMatPlane.side = THREE.DoubleSide;
-  bloodMatPlane.transparent = true;
-  bloodMatPlane.opacity = 0.9;
-  addPart(mesh, bloodSpat1, bloodMatPlane,
-    { x: 0, y: 0.85 * s, z: 0.1 * s },
-    { x: 0.45 }
+  // Blood smears (thin strips of blood material)
+  addPart(mesh,
+    deformVerts(new THREE.BoxGeometry(0.04 * s, 0.15 * s, 0.01 * s), 0.15),
+    BLOOD_MAT,
+    { x: 0.15 * s, y: 0.85 * s, z: 0.18 * s },
   );
 
-  // Torn athletic shirt remnant (bloody)
-  addClothStrip(mesh, CLOTH_MAT, s, 0.15, 0.9, 0.1, 0.3);
-  addClothStrip(mesh, CLOTH_MAT, s, -0.12, 0.7, -0.05, -0.2);
+  // Torn athletic shirt remnant
+  addClothStrip(mesh, CLOTH_MAT, s, 0.15, 0.9, 0.12, 0.2);
+  addClothStrip(mesh, CLOTH_MAT, s, -0.12, 0.7, -0.08, -0.3);
 
-  // Long clawed left arm (elongated, mutated)
-  const leftArmGeo = deformVerts(createOrganicLimb((0.045 * s + 0.025 * s) / 2, 0.75 * s, 6), 0.08);
+  // Long clawed left arm
+  const leftArmGeo = deformVerts(new THREE.CylinderGeometry(0.055 * s, 0.035 * s, 0.65 * s, 6), 0.06);
   const leftArm = addPart(mesh, leftArmGeo, skinMat,
-    { x: -0.25 * s, y: 0.88 * s, z: 0.3 * s },
+    { x: -0.28 * s, y: 0.88 * s, z: 0.3 * s },
     { x: -Math.PI / 2.2, z: 0.25 },
   );
   mesh.userData.leftArm = leftArm;
-  // Elongated jagged claws
+  // Elongated claws
   for (let i = 0; i < 4; i++) {
-    const clawGeo = deformVerts(new THREE.ConeGeometry(0.012 * s, 0.15 * s, 4), 0.1);
+    const clawGeo = new THREE.ConeGeometry(0.012 * s, 0.1 * s, 4);
     const claw = new THREE.Mesh(clawGeo, BONE_MAT);
     claw.position.set(
-      (i - 1.5) * 0.025 * s,
-      -0.42 * s,
+      (i - 1.5) * 0.02 * s,
+      -0.38 * s,
       0,
     );
-    claw.rotation.x = -0.3;
+    claw.rotation.x = -0.2;
     leftArm.add(claw);
   }
 
-  // Right clawed arm (elongated, mutated)
-  const rightArmGeo = deformVerts(createOrganicLimb((0.045 * s + 0.025 * s) / 2, 0.7 * s, 6), 0.08);
+  // Right clawed arm
+  const rightArmGeo = deformVerts(new THREE.CylinderGeometry(0.055 * s, 0.035 * s, 0.6 * s, 6), 0.06);
   const rightArm = addPart(mesh, rightArmGeo, skinMat,
-    { x: 0.25 * s, y: 0.85 * s, z: 0.3 * s },
+    { x: 0.28 * s, y: 0.85 * s, z: 0.3 * s },
     { x: -Math.PI / 2.3, z: -0.25 },
   );
   mesh.userData.rightArm = rightArm;
   for (let i = 0; i < 4; i++) {
-    const clawGeo = deformVerts(new THREE.ConeGeometry(0.012 * s, 0.15 * s, 4), 0.1);
+    const clawGeo = new THREE.ConeGeometry(0.012 * s, 0.1 * s, 4);
     const claw = new THREE.Mesh(clawGeo, BONE_MAT);
     claw.position.set(
-      (i - 1.5) * 0.025 * s,
-      -0.4 * s,
+      (i - 1.5) * 0.02 * s,
+      -0.35 * s,
       0,
     );
-    claw.rotation.x = -0.3;
+    claw.rotation.x = -0.2;
     rightArm.add(claw);
   }
 
-  // Heavy blood on forearms
+  // Blood on forearms
   for (const arm of [leftArm, rightArm]) {
-    const bloodGeo = deformVerts(createOrganicLimb((0.035 * s + 0.045 * s) / 2, 0.25 * s, 5), 0.15);
+    const bloodGeo = deformVerts(new THREE.CylinderGeometry(0.04 * s, 0.06 * s, 0.15 * s, 5), 0.12);
     const blood = new THREE.Mesh(bloodGeo, BLOOD_MAT);
-    blood.position.y = -0.2 * s;
+    blood.position.y = -0.15 * s;
     arm.add(blood);
   }
 
-  // Digitigrade-style muscular legs for running
-  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.08 * s, 0.45 * s, 6, 8), 0.08);
+  // Digitigrade-style legs
+  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.07 * s, 0.42 * s, 5, 6), 0.05);
   const leftLeg = addPart(mesh, leftLegGeo, pantsMat,
     { x: -0.14 * s, y: 0.28 * s },
-    { x: 0.3 },
+    { x: 0.25 },
   );
   mesh.userData.leftLeg = leftLeg;
   addFoot(leftLeg, skinMat, s, -0.25);
 
-  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.08 * s, 0.45 * s, 6, 8), 0.08);
+  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.07 * s, 0.42 * s, 5, 6), 0.05);
   const rightLeg = addPart(mesh, rightLegGeo, pantsMat,
     { x: 0.14 * s, y: 0.28 * s },
-    { x: 0.3 },
+    { x: 0.25 },
   );
   mesh.userData.rightLeg = rightLeg;
   addFoot(rightLeg, skinMat, s, -0.25);
@@ -853,163 +628,167 @@ function buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
   buildSkullHead(mesh, skinMat, s, {
     headY: 1.92,
     headZ: 0.2,
-    tiltX: 0.15,
+    tiltX: 0,
     tiltZ: 0,
-    jawOpen: 0.25,
+    jawOpen: 0.2,
     headScale: 0.9,
-    teethUpper: 6,
-    teethLower: 5,
+    teethUpper: 5,
+    teethLower: 4,
     noNose: true,
   });
 
-  // Heavy brow ridge override — larger, more brutish and deformed
+  // Heavy brow ridge override — larger, more brutish
   addPart(mesh,
-    deformVerts(createEllipsoid(0.5 * s, 0.15 * s, 0.2 * s), 0.15),
+    deformVerts(new THREE.BoxGeometry(0.45 * s, 0.1 * s, 0.15 * s), 0.08),
     BONE_MAT,
-    { y: 2.05 * s, z: 0.35 * s },
+    { y: 2.0 * s, z: 0.32 * s },
   );
 
-  // Tusks / fangs from lower jaw protruding wildly
+  // Tusks from lower jaw
   for (const side of [-1, 1]) {
     addPart(mesh,
-      deformVerts(new THREE.ConeGeometry(0.045 * s, 0.25 * s, 5), 0.1),
+      new THREE.ConeGeometry(0.04 * s, 0.18 * s, 5),
       BONE_MAT,
-      { x: side * 0.14 * s, y: 1.8 * s, z: 0.38 * s },
-      { x: -0.4, z: side * 0.3 },
+      { x: side * 0.12 * s, y: 1.82 * s, z: 0.35 * s },
+      { x: -0.3, z: side * 0.2 },
     );
   }
 
-  // Neck — massive slab of meat
+  // Neck — thick, barely visible under muscle
   addPart(mesh,
-    deformVerts(createOrganicLimb((0.35 * s + 0.45 * s) / 2, 0.25 * s, 10), 0.1),
-    MUSCLE_MAT,
-    { y: 1.75 * s, z: 0.15 * s },
+    deformVerts(new THREE.CylinderGeometry(0.25 * s, 0.35 * s, 0.2 * s, 8), 0.08),
+    skinMat,
+    { y: 1.78 * s, z: 0.15 * s },
   );
 
-  // Massive barrel-shaped torso, asymmetric
-  const bodyGeo = deformVerts(new THREE.SphereGeometry(0.75 * s, 16, 16), 0.08);
-  bodyGeo.scale(1.2, 1.05, 0.9);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.25 * s });
+  // Massive barrel-shaped torso
+  const bodyGeo = deformVerts(new THREE.SphereGeometry(0.7 * s, 14, 14), 0.05);
+  bodyGeo.scale(1.15, 1.0, 0.85);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.2 * s });
   mesh.userData.body = body;
 
-  // Exposed muscle masses on torso bursting through skin
+  // Exposed muscle masses on torso
   addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.25 * s, 9, 9), 0.12),
+    deformVerts(new THREE.SphereGeometry(0.2 * s, 8, 8), 0.08),
     MUSCLE_MAT,
-    { x: 0.55 * s, y: 1.45 * s, z: 0.35 * s },
+    { x: 0.5 * s, y: 1.4 * s, z: 0.3 * s },
   );
   addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.22 * s, 8, 8), 0.12),
+    deformVerts(new THREE.SphereGeometry(0.18 * s, 7, 7), 0.08),
     MUSCLE_MAT,
-    { x: -0.45 * s, y: 1.35 * s, z: 0.4 * s },
+    { x: -0.4 * s, y: 1.3 * s, z: 0.35 * s },
   );
 
   // Bone plates (natural armor protruding through skin)
-  for (let i = 0; i < 6; i++) {
-    const angle = (i / 6) * Math.PI - Math.PI / 2;
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI - Math.PI / 2;
     addPart(mesh,
-      deformVerts(createEllipsoid(0.35 * s, 0.08 * s, 0.1 * s), 0.15),
+      deformVerts(new THREE.BoxGeometry(0.3 * s, 0.06 * s, 0.07 * s), 0.08),
       BONE_MAT,
       {
-        x: Math.sin(angle) * 0.65 * s,
-        y: (1.05 + i * 0.1) * s,
-        z: Math.cos(angle) * 0.55 * s,
+        x: Math.sin(angle) * 0.62 * s,
+        y: (1.0 + i * 0.1) * s,
+        z: Math.cos(angle) * 0.52 * s,
       },
-      { y: angle, z: (Math.random() - 0.5) * 0.3 },
+      { y: angle },
     );
   }
 
-  // Massive jagged bone spurs from shoulders
+  // Bone spurs from shoulders
   addPart(mesh,
-    deformVerts(new THREE.ConeGeometry(0.15 * s, 0.6 * s, 6), 0.1),
+    deformVerts(new THREE.ConeGeometry(0.12 * s, 0.5 * s, 5), 0.06),
     BONE_MAT,
-    { x: -0.65 * s, y: 1.75 * s, z: -0.3 * s },
-    { x: -0.8, z: 0.5, y: 0.2 },
+    { x: -0.6 * s, y: 1.7 * s, z: -0.3 * s },
+    { x: -0.8, z: 0.5 },
   );
   addPart(mesh,
-    deformVerts(new THREE.ConeGeometry(0.12 * s, 0.5 * s, 5), 0.1),
+    deformVerts(new THREE.ConeGeometry(0.1 * s, 0.4 * s, 5), 0.06),
     BONE_MAT,
-    { x: 0.55 * s, y: 1.7 * s, z: -0.4 * s },
-    { x: -1.0, z: -0.3, y: -0.1 },
+    { x: 0.5 * s, y: 1.65 * s, z: -0.4 * s },
+    { x: -1.0, z: -0.3 },
+  );
+  addPart(mesh,
+    deformVerts(new THREE.ConeGeometry(0.08 * s, 0.35 * s, 5), 0.06),
+    BONE_MAT,
+    { x: -0.3 * s, y: 1.8 * s, z: -0.5 * s },
+    { x: -1.2 },
   );
 
-  // Massive wounds exposing ribs
-  addWound(mesh, s, 0.4, 1.3, 0.55);
-  addWound(mesh, s, -0.5, 1.1, 0.45);
-  addPart(mesh, deformVerts(new THREE.TorusGeometry(0.1 * s, 0.03 * s, 6, 8), 0.2), BONE_MAT, { x: 0.4, y: 1.3, z: 0.6 });
+  // Massive wounds
+  addWound(mesh, s, 0.4, 1.3, 0.5);
+  addWound(mesh, s, -0.5, 1.1, 0.4);
+  addWound(mesh, s, 0.0, 0.9, 0.6);
 
   // Hanging flesh strips
-  addFleshStrip(mesh, skinMat, s, 0.3, 1.0, 0.55);
-  addFleshStrip(mesh, skinMat, s, -0.45, 0.9, 0.5);
-  addFleshStrip(mesh, skinMat, s, 0.0, 1.1, 0.6);
+  addFleshStrip(mesh, skinMat, s, 0.3, 1.0, 0.5);
+  addFleshStrip(mesh, skinMat, s, -0.4, 0.9, 0.45);
 
   // Decay patches
-  addDecayPatch(mesh, s, -0.3, 1.4, 0.35);
-  addDecayPatch(mesh, s, 0.25, 0.85, 0.45);
+  addDecayPatch(mesh, s, -0.3, 1.4, 0.3);
+  addDecayPatch(mesh, s, 0.2, 0.85, 0.4);
 
   // Massive club-like left arm
-  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.32 * s, 0.95 * s, 10, 10), 0.08);
+  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.28 * s, 0.9 * s, 8, 8), 0.05);
   const leftArm = addPart(mesh, leftArmGeo, skinMat,
-    { x: -1.0 * s, y: 1.15 * s, z: 0.1 * s },
-    { x: -0.15, z: 0.15 },
+    { x: -0.95 * s, y: 1.15 * s, z: 0.1 * s },
+    { x: -0.15, z: 0.1 },
   );
   mesh.userData.leftArm = leftArm;
-  // Bone knuckles bursting out
+  // Bone knuckles
   const knuckle = new THREE.Mesh(
-    deformVerts(new THREE.SphereGeometry(0.18 * s, 7, 7), 0.12),
+    deformVerts(new THREE.SphereGeometry(0.15 * s, 6, 6), 0.08),
     BONE_MAT,
   );
-  knuckle.position.set(0, -0.6 * s, 0.1 * s);
+  knuckle.position.y = -0.55 * s;
   leftArm.add(knuckle);
-  // Stubby thick fingers
+  // Stubby fingers
   for (let i = 0; i < 3; i++) {
     const fg = new THREE.Mesh(
-      deformVerts(createOrganicLimb((0.05 * s + 0.04 * s) / 2, 0.15 * s, 5), 0.15),
+      deformVerts(new THREE.CylinderGeometry(0.04 * s, 0.03 * s, 0.12 * s, 4), 0.1),
       skinMat,
     );
-    fg.position.set((i - 1) * 0.09 * s, -0.7 * s, 0);
+    fg.position.set((i - 1) * 0.07 * s, -0.65 * s, 0);
     leftArm.add(fg);
   }
 
-  // Oversized mutated right arm with exposed bones
-  const rightArmGeo = deformVerts(new THREE.CapsuleGeometry(0.42 * s, 1.15 * s, 10, 10), 0.08);
+  // Oversized mutated right arm
+  const rightArmGeo = deformVerts(new THREE.CapsuleGeometry(0.38 * s, 1.1 * s, 8, 8), 0.05);
   const rightArm = addPart(mesh, rightArmGeo, skinMat,
-    { x: 1.1 * s, y: 1.0 * s, z: 0.2 * s },
+    { x: 1.05 * s, y: 1.0 * s, z: 0.2 * s },
     { x: -0.25, z: -0.1 },
   );
   mesh.userData.rightArm = rightArm;
-  // Exposed jagged bone on forearm
+  // Exposed bone on forearm
   const forearmBone = new THREE.Mesh(
-    deformVerts(createOrganicLimb((0.06 * s + 0.04 * s) / 2, 0.45 * s, 6), 0.1),
+    deformVerts(new THREE.CylinderGeometry(0.05 * s, 0.03 * s, 0.4 * s, 5), 0.06),
     BONE_MAT,
   );
-  forearmBone.position.set(0.06 * s, -0.4 * s, 0.1 * s);
+  forearmBone.position.set(0.05 * s, -0.35 * s, 0.08 * s);
   forearmBone.rotation.z = -0.3;
   rightArm.add(forearmBone);
-  // Massive exposed muscle
+  // Exposed muscle on upper arm
   const armMuscle = new THREE.Mesh(
-    deformVerts(new THREE.SphereGeometry(0.18 * s, 8, 8), 0.1),
+    deformVerts(new THREE.SphereGeometry(0.15 * s, 6, 6), 0.08),
     MUSCLE_MAT,
   );
-  armMuscle.position.set(0.15 * s, 0.1 * s, 0.18 * s);
+  armMuscle.position.set(0.1 * s, 0.1 * s, 0.15 * s);
   rightArm.add(armMuscle);
 
-  // Thick legs (tree trunks)
-  const leftLegGeo = deformVerts(createOrganicLimb((0.32 * s + 0.25 * s) / 2, 0.7 * s, 10), 0.08);
+  // Thick legs
+  const leftLegGeo = deformVerts(new THREE.CylinderGeometry(0.28 * s, 0.2 * s, 0.65 * s, 8), 0.04);
   const leftLeg = addPart(mesh, leftLegGeo, pantsMat,
-    { x: -0.4 * s, y: 0.35 * s },
-    { x: 0.1, z: 0.05 },
+    { x: -0.35 * s, y: 0.33 * s },
   );
   mesh.userData.leftLeg = leftLeg;
-  addFoot(leftLeg, pantsMat, s, -0.38);
+  addFoot(leftLeg, pantsMat, s, -0.34);
 
-  const rightLegGeo = deformVerts(createOrganicLimb((0.35 * s + 0.28 * s) / 2, 0.75 * s, 10), 0.08);
+  const rightLegGeo = deformVerts(new THREE.CylinderGeometry(0.3 * s, 0.22 * s, 0.7 * s, 8), 0.04);
   const rightLeg = addPart(mesh, rightLegGeo, pantsMat,
-    { x: 0.42 * s, y: 0.38 * s },
-    { z: -0.1, x: 0.05 },
+    { x: 0.38 * s, y: 0.35 * s },
+    { z: -0.08 },
   );
   mesh.userData.rightLeg = rightLeg;
-  addFoot(rightLeg, pantsMat, s, -0.4);
+  addFoot(rightLeg, pantsMat, s, -0.36);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1017,99 +796,89 @@ function buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
 // ═══════════════════════════════════════════════════════════════
 
 function buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
-  // Bulbous deformed head, heavily swollen and twisted
+  // Bulbous deformed head, partially swollen
   buildSkullHead(mesh, skinMat, s, {
-    headY: 1.55,
+    headY: 1.52,
     headZ: 0.1,
-    tiltX: 0.3,
-    tiltZ: 0.15,
-    jawOpen: 0.6,
+    tiltX: 0.2,
+    tiltZ: 0.08,
+    jawOpen: 0.35,
     headScale: 0.95,
-    teethUpper: 4,
+    teethUpper: 3,
     teethLower: 2,
-    noNose: true,
   });
 
-  // Swollen cheek/throat — glowing bile-filled sacs stretching the neck
+  // Swollen cheek/throat — bile-filled
   const gulletMat = new THREE.MeshStandardMaterial({
     color: glowColor,
     emissive: glowColor,
-    emissiveIntensity: 0.55,
+    emissiveIntensity: 0.35,
     transparent: true,
-    opacity: 0.85,
-    roughness: 0.6,
+    opacity: 0.8,
+    roughness: 0.8,
   });
-  const gulletGeo = deformVerts(new THREE.SphereGeometry(0.22 * s, 10, 10), 0.1);
-  gulletGeo.scale(1.2, 1.5, 1.1);
-  addPart(mesh, gulletGeo, gulletMat, { y: 1.35 * s, z: 0.2 * s }, { x: 0.2 });
+  const gulletGeo = deformVerts(new THREE.SphereGeometry(0.18 * s, 8, 8), 0.07);
+  gulletGeo.scale(1.2, 1.4, 1.0);
+  addPart(mesh, gulletGeo, gulletMat, { y: 1.32 * s, z: 0.18 * s });
 
-  // Additional asymmetrical bile sacs
+  // Smaller bile sac on one cheek
   addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.12 * s, 8, 8), 0.1),
+    deformVerts(new THREE.SphereGeometry(0.08 * s, 6, 6), 0.08),
     gulletMat,
-    { x: 0.18 * s, y: 1.48 * s, z: 0.18 * s },
-  );
-  addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.1 * s, 8, 8), 0.1),
-    gulletMat,
-    { x: -0.15 * s, y: 1.3 * s, z: 0.25 * s },
+    { x: 0.15 * s, y: 1.47 * s, z: 0.15 * s },
   );
 
-  // Neck — thin, strained, barely holding head
-  addNeck(mesh, skinMat, s, 1.25, 0.05);
+  // Neck — thin, strained
+  addNeck(mesh, skinMat, s, 1.28, 0.05);
 
-  // Extremely gaunt, hunched torso
-  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.2 * s, 0.55 * s, 8, 10), 0.12);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.88 * s }, { x: 0.25 });
+  // Hunched torso
+  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.24 * s, 0.55 * s, 7, 8), 0.06);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.88 * s }, { x: 0.15 });
   mesh.userData.body = body;
 
-  // Massive glowing bile sacs erupting from back
+  // Bile sacs on back
   const sackMat = new THREE.MeshStandardMaterial({
     color: glowColor,
     emissive: glowColor,
-    emissiveIntensity: 0.65,
+    emissiveIntensity: 0.45,
     transparent: true,
     opacity: 0.8,
-    roughness: 0.5,
+    roughness: 0.7,
   });
   const sackPositions = [
-    { x: -0.15, y: 1.25, z: -0.18, r: 0.2 },
-    { x: 0.18, y: 1.35, z: -0.12, r: 0.25 },
-    { x: 0.05, y: 1.15, z: -0.22, r: 0.18 },
-    { x: -0.25, y: 1.05, z: -0.1, r: 0.15 },
-    { x: 0.12, y: 0.95, z: -0.2, r: 0.14 },
-    { x: 0.0, y: 0.85, z: -0.25, r: 0.12 },
+    { x: -0.12, y: 1.2, z: -0.2, r: 0.17 },
+    { x: 0.15, y: 1.3, z: -0.15, r: 0.22 },
+    { x: 0.0, y: 1.1, z: -0.25, r: 0.13 },
+    { x: -0.2, y: 1.0, z: -0.12, r: 0.1 },
+    { x: 0.1, y: 0.95, z: -0.2, r: 0.11 },
   ];
   for (const sp of sackPositions) {
     addPart(mesh,
-      deformVerts(new THREE.SphereGeometry(sp.r * s, 10, 10), 0.12),
+      deformVerts(new THREE.SphereGeometry(sp.r * s, 8, 8), 0.07),
       sackMat,
       { x: sp.x * s, y: sp.y * s, z: sp.z * s },
     );
   }
 
-  // Acid corrosion on own body (deep, glowing slightly)
-  const corrosionMat = WOUND_MAT.clone();
-  corrosionMat.emissive = new THREE.Color(glowColor);
-  corrosionMat.emissiveIntensity = 0.2;
-  for (let i = 0; i < 4; i++) {
+  // Acid corrosion on own body
+  for (let i = 0; i < 3; i++) {
     addPart(mesh,
-      deformVerts(new THREE.SphereGeometry(0.08 * s, 6, 6), 0.15),
-      corrosionMat,
+      deformVerts(new THREE.SphereGeometry(0.06 * s, 5, 5), 0.1),
+      WOUND_MAT,
       {
-        x: (Math.random() - 0.5) * 0.35 * s,
-        y: (0.65 + Math.random() * 0.4) * s,
-        z: (0.1 + Math.random() * 0.15) * s,
+        x: (Math.random() - 0.5) * 0.3 * s,
+        y: (0.7 + Math.random() * 0.3) * s,
+        z: (0.15 + Math.random() * 0.1) * s,
       },
     );
   }
 
-  // Visible spine extremely pronounced
-  for (let i = 0; i < 5; i++) {
+  // Visible spine
+  for (let i = 0; i < 3; i++) {
     addPart(mesh,
-      deformVerts(new THREE.SphereGeometry(0.04 * s, 5, 5), 0.12),
+      deformVerts(new THREE.SphereGeometry(0.03 * s, 4, 4), 0.1),
       BONE_MAT,
-      { y: (0.7 + i * 0.1) * s, z: -0.22 * s },
+      { y: (0.7 + i * 0.12) * s, z: -0.2 * s },
     );
   }
 
@@ -1117,59 +886,55 @@ function buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
   addDecayPatch(mesh, s, 0.15, 0.9, 0.12);
   addDecayPatch(mesh, s, -0.1, 0.75, -0.1);
 
-  // Left arm — extremely long and spindly
-  const leftArmGeo = deformVerts(createOrganicLimb((0.05 * s + 0.03 * s) / 2, 0.75 * s, 6), 0.1);
+  // Left arm — long, for balance
+  const leftArmGeo = deformVerts(new THREE.CylinderGeometry(0.065 * s, 0.04 * s, 0.6 * s, 5), 0.06);
   const leftArm = addPart(mesh, leftArmGeo, skinMat,
     { x: -0.32 * s, y: 0.98 * s, z: 0.12 * s },
-    { x: -Math.PI / 3, z: 0.15 },
+    { x: -Math.PI / 3, z: 0.1 },
   );
   mesh.userData.leftArm = leftArm;
-  addFingers(leftArm, skinMat, s, -0.4, 3, 0.03);
+  addFingers(leftArm, skinMat, s, -0.35, 3, 0.02);
 
-  // Right arm — heavily mutated stump continuously dripping acid
-  const stubGeo = deformVerts(new THREE.CapsuleGeometry(0.08 * s, 0.2 * s, 6, 6), 0.15);
+  // Right arm — mutated stump dripping acid
+  const stubGeo = deformVerts(new THREE.CapsuleGeometry(0.09 * s, 0.18 * s, 5, 5), 0.08);
   const rightArm = addPart(mesh, stubGeo, skinMat,
     { x: 0.32 * s, y: 1.05 * s },
     { x: -0.4 },
   );
   mesh.userData.rightArm = rightArm;
-  
-  // Bulging bile sac on stump
-  const stumpSac = new THREE.Mesh(
-    deformVerts(new THREE.SphereGeometry(0.09 * s, 8, 8), 0.1),
-    sackMat
-  );
-  stumpSac.position.y = -0.1 * s;
-  rightArm.add(stumpSac);
-
-  // Large acid drip
-  const dripGeo = deformVerts(new THREE.ConeGeometry(0.04 * s, 0.15 * s, 6), 0.1);
+  // Acid drip at stump
+  const dripGeo = new THREE.ConeGeometry(0.03 * s, 0.08 * s, 5);
   const drip = new THREE.Mesh(dripGeo, sackMat);
-  drip.position.y = -0.2 * s;
+  drip.position.y = -0.15 * s;
   rightArm.add(drip);
-  
-  // Corroded bone
+  // Stump wound
+  const stumpW = new THREE.Mesh(
+    deformVerts(new THREE.SphereGeometry(0.055 * s, 5, 5), 0.12),
+    WOUND_MAT,
+  );
+  stumpW.position.y = -0.12 * s;
+  rightArm.add(stumpW);
+  // Exposed bone
   const stumpB = new THREE.Mesh(
-    deformVerts(createOrganicLimb((0.03 * s + 0.01 * s) / 2, 0.15 * s, 5), 0.15),
+    deformVerts(new THREE.CylinderGeometry(0.025 * s, 0.015 * s, 0.1 * s, 4), 0.08),
     BONE_MAT,
   );
-  stumpB.position.set(0.03 * s, -0.15 * s, 0);
-  stumpB.rotation.z = -0.4;
+  stumpB.position.set(0.02 * s, -0.1 * s, 0);
+  stumpB.rotation.z = -0.3;
   rightArm.add(stumpB);
 
-  // Very thin, unstable legs
-  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.07 * s, 0.48 * s, 6, 8), 0.08);
+  // Thin legs
+  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.09 * s, 0.46 * s, 5, 6), 0.05);
   const leftLeg = addPart(mesh, leftLegGeo, pantsMat,
-    { x: -0.15 * s, y: 0.28 * s },
-    { z: 0.05, x: 0.1 }
+    { x: -0.14 * s, y: 0.28 * s },
   );
   mesh.userData.leftLeg = leftLeg;
   addFoot(leftLeg, pantsMat, s, -0.28);
 
-  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.07 * s, 0.45 * s, 6, 8), 0.08);
+  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.09 * s, 0.43 * s, 5, 6), 0.05);
   const rightLeg = addPart(mesh, rightLegGeo, pantsMat,
-    { x: 0.15 * s, y: 0.27 * s },
-    { x: 0.15, z: -0.1 },
+    { x: 0.14 * s, y: 0.27 * s },
+    { x: 0.05 },
   );
   mesh.userData.rightLeg = rightLeg;
   addFoot(rightLeg, pantsMat, s, -0.26);
@@ -1184,139 +949,133 @@ function buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
   buildSkullHead(mesh, skinMat, s, {
     headY: 1.58,
     headZ: 0.18,
-    tiltX: 0.1,
+    tiltX: 0,
     tiltZ: 0,
-    jawOpen: 0.25,
+    jawOpen: 0.15,
     headScale: 0.8,
-    teethUpper: 5,
-    teethLower: 3,
+    teethUpper: 3,
+    teethLower: 2,
     noEars: true,
   });
 
-  // Almost no neck — head merging into bloated body, bulging with flesh
+  // Almost no neck — head merging into bloated body
   addPart(mesh,
-    deformVerts(createOrganicLimb((0.22 * s + 0.4 * s) / 2, 0.15 * s, 10), 0.1),
+    deformVerts(new THREE.CylinderGeometry(0.18 * s, 0.3 * s, 0.12 * s, 8), 0.08),
     skinMat,
-    { y: 1.45 * s, z: 0.15 * s },
+    { y: 1.45 * s, z: 0.12 * s },
   );
 
-  // Massively bloated torso (spherical but deformed)
-  const bodyGeo = deformVerts(new THREE.SphereGeometry(0.7 * s, 16, 16), 0.08);
-  bodyGeo.scale(1.15, 1.3, 1.15);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.95 * s });
+  // Massively bloated torso
+  const bodyGeo = deformVerts(new THREE.SphereGeometry(0.65 * s, 14, 14), 0.04);
+  bodyGeo.scale(1.1, 1.25, 1.1);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 0.9 * s });
   mesh.userData.body = body;
 
-  // Stretched skin cracks glowing from immense internal pressure
-  const crackMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.65 });
-  for (let i = 0; i < 15; i++) {
+  // Stretched skin cracks glowing from internal pressure
+  const crackMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.45 });
+  for (let i = 0; i < 10; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi = (Math.random() - 0.5) * Math.PI * 0.6;
-    const r = 0.72 * s;
+    const r = 0.68 * s;
     const cx = r * Math.cos(phi) * Math.cos(theta);
-    const cy = 0.95 * s + r * Math.sin(phi) * 0.9;
+    const cy = 0.9 * s + r * Math.sin(phi) * 0.9;
     const cz = r * Math.cos(phi) * Math.sin(theta);
-    
-    // Deformed jagged cracks
     addPart(mesh,
-      deformVerts(createOrganicLimb((0.015 * s + 0.01 * s) / 2, 0.25 * s, 4), 0.2),
+      new THREE.CylinderGeometry(0.012 * s, 0.012 * s, 0.2 * s, 4),
       crackMat,
       { x: cx, y: cy, z: cz },
       { x: Math.random() * Math.PI, y: Math.random() * Math.PI },
     );
   }
 
-  // Visible intestines and organs bulging violently through cracks
+  // Visible intestines bulging through cracks
   const gutsMat = new THREE.MeshStandardMaterial({
-    color: 0x661111,
+    color: 0x883333,
     emissive: glowColor,
-    emissiveIntensity: 0.35,
-    roughness: 0.7,
+    emissiveIntensity: 0.25,
+    roughness: 0.9,
   });
-  
-  // Gut loops
   addPart(mesh,
-    deformVerts(new THREE.TorusKnotGeometry(0.18 * s, 0.05 * s, 16, 6), 0.15),
+    deformVerts(new THREE.TorusGeometry(0.12 * s, 0.04 * s, 6, 8), 0.1),
     gutsMat,
-    { x: 0.25 * s, y: 0.85 * s, z: 0.6 * s },
+    { x: 0.2 * s, y: 0.8 * s, z: 0.55 * s },
     { x: 0.5, y: 0.3 },
   );
   addPart(mesh,
-    deformVerts(new THREE.TorusGeometry(0.15 * s, 0.045 * s, 8, 10), 0.15),
+    deformVerts(new THREE.TorusGeometry(0.1 * s, 0.035 * s, 6, 8), 0.1),
     gutsMat,
-    { x: -0.2 * s, y: 0.75 * s, z: 0.55 * s },
+    { x: -0.15 * s, y: 0.7 * s, z: 0.5 * s },
     { x: -0.3, y: 0.8 },
   );
-
-  // Large bulging organ on shoulder
   addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.15 * s, 8, 8), 0.1),
+    deformVerts(new THREE.TorusGeometry(0.08 * s, 0.03 * s, 5, 7), 0.12),
     gutsMat,
-    { x: 0.3 * s, y: 1.25 * s, z: 0.45 * s },
+    { x: 0.05 * s, y: 1.1 * s, z: 0.6 * s },
+    { x: 0.7, y: -0.2 },
   );
 
-  // Pulsating internal glow filling the whole body cavity
+  // Pulsating internal glow
   const innerGlowMat = new THREE.MeshBasicMaterial({
     color: glowColor,
     transparent: true,
-    opacity: 0.18,
+    opacity: 0.12,
     depthWrite: false,
   });
   addPart(mesh,
-    new THREE.SphereGeometry(0.55 * s, 12, 12),
+    new THREE.SphereGeometry(0.5 * s, 10, 10),
     innerGlowMat,
-    { y: 0.95 * s },
+    { y: 0.9 * s },
   );
 
-  // Wounds heavily leaking and seeping
-  for (let i = 0; i < 6; i++) {
+  // Wounds leaking
+  for (let i = 0; i < 5; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi = (Math.random() - 0.3) * Math.PI * 0.5;
-    const r = 0.71 * s;
+    const r = 0.67 * s;
     addWound(mesh, s,
       (r * Math.cos(phi) * Math.cos(theta)) / s,
-      0.95 + (r * Math.sin(phi) * 0.8) / s,
+      0.9 + (r * Math.sin(phi) * 0.8) / s,
       (r * Math.cos(phi) * Math.sin(theta)) / s,
     );
   }
 
-  // Hanging flesh from severely stretched skin tears
-  addFleshStrip(mesh, skinMat, s, 0.4, 0.75, 0.5);
-  addFleshStrip(mesh, skinMat, s, -0.35, 0.65, 0.45);
-  addFleshStrip(mesh, skinMat, s, 0.1, 0.5, 0.55);
+  // Hanging flesh from stretched skin tears
+  addFleshStrip(mesh, skinMat, s, 0.3, 0.7, 0.45);
+  addFleshStrip(mesh, skinMat, s, -0.25, 0.6, 0.4);
 
-  // Short, swollen stumpy arms, nearly absorbed by torso
-  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.12 * s, 0.35 * s, 6, 8), 0.1);
+  // Short stumpy arms
+  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.1 * s, 0.38 * s, 5, 6), 0.06);
   const leftArm = addPart(mesh, leftArmGeo, skinMat,
-    { x: -0.75 * s, y: 1.15 * s, z: 0.15 * s },
-    { x: -0.3, z: 0.5 },
+    { x: -0.72 * s, y: 1.08 * s, z: 0.1 * s },
+    { x: -0.3, z: 0.4 },
   );
   mesh.userData.leftArm = leftArm;
-  addFingers(leftArm, skinMat, s, -0.22, 3, 0.025);
+  addFingers(leftArm, skinMat, s, -0.24, 3, 0.02);
 
-  const rightArmGeo = deformVerts(new THREE.CapsuleGeometry(0.12 * s, 0.35 * s, 6, 8), 0.1);
+  const rightArmGeo = deformVerts(new THREE.CapsuleGeometry(0.1 * s, 0.36 * s, 5, 6), 0.06);
   const rightArm = addPart(mesh, rightArmGeo, skinMat,
-    { x: 0.75 * s, y: 1.12 * s, z: 0.15 * s },
-    { x: -0.3, z: -0.5 },
+    { x: 0.72 * s, y: 1.05 * s, z: 0.1 * s },
+    { x: -0.3, z: -0.4 },
   );
   mesh.userData.rightArm = rightArm;
-  addFingers(rightArm, skinMat, s, -0.2, 3, 0.025);
+  addFingers(rightArm, skinMat, s, -0.22, 3, 0.02);
 
-  // Thick, compressed legs barely supporting the massive bulk
-  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.18 * s, 0.3 * s, 8, 8), 0.08);
+  // Stumpy legs barely supporting the mass
+  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.16 * s, 0.32 * s, 6, 6), 0.05);
   const leftLeg = addPart(mesh, leftLegGeo, pantsMat,
-    { x: -0.35 * s, y: 0.25 * s },
-    { z: 0.2 },
+    { x: -0.32 * s, y: 0.22 * s },
+    { z: 0.15 },
   );
   mesh.userData.leftLeg = leftLeg;
-  addFoot(leftLeg, pantsMat, s, -0.22);
+  addFoot(leftLeg, pantsMat, s, -0.2);
 
-  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.19 * s, 0.3 * s, 8, 8), 0.08);
+  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.17 * s, 0.32 * s, 6, 6), 0.05);
   const rightLeg = addPart(mesh, rightLegGeo, pantsMat,
-    { x: 0.35 * s, y: 0.25 * s },
-    { z: -0.2 },
+    { x: 0.32 * s, y: 0.22 * s },
+    { z: -0.15 },
   );
   mesh.userData.rightLeg = rightLeg;
-  addFoot(rightLeg, pantsMat, s, -0.22);
+  addFoot(rightLeg, pantsMat, s, -0.2);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1328,218 +1087,193 @@ function buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
   buildSkullHead(mesh, skinMat, s, {
     headY: 2.7,
     headZ: 0.25,
-    tiltX: 0.15,
+    tiltX: 0.1,
     tiltZ: 0,
-    jawOpen: 0.4,
+    jawOpen: 0.3,
     headScale: 1.3,
-    teethUpper: 7,
-    teethLower: 6,
+    teethUpper: 6,
+    teethLower: 5,
     noNose: true,
   });
 
-  // Shattered skull plate visible on top
-  const skullGeo = deformVerts(new THREE.SphereGeometry(0.35 * s, 12, 12), 0.1);
+  // Skull plate visible on top
+  const skullGeo = deformVerts(new THREE.SphereGeometry(0.35 * s, 10, 10), 0.05);
   skullGeo.scale(1.2, 0.6, 1.1);
   addPart(mesh, skullGeo, BONE_MAT, { y: 2.88 * s, z: 0.15 * s });
 
-  // Lower fangs / tusks erupting from jaw
+  // Lower fangs / tusks
   for (const side of [-1, 1]) {
     addPart(mesh,
-      deformVerts(new THREE.ConeGeometry(0.05 * s, 0.3 * s, 5), 0.1),
+      new THREE.ConeGeometry(0.04 * s, 0.22 * s, 4),
       TEETH_MAT,
-      { x: side * 0.18 * s, y: 2.3 * s, z: 0.55 * s },
-      { x: Math.PI + 0.2, z: side * 0.2 },
+      { x: side * 0.15 * s, y: 2.38 * s, z: 0.5 * s },
+      { x: Math.PI },
     );
   }
 
-  // Horn-like bone growths jutting from back of head/neck
-  const hornMat = new THREE.MeshStandardMaterial({ color: 0x221111, roughness: 0.5, metalness: 0.2 });
+  // Horn-like bone growths
+  const hornMat = new THREE.MeshStandardMaterial({ color: 0x332211, roughness: 0.4, metalness: 0.3 });
   addPart(mesh,
-    deformVerts(new THREE.ConeGeometry(0.12 * s, 0.8 * s, 6), 0.1),
+    deformVerts(new THREE.ConeGeometry(0.1 * s, 0.65 * s, 6), 0.06),
     hornMat,
     { x: -0.35 * s, y: 3.1 * s, z: 0.05 * s },
-    { x: -0.4, z: 0.5 },
+    { x: -0.3, z: 0.5 },
   );
   addPart(mesh,
-    deformVerts(new THREE.ConeGeometry(0.1 * s, 0.6 * s, 6), 0.1),
+    deformVerts(new THREE.ConeGeometry(0.09 * s, 0.5 * s, 6), 0.06),
     hornMat,
     { x: 0.35 * s, y: 3.05 * s, z: 0.05 * s },
-    { x: -0.4, z: -0.5 },
+    { x: -0.3, z: -0.5 },
   );
 
-  // Thick neck — heavily muscled and pulsing
+  // Thick neck — barely visible
   addPart(mesh,
-    deformVerts(createOrganicLimb((0.35 * s + 0.5 * s) / 2, 0.4 * s, 12), 0.12),
-    MUSCLE_MAT,
+    deformVerts(new THREE.CylinderGeometry(0.3 * s, 0.45 * s, 0.3 * s, 10), 0.06),
+    skinMat,
     { y: 2.4 * s, z: 0.15 * s },
   );
 
-  // Massive, deformed torso
-  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.9 * s, 1.4 * s, 16, 16), 0.08);
-  const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.5 * s }, { x: 0.15 });
+  // Massive torso
+  const bodyGeo = deformVerts(new THREE.CapsuleGeometry(0.85 * s, 1.3 * s, 14, 14), 0.04);
+  const body = addPart(mesh, bodyGeo, bodyMat, { y: 1.5 * s }, { x: 0.1 });
   mesh.userData.body = body;
 
-  // Exposed ribcage (gaping chest wound, ribs torn outward)
-  for (let i = 0; i < 6; i++) {
-    const ribAngle = (i - 2.5) * 0.25;
+  // Exposed ribcage (gaping chest wound)
+  for (let i = 0; i < 5; i++) {
+    const ribAngle = (i - 2) * 0.25;
     addPart(mesh,
-      deformVerts(createOrganicLimb((0.045 * s + 0.035 * s) / 2, 0.7 * s, 6), 0.1),
+      deformVerts(new THREE.CylinderGeometry(0.04 * s, 0.03 * s, 0.6 * s, 5), 0.06),
       BONE_MAT,
       {
-        x: Math.sin(ribAngle) * 0.8 * s,
-        y: (1.5 + Math.abs(ribAngle) * 0.25) * s,
-        z: 0.8 * s,
+        x: ribAngle * 0.8 * s,
+        y: (1.6 + Math.abs(ribAngle) * 0.2) * s,
+        z: 0.75 * s,
       },
-      { z: ribAngle * 0.6, x: 0.2 },
+      { z: ribAngle * 0.5 },
     );
   }
 
   // Exposed beating heart visible through ribcage
   const heartMat = new THREE.MeshStandardMaterial({
-    color: 0x880000,
+    color: 0x661111,
     emissive: glowColor,
-    emissiveIntensity: 0.6,
-    roughness: 0.7,
+    emissiveIntensity: 0.5,
+    roughness: 0.9,
   });
   addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.28 * s, 12, 12), 0.12),
+    deformVerts(new THREE.SphereGeometry(0.22 * s, 10, 10), 0.07),
     heartMat,
-    { x: -0.15 * s, y: 1.6 * s, z: 0.65 * s },
-  );
-  
-  // Glowing veins pulsing from heart
-  const veinMat = new THREE.MeshBasicMaterial({ color: glowColor });
-  for(let i=0; i<4; i++) {
-    addPart(mesh, deformVerts(createOrganicLimb((0.02 * s + 0.01 * s) / 2, 0.4 * s, 4), 0.2), veinMat,
-      { x: -0.15 * s + (Math.random() - 0.5) * 0.3 * s, y: 1.6 * s + (Math.random() - 0.5) * 0.4 * s, z: 0.65 * s },
-      { x: Math.random() * Math.PI, z: Math.random() * Math.PI }
-    );
-  }
-
-  // Exposed muscle masses bulging everywhere
-  addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.3 * s, 10, 10), 0.1),
-    MUSCLE_MAT,
-    { x: -0.75 * s, y: 1.8 * s, z: 0.2 * s },
-  );
-  addPart(mesh,
-    deformVerts(new THREE.SphereGeometry(0.25 * s, 9, 9), 0.1),
-    MUSCLE_MAT,
-    { x: 0.65 * s, y: 1.7 * s, z: 0.3 * s },
+    { y: 1.6 * s, z: 0.65 * s },
   );
 
-  // Back spines (massive jagged bone protrusions)
+  // Exposed muscle masses
+  addPart(mesh,
+    deformVerts(new THREE.SphereGeometry(0.25 * s, 8, 8), 0.07),
+    MUSCLE_MAT,
+    { x: -0.7 * s, y: 1.8 * s, z: 0.2 * s },
+  );
+  addPart(mesh,
+    deformVerts(new THREE.SphereGeometry(0.2 * s, 7, 7), 0.07),
+    MUSCLE_MAT,
+    { x: 0.6 * s, y: 1.7 * s, z: 0.3 * s },
+  );
+
+  // Back spines (bone protrusions)
   const spinePositions = [
-    { x: -0.45, y: 2.3, z: -0.4, h: 1.0, rx: -0.6, rz: 0.4 },
-    { x: 0.45, y: 2.2, z: -0.5, h: 0.8, rx: -0.7, rz: -0.3 },
-    { x: 0, y: 2.5, z: -0.6, h: 1.3, rx: -0.9, rz: 0 },
-    { x: -0.25, y: 1.9, z: -0.5, h: 0.7, rx: -0.8, rz: 0.2 },
-    { x: 0.35, y: 1.8, z: -0.45, h: 0.65, rx: -0.75, rz: -0.15 },
-    { x: 0, y: 1.5, z: -0.6, h: 0.8, rx: -1.0, rz: 0 },
+    { x: -0.4, y: 2.2, z: -0.4, h: 0.8, rx: -0.5, rz: 0.4 },
+    { x: 0.4, y: 2.1, z: -0.5, h: 0.7, rx: -0.6, rz: -0.3 },
+    { x: 0, y: 2.4, z: -0.6, h: 1.0, rx: -0.8, rz: 0 },
+    { x: -0.2, y: 1.9, z: -0.5, h: 0.5, rx: -0.7, rz: 0.2 },
+    { x: 0.3, y: 1.8, z: -0.45, h: 0.55, rx: -0.65, rz: -0.15 },
   ];
   for (const sp of spinePositions) {
     addPart(mesh,
-      deformVerts(new THREE.ConeGeometry(0.12 * s, sp.h * s, 6), 0.1),
+      deformVerts(new THREE.ConeGeometry(0.1 * s, sp.h * s, 5), 0.06),
       BONE_MAT,
       { x: sp.x * s, y: sp.y * s, z: sp.z * s },
       { x: sp.rx, z: sp.rz },
     );
   }
 
-  // Massive wounds with hanging flesh and dripping blood
-  addWound(mesh, s, -0.6, 1.3, 0.55);
-  addWound(mesh, s, 0.5, 1.7, 0.65);
-  addWound(mesh, s, 0, 1.0, 0.75);
-  addFleshStrip(mesh, skinMat, s, -0.5, 1.2, 0.6);
-  addFleshStrip(mesh, skinMat, s, 0.3, 0.95, 0.65);
-  addFleshStrip(mesh, skinMat, s, 0.0, 1.4, 0.75);
+  // Massive wounds with hanging flesh
+  addWound(mesh, s, -0.6, 1.3, 0.5);
+  addWound(mesh, s, 0.5, 1.7, 0.6);
+  addWound(mesh, s, 0, 1.0, 0.7);
+  addFleshStrip(mesh, skinMat, s, -0.5, 1.2, 0.55);
+  addFleshStrip(mesh, skinMat, s, 0.3, 0.95, 0.6);
+  addFleshStrip(mesh, skinMat, s, 0.0, 1.4, 0.7);
 
   // Decay patches
-  addDecayPatch(mesh, s, -0.45, 1.6, 0.45);
-  addDecayPatch(mesh, s, 0.55, 1.2, 0.35);
-  addDecayPatch(mesh, s, 0.0, 0.8, 0.55);
+  addDecayPatch(mesh, s, -0.4, 1.6, 0.4);
+  addDecayPatch(mesh, s, 0.5, 1.2, 0.3);
+  addDecayPatch(mesh, s, 0.0, 0.8, 0.5);
 
-  // Left arm — massive mutated club with jagged bone spurs
-  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.48 * s, 1.5 * s, 12, 12), 0.08);
+  // Left arm — massive club with bone spurs
+  const leftArmGeo = deformVerts(new THREE.CapsuleGeometry(0.42 * s, 1.4 * s, 10, 10), 0.04);
   const leftArm = addPart(mesh, leftArmGeo, skinMat,
-    { x: -1.25 * s, y: 1.6 * s, z: 0.4 * s },
-    { x: -Math.PI / 2.5, z: 0.25 },
+    { x: -1.2 * s, y: 1.6 * s, z: 0.4 * s },
+    { x: -Math.PI / 2.5, z: 0.2 },
   );
   mesh.userData.leftArm = leftArm;
-  // Jagged bone spurs on arm
+  // Bone spurs on arm
   for (const sp of [
-    { y: -0.3, x: -0.25, z: 0.15, h: 0.6, rz: 1.0 },
-    { y: -0.6, x: 0.2, z: 0.1, h: 0.45, rz: -0.8 },
-    { y: -0.1, x: 0.25, z: -0.1, h: 0.5, rz: -1.2 },
+    { y: -0.3, x: -0.2, z: 0.15, h: 0.5, rz: 1.0 },
+    { y: -0.55, x: 0.15, z: 0.1, h: 0.35, rz: -0.8 },
   ]) {
     const spur = new THREE.Mesh(
-      deformVerts(new THREE.ConeGeometry(0.1 * s, sp.h * s, 6), 0.1),
+      deformVerts(new THREE.ConeGeometry(0.08 * s, sp.h * s, 5), 0.06),
       BONE_MAT,
     );
     spur.position.set(sp.x * s, sp.y * s, sp.z * s);
     spur.rotation.z = sp.rz;
     leftArm.add(spur);
   }
-  // Massive deformed fist
+  // Massive fist
   const fist = new THREE.Mesh(
-    deformVerts(new THREE.SphereGeometry(0.25 * s, 10, 10), 0.12),
+    deformVerts(new THREE.SphereGeometry(0.2 * s, 8, 8), 0.08),
     skinMat,
   );
-  fist.position.y = -0.85 * s;
+  fist.position.y = -0.8 * s;
   leftArm.add(fist);
 
-  // Right arm — horrifying mutated bone scythe fused with flesh
-  const rightArmGeo = deformVerts(createOrganicLimb((0.2 * s + 0.35 * s) / 2, 1.7 * s, 12), 0.08);
+  // Right arm — mutated bone scythe
+  const rightArmGeo = deformVerts(new THREE.CylinderGeometry(0.18 * s, 0.3 * s, 1.6 * s, 10), 0.04);
   const rightArm = addPart(mesh, rightArmGeo, bodyMat,
-    { x: 1.15 * s, y: 1.4 * s, z: 0.5 * s },
-    { x: -Math.PI / 3, z: -0.15 },
+    { x: 1.1 * s, y: 1.4 * s, z: 0.5 * s },
+    { x: -Math.PI / 3, z: -0.1 },
   );
   mesh.userData.rightArm = rightArm;
-  
-  // Massive bone blade
+  // Bone blade
   const blade = new THREE.Mesh(
-    deformVerts(createEllipsoid(0.06 * s, 1.6 * s, 0.35 * s), 0.1),
+    deformVerts(new THREE.BoxGeometry(0.04 * s, 1.2 * s, 0.25 * s), 0.05),
     BONE_MAT,
   );
-  blade.position.set(0, -1.0 * s, 0.15 * s);
+  blade.position.set(0, -0.9 * s, 0.1 * s);
   blade.rotation.x = -0.2;
   rightArm.add(blade);
-  
-  // Smaller secondary blades
-  const blade2 = new THREE.Mesh(deformVerts(createEllipsoid(0.04 * s, 0.8 * s, 0.2 * s), 0.1), BONE_MAT);
-  blade2.position.set(0, -0.6 * s, -0.1 * s);
-  blade2.rotation.x = 0.5;
-  rightArm.add(blade2);
-
-  // Exposed muscle and tendons where arm fused with blade
+  // Exposed muscle where arm fused with blade
   const fusionMuscle = new THREE.Mesh(
-    deformVerts(new THREE.SphereGeometry(0.2 * s, 8, 8), 0.12),
+    deformVerts(new THREE.SphereGeometry(0.15 * s, 6, 6), 0.08),
     MUSCLE_MAT,
   );
-  fusionMuscle.position.set(0, -0.35 * s, 0.1 * s);
+  fusionMuscle.position.set(0, -0.3 * s, 0.08 * s);
   rightArm.add(fusionMuscle);
-  
-  // Tendons wrapping the blade
-  for(let i=0; i<3; i++) {
-    addPart(rightArm, deformVerts(new THREE.TorusGeometry(0.18 * s, 0.03 * s, 6, 12), 0.1), TENDON_MAT, { y: -0.4 * s - i * 0.15 * s }, { x: 1.5, y: Math.random() });
-  }
 
-  // Thick uneven legs (like tree trunks)
-  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.4 * s, 0.9 * s, 10, 10), 0.08);
+  // Thick uneven legs
+  const leftLegGeo = deformVerts(new THREE.CapsuleGeometry(0.35 * s, 0.85 * s, 8, 8), 0.04);
   const leftLeg = addPart(mesh, leftLegGeo, pantsMat,
-    { x: -0.55 * s, y: 0.45 * s },
-    { x: 0.1, z: 0.05 },
+    { x: -0.5 * s, y: 0.43 * s },
   );
   mesh.userData.leftLeg = leftLeg;
-  addFoot(leftLeg, pantsMat, s, -0.5);
+  addFoot(leftLeg, pantsMat, s, -0.48);
 
-  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.42 * s, 0.95 * s, 10, 10), 0.08);
+  const rightLegGeo = deformVerts(new THREE.CapsuleGeometry(0.38 * s, 0.9 * s, 8, 8), 0.04);
   const rightLeg = addPart(mesh, rightLegGeo, pantsMat,
-    { x: 0.55 * s, y: 0.48 * s },
-    { z: -0.1, x: 0.1 },
+    { x: 0.52 * s, y: 0.45 * s },
+    { z: -0.05 },
   );
   mesh.userData.rightLeg = rightLeg;
-  addFoot(rightLeg, pantsMat, s, -0.52);
+  addFoot(rightLeg, pantsMat, s, -0.5);
 
   // Dark miasma aura
   const auraMat = new THREE.MeshBasicMaterial({
@@ -1582,91 +1316,42 @@ export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) 
   const eyeColor = typeDef.eyeColor || 0xff0000;
   const glowColor = typeDef.glowColor || eyeColor;
 
-  // Use the loaded GLTF model if available
-  if (sharedZombieModel) {
-    const modelClone = sharedZombieModel.clone();
-    
-    // Scale the model
-    // The Soldier model is quite large, so we scale it down and apply the type scale
-    modelClone.scale.set(0.6 * s, 0.6 * s, 0.6 * s);
-    
-    // Position it correctly (the Soldier model origin is at feet)
-    modelClone.position.y = 0;
-    
-    // Tint materials based on zombie type
-    modelClone.traverse((child) => {
-      if (child.isMesh && child.material) {
-        // Clone material so we can tint it independently per zombie type
-        child.material = child.material.clone();
-        
-        // Apply zombie colors
-        const color = new THREE.Color(typeDef.color);
-        child.material.color.multiply(color);
-        
-        // Make it look more dead/decayed
-        child.material.roughness = 0.9;
-        child.material.metalness = 0.1;
-      }
-    });
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: typeDef.color,
+    roughness: 0.95,
+    metalness: 0.05,
+  });
+  const skinColor = new THREE.Color(typeDef.secondaryColor || 0x5a7a51).lerp(
+    new THREE.Color(0x443333),
+    0.35,
+  );
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: skinColor,
+    roughness: 0.92,
+    metalness: 0.0,
+  });
+  const pantsMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1a15,
+    roughness: 1.0,
+  });
 
-    mesh.add(modelClone);
-    mesh.userData.body = modelClone;
-    
-    // Add glowing eyes to the head (approximate position for Soldier model)
-    const eyeGeo = new THREE.SphereGeometry(0.05 * s, 8, 8);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: eyeColor, transparent: true, opacity: 0.8 });
-    
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.1 * s, 1.6 * s, 0.15 * s);
-    mesh.add(leftEye);
-    
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.1 * s, 1.6 * s, 0.15 * s);
-    mesh.add(rightEye);
-    
+  const builders = {
+    fast: () => buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s),
+    tank: () => buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+    spitter: () => buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+    exploder: () => buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+    boss: () => buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
+  };
+
+  const builder = builders[type];
+  if (builder) {
+    builder();
   } else {
-    // Fallback to primitive generation if model hasn't loaded yet
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: typeDef.color,
-      roughness: 0.95,
-      metalness: 0.05,
-    });
-    injectOrganicShader(bodyMat, "body");
-    const skinColor = new THREE.Color(typeDef.secondaryColor || 0x5a7a51).lerp(
-      new THREE.Color(0x443333),
-      0.35,
-    );
-    const skinMat = new THREE.MeshStandardMaterial({
-      color: skinColor,
-      roughness: 0.92,
-      metalness: 0.0,
-    });
-    injectOrganicShader(skinMat, "skin");
-    const pantsMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1a15,
-      roughness: 1.0,
-    });
-    injectOrganicShader(pantsMat, "body");
-
-    const builders = {
-      fast: () => buildFastZombie(mesh, bodyMat, skinMat, pantsMat, s),
-      tank: () => buildTankZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
-      spitter: () => buildSpitterZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
-      exploder: () => buildExploderZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
-      boss: () => buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor),
-    };
-
-    const builder = builders[type];
-    if (builder) {
-      builder();
-    } else {
-      buildNormalZombie(mesh, bodyMat, skinMat, pantsMat, s);
-    }
-
-    addEyes(mesh, type, s, eyeColor);
+    buildNormalZombie(mesh, bodyMat, skinMat, pantsMat, s);
   }
 
-  // Common setup
+  addEyes(mesh, type, s, eyeColor);
+
   if (!mesh.userData.body && mesh.children.length > 0) {
     mesh.userData.body = mesh.children[0];
   }
@@ -1679,24 +1364,5 @@ export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) 
   mesh.userData.animPhase = Math.random() * Math.PI * 2;
   mesh.userData.limpOffsetL = (Math.random() - 0.5) * 0.4;
   mesh.userData.limpOffsetR = (Math.random() - 0.5) * 0.4;
-  
-  // Create health bar for boss
-  if (type === "boss") {
-    addPart(mesh,
-      new THREE.PlaneGeometry(3.0 * s, 0.25),
-      new THREE.MeshBasicMaterial({ color: 0x333333 }),
-      { y: 4.5 * s },
-      { x: -Math.PI / 4 },
-    );
-    const hb = addPart(mesh,
-      new THREE.PlaneGeometry(3.0 * s, 0.2),
-      new THREE.MeshBasicMaterial({ color: 0xcc0000 }),
-      { y: 4.5 * s, z: 0.01 },
-      { x: -Math.PI / 4 },
-    );
-    mesh.userData.healthBar = hb;
-    mesh.userData.healthBarWidth = 3.0 * s;
-  }
-  
   return mesh;
 }
