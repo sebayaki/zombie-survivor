@@ -80,6 +80,21 @@ export class ParticleSystem {
     // Mesh pools – meshes stay in the scene graph, toggled via visible
     this._spherePool = [];
     this._boxPool = [];
+
+    // Floating text pool — avoids canvas/texture creation per damage number
+    this._textPool = [];
+    this._activeTexts = [];
+    this._maxActiveTexts = 30;
+
+    // Shockwave pool
+    this._shockwaveGeo = new THREE.RingGeometry(0.1, 0.3, 32);
+    this._shockwavePool = [];
+    this._activeShockwaves = [];
+
+    // Impact flash pool
+    this._flashGeo = new THREE.SphereGeometry(1, 6, 6);
+    this._flashPool = [];
+    this._activeFlashes = [];
   }
 
   _acquireMesh(isStreak) {
@@ -274,142 +289,177 @@ export class ParticleSystem {
         }
       }
     }
+
+    // Animate floating texts
+    for (let i = this._activeTexts.length - 1; i >= 0; i--) {
+      const t = this._activeTexts[i];
+      t.elapsed += delta;
+      const progress = t.elapsed / t.duration;
+
+      if (progress >= 1) {
+        t.entry.sprite.visible = false;
+        this._textPool.push(t.entry);
+        this._activeTexts.splice(i, 1);
+        continue;
+      }
+
+      const sprite = t.entry.sprite;
+      const mat = t.entry.material;
+
+      if (progress < 0.2) {
+        const popProgress = progress / 0.2;
+        const cur = t.baseSize * (0.5 + 0.7 * popProgress);
+        sprite.scale.set(cur, cur * 0.5, 1);
+      } else {
+        const settleProgress = (progress - 0.2) / 0.8;
+        const cur = t.baseSize * (1.2 - 0.2 * settleProgress);
+        sprite.scale.set(cur, cur * 0.5, 1);
+      }
+
+      sprite.position.x += t.driftX;
+      sprite.position.z += t.driftZ;
+      sprite.position.y += t.isCrit ? 0.04 : 0.02;
+
+      mat.opacity = progress > 0.6 ? 1 - (progress - 0.6) / 0.4 : 1;
+    }
+
+    // Animate shockwaves
+    for (let i = this._activeShockwaves.length - 1; i >= 0; i--) {
+      const s = this._activeShockwaves[i];
+      s.elapsed += delta;
+      const progress = s.elapsed / s.duration;
+
+      if (progress >= 1) {
+        s.sw.mesh.visible = false;
+        this._shockwavePool.push(s.sw);
+        this._activeShockwaves.splice(i, 1);
+        continue;
+      }
+
+      s.sw.mesh.scale.setScalar(s.radius * progress * 10);
+      s.sw.material.opacity = 0.8 * (1 - progress);
+    }
+
+    // Animate impact flashes
+    for (let i = this._activeFlashes.length - 1; i >= 0; i--) {
+      const fl = this._activeFlashes[i];
+      fl.scale += 0.25 * delta * 60;
+      fl.f.material.opacity -= 0.18 * delta * 60;
+
+      if (fl.f.material.opacity <= 0) {
+        fl.f.mesh.visible = false;
+        this._flashPool.push(fl.f);
+        this._activeFlashes.splice(i, 1);
+        continue;
+      }
+
+      fl.f.mesh.scale.setScalar(fl.scale);
+    }
+  }
+
+  _acquireShockwave() {
+    if (this._shockwavePool.length > 0) {
+      const sw = this._shockwavePool.pop();
+      sw.mesh.visible = true;
+      return sw;
+    }
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(this._shockwaveGeo, material);
+    mesh.rotation.x = -Math.PI / 2;
+    this.game.scene.add(mesh);
+    return { mesh, material };
   }
 
   createShockwave(position, radius, color = 0xffffff, duration = 0.5) {
-    const geometry = new THREE.RingGeometry(0.1, 0.3, 32);
-    const material = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.8, side: THREE.DoubleSide,
-    });
-    const ring = new THREE.Mesh(geometry, material);
-    ring.position.copy(position);
-    ring.position.y = 0.1;
-    ring.rotation.x = -Math.PI / 2;
+    const sw = this._acquireShockwave();
+    sw.material.color.set(color);
+    sw.material.opacity = 0.8;
+    sw.mesh.position.copy(position);
+    sw.mesh.position.y = 0.1;
+    sw.mesh.scale.setScalar(0.1);
+    this._activeShockwaves.push({ sw, elapsed: 0, duration, radius });
+  }
 
-    this.game.scene.add(ring);
-
-    let elapsed = 0;
-    const animate = () => {
-      elapsed += 0.016;
-      const progress = elapsed / duration;
-
-      if (progress >= 1) {
-        this.game.scene.remove(ring);
-        geometry.dispose();
-        material.dispose();
-        return;
-      }
-
-      ring.scale.setScalar(radius * progress * 10);
-      material.opacity = 0.8 * (1 - progress);
-      requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
+  _acquireText() {
+    if (this._textPool.length > 0) {
+      const entry = this._textPool.pop();
+      entry.sprite.visible = true;
+      return entry;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(material);
+    this.game.scene.add(sprite);
+    return { canvas, ctx, texture, material, sprite };
   }
 
   createFloatingText(
     position, text, color = 0xffffff, size = 0.5, isCrit = false,
   ) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 128;
-    const ctx = canvas.getContext("2d");
+    if (this._activeTexts.length >= this._maxActiveTexts) return;
+
+    const entry = this._acquireText();
+    const { canvas, ctx, texture, material, sprite } = entry;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     ctx.font = isCrit
       ? "bold 72px 'Impact', Arial"
       : "bold 56px 'Impact', Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = isCrit ? 8 : 5;
     ctx.strokeText(text, 128, 64);
-
     ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
     ctx.fillText(text, 128, 64);
+    texture.needsUpdate = true;
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    const material = new THREE.SpriteMaterial({
-      map: texture, transparent: true,
-    });
-    const sprite = new THREE.Sprite(material);
     sprite.position.copy(position);
     sprite.position.y += 1;
+    material.opacity = 1;
 
     const baseSize = size * (isCrit ? 3 : 2);
     sprite.scale.set(baseSize * 0.5, baseSize * 0.25, 1);
 
-    this.game.scene.add(sprite);
+    this._activeTexts.push({
+      entry,
+      elapsed: 0,
+      duration: isCrit ? 0.8 : 0.6,
+      baseSize,
+      driftX: (Math.random() - 0.5) * 0.05,
+      driftZ: (Math.random() - 0.5) * 0.05,
+      isCrit,
+    });
+  }
 
-    let elapsed = 0;
-    const duration = isCrit ? 0.8 : 0.6;
-
-    const driftX = (Math.random() - 0.5) * 0.05;
-    const driftZ = (Math.random() - 0.5) * 0.05;
-
-    const animate = () => {
-      elapsed += 0.016;
-      const progress = elapsed / duration;
-
-      if (progress >= 1) {
-        this.game.scene.remove(sprite);
-        texture.dispose();
-        material.dispose();
-        return;
-      }
-
-      if (progress < 0.2) {
-        const popProgress = progress / 0.2;
-        const currentSize = baseSize * (0.5 + 0.7 * popProgress);
-        sprite.scale.set(currentSize, currentSize * 0.5, 1);
-      } else {
-        const settleProgress = (progress - 0.2) / 0.8;
-        const currentSize = baseSize * (1.2 - 0.2 * settleProgress);
-        sprite.scale.set(currentSize, currentSize * 0.5, 1);
-      }
-
-      sprite.position.x += driftX;
-      sprite.position.z += driftZ;
-      sprite.position.y += isCrit ? 0.04 : 0.02;
-
-      if (progress > 0.6) {
-        material.opacity = 1 - (progress - 0.6) / 0.4;
-      }
-
-      requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
+  _acquireFlash() {
+    if (this._flashPool.length > 0) {
+      const f = this._flashPool.pop();
+      f.mesh.visible = true;
+      return f;
+    }
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.7,
+    });
+    const mesh = new THREE.Mesh(this._flashGeo, material);
+    this.game.scene.add(mesh);
+    return { mesh, material };
   }
 
   createImpactFlash(position, color = 0xffffff, size = 1) {
-    const geometry = new THREE.SphereGeometry(size * 0.6, 6, 6);
-    const material = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.7,
-    });
-    const flash = new THREE.Mesh(geometry, material);
-    flash.position.copy(position);
-
-    this.game.scene.add(flash);
-
-    let scale = 1;
-    const animate = () => {
-      scale += 0.25;
-      material.opacity -= 0.18;
-
-      if (material.opacity <= 0) {
-        this.game.scene.remove(flash);
-        geometry.dispose();
-        material.dispose();
-        return;
-      }
-
-      flash.scale.setScalar(scale);
-      requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
+    const f = this._acquireFlash();
+    f.material.color.set(color);
+    f.material.opacity = 0.7;
+    f.mesh.position.copy(position);
+    f.mesh.scale.setScalar(size * 0.6);
+    this._activeFlashes.push({ f, scale: size * 0.6 });
   }
 
   reset() {
@@ -418,5 +468,23 @@ export class ParticleSystem {
     }
     this.particles = [];
     this.trailParticles = [];
+
+    for (const t of this._activeTexts) {
+      t.entry.sprite.visible = false;
+      this._textPool.push(t.entry);
+    }
+    this._activeTexts = [];
+
+    for (const s of this._activeShockwaves) {
+      s.sw.mesh.visible = false;
+      this._shockwavePool.push(s.sw);
+    }
+    this._activeShockwaves = [];
+
+    for (const fl of this._activeFlashes) {
+      fl.f.mesh.visible = false;
+      this._flashPool.push(fl.f);
+    }
+    this._activeFlashes = [];
   }
 }

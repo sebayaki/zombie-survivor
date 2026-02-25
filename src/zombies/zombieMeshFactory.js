@@ -1307,10 +1307,50 @@ function buildBossZombie(mesh, bodyMat, skinMat, pantsMat, s, glowColor) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Main factory
+// Template cache — build each zombie type once, then clone
 // ═══════════════════════════════════════════════════════════════
 
+const _meshTemplateCache = new Map();
+
+function _templateKey(type, typeDef) {
+  return `${type}_${typeDef.color}_${typeDef.secondaryColor || 0}_${typeDef.eyeColor || 0}`;
+}
+
+function _restoreCloneRefs(cloned) {
+  const indices = cloned.userData._partIndices;
+  if (!indices) return;
+
+  const children = [];
+  cloned.traverse(child => children.push(child));
+
+  for (const key in indices) {
+    cloned.userData[key] = children[indices[key]];
+  }
+
+  if (cloned.userData.body) {
+    cloned.userData.body.material = cloned.userData.body.material.clone();
+  }
+}
+
 export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) {
+  const key = _templateKey(type, typeDef);
+  let template = _meshTemplateCache.get(key);
+  if (!template) {
+    template = _buildTemplate(type, typeDef);
+    _meshTemplateCache.set(key, template);
+  }
+
+  const mesh = template.clone();
+  _restoreCloneRefs(mesh);
+
+  mesh.userData.type = type;
+  mesh.userData.animPhase = Math.random() * Math.PI * 2;
+  mesh.userData.limpOffsetL = (Math.random() - 0.5) * 0.4;
+  mesh.userData.limpOffsetR = (Math.random() - 0.5) * 0.4;
+  return mesh;
+}
+
+function _buildTemplate(type, typeDef) {
   const mesh = new THREE.Group();
   const s = typeDef.scale;
   const eyeColor = typeDef.eyeColor || 0xff0000;
@@ -1360,9 +1400,20 @@ export function createZombieMesh(type = "normal", typeDef = ENEMY_TYPES.normal) 
     mesh.userData.body.castShadow = true;
   }
 
-  mesh.userData.type = type;
-  mesh.userData.animPhase = Math.random() * Math.PI * 2;
-  mesh.userData.limpOffsetL = (Math.random() - 0.5) * 0.4;
-  mesh.userData.limpOffsetR = (Math.random() - 0.5) * 0.4;
+  // Record traversal indices for animated parts so clones can restore refs
+  const partKeys = ['body', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg', 'aura', 'healthBar'];
+  const partIndices = {};
+  let idx = 0;
+  mesh.traverse(child => {
+    for (const k of partKeys) {
+      if (mesh.userData[k] === child) partIndices[k] = idx;
+    }
+    idx++;
+  });
+
+  // Remove Object3D refs so clone()'s internal JSON round-trip doesn't throw
+  for (const k of partKeys) delete mesh.userData[k];
+  mesh.userData._partIndices = partIndices;
+
   return mesh;
 }

@@ -64,18 +64,14 @@ export class CollisionSystem {
   checkPlayerPickupCollisions() {
     const playerPos = this.game.player.getPosition();
     const pickups = this.game.pickupManager.getPickups();
+    const collectRadiusSq = (this.playerRadius + this.pickupRadius) ** 2;
 
     for (let i = pickups.length - 1; i >= 0; i--) {
-      const pickup = pickups[i];
-      const pickupPos = pickup.mesh.position;
-
-      // Distance on XZ plane
+      const pickupPos = pickups[i].mesh.position;
       const dx = playerPos.x - pickupPos.x;
       const dz = playerPos.z - pickupPos.z;
-      const distance = Math.sqrt(dx * dx + dz * dz);
 
-      if (distance < this.playerRadius + this.pickupRadius) {
-        // Collect pickup
+      if (dx * dx + dz * dz < collectRadiusSq) {
         this.game.pickupManager.collectPickup(i);
       }
     }
@@ -106,23 +102,22 @@ export class CollisionSystem {
 
   // Utility: Raycast from point in direction
   raycast(origin, direction, maxDistance = 100) {
-    const raycaster = new THREE.Raycaster(
-      origin,
-      direction.normalize(),
-      0,
-      maxDistance,
-    );
+    if (!this._raycaster) {
+      this._raycaster = new THREE.Raycaster();
+      this._rayMeshes = [];
+    }
+    this._raycaster.set(origin, direction.normalize());
+    this._raycaster.near = 0;
+    this._raycaster.far = maxDistance;
 
-    // Collect meshes to test
-    const meshes = [];
+    const meshes = this._rayMeshes;
+    meshes.length = 0;
+    const obstacles = this.game.obstacles;
+    for (let i = 0; i < obstacles.length; i++) meshes.push(obstacles[i].mesh);
+    const zombies = this.game.zombieManager.getZombies();
+    for (let i = 0; i < zombies.length; i++) meshes.push(zombies[i].mesh);
 
-    // Add obstacle meshes
-    this.game.obstacles.forEach((o) => meshes.push(o.mesh));
-
-    // Add zombie meshes
-    this.game.zombieManager.getZombies().forEach((z) => meshes.push(z.mesh));
-
-    const intersects = raycaster.intersectObjects(meshes, true);
+    const intersects = this._raycaster.intersectObjects(meshes, true);
 
     if (intersects.length > 0) {
       return {

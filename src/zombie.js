@@ -3,11 +3,15 @@ import { ENEMY_TYPES, createZombieMesh } from "./zombies/zombieMeshFactory.js";
 import {
   updateZombieBehavior,
   updateEnemyProjectiles,
+  updateTelegraphs,
 } from "./zombies/zombieAI.js";
 
 const _tmpKnock = new THREE.Vector3();
 const _tmpTextPos = new THREE.Vector3();
 const _tmpHitPos = new THREE.Vector3();
+const _tmpSpawnPos = new THREE.Vector3();
+const _tmpOffset = new THREE.Vector3();
+const _tmpDropPos = new THREE.Vector3();
 
 // Elite affix definitions
 const ELITE_AFFIXES = {
@@ -82,6 +86,9 @@ export class ZombieManager {
     this._explosionDepth = 0;
     this._activeExplosions = 0;
     this._maxActiveExplosions = 6;
+
+    // Managed explosion animations (replaces per-explosion rAF loops)
+    this._explosionAnims = [];
   }
 
   reset() {
@@ -100,6 +107,16 @@ export class ZombieManager {
     this.waveInProgress = false;
     this.bossActive = false;
     this.bossSpawnedThisWave = false;
+
+    for (const e of this._explosionAnims) {
+      this.game.scene.remove(e.fireball);
+      this.game.scene.remove(e.ring);
+      e.fireball.material.dispose();
+      e.ring.material.dispose();
+    }
+    this._explosionAnims = [];
+    this._activeExplosions = 0;
+
     this.game.ui?.hideBossHealthBar();
   }
 
@@ -342,7 +359,7 @@ export class ZombieManager {
         break;
     }
 
-    return new THREE.Vector3(x, 0, z);
+    return _tmpSpawnPos.set(x, 0, z);
   }
 
   update(delta) {
@@ -350,6 +367,15 @@ export class ZombieManager {
 
     for (let i = this.zombies.length - 1; i >= 0; i--) {
       const zombie = this.zombies[i];
+
+      // Tick damage flash timer
+      if (zombie._flashTimer > 0) {
+        zombie._flashTimer -= delta;
+        if (zombie._flashTimer <= 0) {
+          const flashBody = zombie.mesh.userData.body;
+          if (flashBody && flashBody.material) flashBody.material.emissive.setHex(0x000000);
+        }
+      }
 
       // Berserker affix: speed increases as HP drops
       if (zombie.isElite && zombie.affixes.includes("berserker")) {
@@ -377,7 +403,7 @@ export class ZombieManager {
       // Pulse elite glow
       if (zombie.mesh.userData.eliteGlow) {
         const glow = zombie.mesh.userData.eliteGlow;
-        glow.material.opacity = 0.12 + Math.sin(Date.now() * 0.004) * 0.08;
+        glow.material.opacity = 0.12 + Math.sin(this.game.gameTime * 4) * 0.08;
       }
 
       updateZombieBehavior(zombie, playerPos, delta, this.game, this.enemyProjectiles);
@@ -389,6 +415,28 @@ export class ZombieManager {
     }
 
     updateEnemyProjectiles(delta, this.game, this.enemyProjectiles);
+    updateTelegraphs(delta);
+
+    // Animate explosions (replaces per-explosion rAF loops)
+    for (let i = this._explosionAnims.length - 1; i >= 0; i--) {
+      const e = this._explosionAnims[i];
+      e.scale += (e.targetScale - e.scale) * 0.25;
+      e.opacity -= 0.06 * delta * 60;
+
+      if (e.opacity <= 0) {
+        this.game.scene.remove(e.fireball);
+        this.game.scene.remove(e.ring);
+        e.fireball.material.dispose();
+        e.ring.material.dispose();
+        this._activeExplosions--;
+        this._explosionAnims.splice(i, 1);
+      } else {
+        e.fireball.scale.setScalar(e.scale);
+        e.fireball.material.opacity = e.opacity * 0.85;
+        e.ring.scale.setScalar(e.scale * 1.5);
+        e.ring.material.opacity = e.opacity * 0.4;
+      }
+    }
 
     if (
       this.waveInProgress &&
@@ -429,13 +477,9 @@ export class ZombieManager {
     zombie.health -= finalDamage;
 
     const body = zombie.mesh.userData.body;
-    if (body) {
+    if (body && body.material) {
       body.material.emissive.setHex(isCrit ? 0xffaa00 : 0xffffff);
-      setTimeout(() => {
-        if (body.material) {
-          body.material.emissive.setHex(0x000000);
-        }
-      }, 50);
+      zombie._flashTimer = 0.05;
     }
 
     if (!zombie.isBoss) {
@@ -495,13 +539,18 @@ export class ZombieManager {
   }
 
   damageInRadius(position, radius, damage) {
-    const snapshot = this.zombies.slice();
-    for (const zombie of snapshot) {
+    const candidates = this.game.zombieGrid
+      ? this.game.zombieGrid.query(position.x, position.z, radius)
+      : this.zombies;
+    const radiusSq = radius * radius;
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const zombie = candidates[i];
       if (zombie.health <= 0) continue;
       const dx = zombie.mesh.position.x - position.x;
       const dz = zombie.mesh.position.z - position.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < radius) {
+      const distSq = dx * dx + dz * dz;
+      if (distSq < radiusSq) {
+        const dist = Math.sqrt(distSq);
         const falloff = 1 - dist / radius;
         this.damageZombie(zombie, damage * falloff);
       }
@@ -517,12 +566,8 @@ export class ZombieManager {
     // Elite affix: Splitter — spawn 2 smaller copies on death
     if (zombie.isElite && zombie.affixes.includes("splitter") && !zombie._splitChild) {
       for (let i = 0; i < 2; i++) {
-        const offset = new THREE.Vector3(
-          (Math.random() - 0.5) * 2,
-          0,
-          (Math.random() - 0.5) * 2,
-        );
-        const splitPos = zombie.mesh.position.clone().add(offset);
+        _tmpOffset.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
+        const splitPos = _tmpDropPos.copy(zombie.mesh.position).add(_tmpOffset);
         const typeDef = ENEMY_TYPES[zombie.type] || ENEMY_TYPES.normal;
         const mesh = createZombieMesh(zombie.type, typeDef);
         mesh.position.copy(splitPos);
@@ -652,19 +697,14 @@ export class ZombieManager {
         1,
         Math.ceil(Math.sqrt(zombie.maxHealth / 25) * xpMult * eliteMult),
       );
-      this.game.dropXPGem(zombie.mesh.position.clone(), baseXP);
+      _tmpDropPos.copy(zombie.mesh.position);
+      this.game.dropXPGem(_tmpDropPos, baseXP);
 
       if (zombie.isBoss) {
         for (let i = 0; i < 5; i++) {
-          const offset = new THREE.Vector3(
-            (Math.random() - 0.5) * 3,
-            0,
-            (Math.random() - 0.5) * 3,
-          );
-          this.game.dropXPGem(
-            zombie.mesh.position.clone().add(offset),
-            baseXP,
-          );
+          _tmpOffset.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
+          _tmpDropPos.copy(zombie.mesh.position).add(_tmpOffset);
+          this.game.dropXPGem(_tmpDropPos, baseXP);
         }
       }
     }
@@ -726,61 +766,33 @@ export class ZombieManager {
       ZombieManager._sharedRingGeo = new THREE.RingGeometry(0.8, 1.2, 16);
     }
 
-    const fireball = new THREE.Mesh(
-      ZombieManager._sharedExpGeo,
-      new THREE.MeshBasicMaterial({
-        color: 0xff5500,
-        transparent: true,
-        opacity: 0.85,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
+    if (!ZombieManager._sharedExpMat) {
+      ZombieManager._sharedExpMat = new THREE.MeshBasicMaterial({
+        color: 0xff5500, transparent: true, opacity: 0.85,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      ZombieManager._sharedRingMat = new THREE.MeshBasicMaterial({
+        color: 0xffaa00, transparent: true, opacity: 0.5,
+        blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
+      });
+    }
+
+    const fireball = new THREE.Mesh(ZombieManager._sharedExpGeo, ZombieManager._sharedExpMat.clone());
     fireball.position.copy(position);
     fireball.position.y = 1;
     fireball.scale.setScalar(0.1);
     this.game.scene.add(fireball);
 
-    const ring = new THREE.Mesh(
-      ZombieManager._sharedRingGeo,
-      new THREE.MeshBasicMaterial({
-        color: 0xffaa00,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      }),
-    );
+    const ring = new THREE.Mesh(ZombieManager._sharedRingGeo, ZombieManager._sharedRingMat.clone());
     ring.position.copy(position);
     ring.position.y = 0.2;
     ring.rotation.x = -Math.PI / 2;
     ring.scale.setScalar(0.1);
     this.game.scene.add(ring);
 
-    let scale = 0.1;
-    let opacity = 1;
-    const targetScale = radius;
-
-    const animate = () => {
-      scale += (targetScale - scale) * 0.25;
-      opacity -= 0.06;
-
-      if (opacity <= 0) {
-        this.game.scene.remove(fireball);
-        this.game.scene.remove(ring);
-        fireball.material.dispose();
-        ring.material.dispose();
-        this._activeExplosions--;
-      } else {
-        fireball.scale.setScalar(scale);
-        fireball.material.opacity = opacity * 0.85;
-        ring.scale.setScalar(scale * 1.5);
-        ring.material.opacity = opacity * 0.4;
-        requestAnimationFrame(animate);
-      }
-    };
-    requestAnimationFrame(animate);
+    this._explosionAnims.push({
+      fireball, ring, scale: 0.1, opacity: 1, targetScale: radius,
+    });
 
     this.game.audioManager.playSound("explosion");
   }

@@ -4,8 +4,15 @@ const _tmpDir = new THREE.Vector3();
 const _tmpAvoid = new THREE.Vector3();
 const _tmpFinal = new THREE.Vector3();
 
+let _telegraphGeoCache = null;
+const _activeTelegraphs = [];
+
 function createBossTelegraph(zombie, game, radius, color) {
-  const geo = new THREE.RingGeometry(0.2, radius, 32);
+  if (!_telegraphGeoCache) _telegraphGeoCache = {};
+  const geoKey = radius.toFixed(1);
+  if (!_telegraphGeoCache[geoKey]) {
+    _telegraphGeoCache[geoKey] = new THREE.RingGeometry(0.2, radius, 32);
+  }
   const mat = new THREE.MeshBasicMaterial({
     color,
     transparent: true,
@@ -14,31 +21,35 @@ function createBossTelegraph(zombie, game, radius, color) {
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
-  const ring = new THREE.Mesh(geo, mat);
+  const ring = new THREE.Mesh(_telegraphGeoCache[geoKey], mat);
   ring.position.copy(zombie.mesh.position);
   ring.position.y = 0.05;
   ring.rotation.x = -Math.PI / 2;
   game.scene.add(ring);
 
-  let elapsed = 0;
-  const duration = zombie.enraged ? 0.8 : 1.2;
-  const animate = () => {
-    elapsed += 0.016;
-    const t = Math.min(elapsed / duration, 1);
-    mat.opacity = Math.sin(t * Math.PI * 4) * 0.3 + 0.15;
-    ring.scale.setScalar(0.3 + t * 0.7);
-    ring.position.copy(zombie.mesh.position);
-    ring.position.y = 0.05;
+  _activeTelegraphs.push({
+    ring, mat, zombie, game,
+    elapsed: 0,
+    duration: zombie.enraged ? 0.8 : 1.2,
+  });
+}
+
+export function updateTelegraphs(delta) {
+  for (let i = _activeTelegraphs.length - 1; i >= 0; i--) {
+    const tg = _activeTelegraphs[i];
+    tg.elapsed += delta;
+    const t = Math.min(tg.elapsed / tg.duration, 1);
+    tg.mat.opacity = Math.sin(t * Math.PI * 4) * 0.3 + 0.15;
+    tg.ring.scale.setScalar(0.3 + t * 0.7);
+    tg.ring.position.copy(tg.zombie.mesh.position);
+    tg.ring.position.y = 0.05;
 
     if (t >= 1) {
-      game.scene.remove(ring);
-      geo.dispose();
-      mat.dispose();
-      return;
+      tg.game.scene.remove(tg.ring);
+      tg.mat.dispose();
+      _activeTelegraphs.splice(i, 1);
     }
-    requestAnimationFrame(animate);
-  };
-  requestAnimationFrame(animate);
+  }
 }
 
 export function avoidObstacles(zombiePos, desiredDirection, obstacles) {
@@ -86,31 +97,27 @@ export function attackPlayer(zombie, game) {
   }
 }
 
+let _projCoreGeo, _projGlowGeo, _projTrailGeo, _projCoreMat, _projGlowMat, _projTrailMat;
+
+function _ensureProjGeos() {
+  if (_projCoreGeo) return;
+  _projCoreGeo = new THREE.SphereGeometry(0.2, 8, 8);
+  _projGlowGeo = new THREE.SphereGeometry(0.35, 8, 8);
+  _projTrailGeo = new THREE.SphereGeometry(0.1, 4, 4);
+  _projCoreMat = new THREE.MeshBasicMaterial({ color: 0x88ff88 });
+  _projGlowMat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.5 });
+  _projTrailMat = new THREE.MeshBasicMaterial({ color: 0x66ff66, transparent: true, opacity: 0.6 });
+}
+
 export function fireProjectile(zombie, direction, game, enemyProjectiles) {
+  _ensureProjGeos();
   const projectileGroup = new THREE.Group();
 
-  const coreGeometry = new THREE.SphereGeometry(0.2, 8, 8);
-  const coreMaterial = new THREE.MeshBasicMaterial({ color: 0x88ff88 });
-  const core = new THREE.Mesh(coreGeometry, coreMaterial);
-  projectileGroup.add(core);
-
-  const glowGeometry = new THREE.SphereGeometry(0.35, 8, 8);
-  const glowMaterial = new THREE.MeshBasicMaterial({
-    color: 0x44ff44,
-    transparent: true,
-    opacity: 0.5,
-  });
-  const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-  projectileGroup.add(glow);
+  projectileGroup.add(new THREE.Mesh(_projCoreGeo, _projCoreMat));
+  projectileGroup.add(new THREE.Mesh(_projGlowGeo, _projGlowMat));
 
   for (let i = 0; i < 5; i++) {
-    const trailGeometry = new THREE.SphereGeometry(0.1, 4, 4);
-    const trailMaterial = new THREE.MeshBasicMaterial({
-      color: 0x66ff66,
-      transparent: true,
-      opacity: 0.6,
-    });
-    const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+    const trail = new THREE.Mesh(_projTrailGeo, _projTrailMat);
     trail.position.set(
       (Math.random() - 0.5) * 0.3,
       (Math.random() - 0.5) * 0.3,
