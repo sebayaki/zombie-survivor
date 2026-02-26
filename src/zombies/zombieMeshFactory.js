@@ -4,8 +4,8 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 export const ENEMY_TYPES = {
   normal: {
     name: "Zombie",
-    color: 0x4a6741,
-    secondaryColor: 0x3d5636,
+    color: 0x6b9960,
+    secondaryColor: 0x5a7d50,
     eyeColor: 0xff0000,
     scale: 1,
     speedMult: 1,
@@ -15,8 +15,8 @@ export const ENEMY_TYPES = {
   },
   fast: {
     name: "Runner",
-    color: 0x8b7355,
-    secondaryColor: 0x6b5344,
+    color: 0xb09575,
+    secondaryColor: 0x907560,
     eyeColor: 0xffff00,
     scale: 0.75,
     speedMult: 2.2,
@@ -26,8 +26,8 @@ export const ENEMY_TYPES = {
   },
   tank: {
     name: "Brute",
-    color: 0x5c4a4d,
-    secondaryColor: 0x3d3238,
+    color: 0x8a7078,
+    secondaryColor: 0x6a5560,
     eyeColor: 0xff4422,
     scale: 1.6,
     speedMult: 0.45,
@@ -37,8 +37,8 @@ export const ENEMY_TYPES = {
   },
   spitter: {
     name: "Spitter",
-    color: 0x2d5a4a,
-    secondaryColor: 0x1d3a2a,
+    color: 0x4a8a70,
+    secondaryColor: 0x3a6a50,
     eyeColor: 0xaacc22,
     glowColor: 0x88aa11,
     scale: 0.9,
@@ -52,8 +52,8 @@ export const ENEMY_TYPES = {
   },
   exploder: {
     name: "Bloater",
-    color: 0x8b4513,
-    secondaryColor: 0x5c2d0e,
+    color: 0xb06020,
+    secondaryColor: 0x8a5020,
     eyeColor: 0xff6600,
     glowColor: 0xff4400,
     scale: 1.4,
@@ -67,8 +67,8 @@ export const ENEMY_TYPES = {
   },
   boss: {
     name: "Abomination",
-    color: 0x2a1210,
-    secondaryColor: 0x1a0808,
+    color: 0x6a3028,
+    secondaryColor: 0x4a2018,
     eyeColor: 0xff2200,
     glowColor: 0xaa1100,
     scale: 3.5,
@@ -83,36 +83,36 @@ export const ENEMY_TYPES = {
 export const STAGE_BOSS_VARIANTS = [
   {
     name: "The Abomination",
-    color: 0x2a1210,
-    secondaryColor: 0x1a0808,
+    color: 0x6a3028,
+    secondaryColor: 0x4a2018,
     eyeColor: 0xff2200,
     glowColor: 0xaa1100,
   },
   {
     name: "The Warden",
-    color: 0x1a1a22,
-    secondaryColor: 0x0a0a14,
+    color: 0x3a3a50,
+    secondaryColor: 0x2a2a3a,
     eyeColor: 0xccaa44,
     glowColor: 0x886622,
   },
   {
     name: "The Devourer",
-    color: 0x2e1a0a,
-    secondaryColor: 0x201005,
+    color: 0x5e3a1a,
+    secondaryColor: 0x402a10,
     eyeColor: 0xff4400,
     glowColor: 0xcc2200,
   },
   {
     name: "The Plague Bearer",
-    color: 0x1a2e0a,
-    secondaryColor: 0x0a1a05,
+    color: 0x3a5e1a,
+    secondaryColor: 0x2a4010,
     eyeColor: 0x88aa00,
     glowColor: 0x668800,
   },
   {
     name: "The Wraith King",
-    color: 0x2a0a1a,
-    secondaryColor: 0x1a0510,
+    color: 0x5a1a3a,
+    secondaryColor: 0x3a1028,
     eyeColor: 0xcc3344,
     glowColor: 0x881122,
   },
@@ -337,12 +337,11 @@ function addEyes(group, type, s, eyeColor) {
   const socketGeo = new THREE.SphereGeometry(eyeSize * 2.2, 6, 6);
   const socketMat = CAVITY_MAT;
 
-  // Dim, sickly glow — not bright robot LEDs
   const eyeGeo = new THREE.SphereGeometry(eyeSize, 6, 6);
   const eyeMat = new THREE.MeshBasicMaterial({
     color: eyeColor,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.9,
   });
 
   const EYE_POS = {
@@ -1405,18 +1404,22 @@ function _buildTemplate(type, typeDef) {
     color: typeDef.color,
     roughness: 0.95,
     metalness: 0.05,
+    emissive: typeDef.color,
+    emissiveIntensity: 0.08,
   });
   const skinColor = new THREE.Color(typeDef.secondaryColor || 0x5a7a51).lerp(
-    new THREE.Color(0x443333),
-    0.35,
+    new THREE.Color(0x665555),
+    0.25,
   );
   const skinMat = new THREE.MeshStandardMaterial({
     color: skinColor,
     roughness: 0.92,
     metalness: 0.0,
+    emissive: skinColor,
+    emissiveIntensity: 0.06,
   });
   const pantsMat = new THREE.MeshStandardMaterial({
-    color: 0x1a1a15,
+    color: 0x3a3a30,
     roughness: 1.0,
   });
 
