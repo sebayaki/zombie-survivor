@@ -1594,14 +1594,12 @@ export class AutoWeaponSystem {
   fireMagicWand(stats, playerPos, zombies, scale = 1) {
     if (zombies.length === 0) return;
 
-    // Use spatial grid for fast nearest-neighbor lookup instead of full sort
     const grid = this.game.zombieGrid;
     const nearby = grid
       ? grid.query(playerPos.x, playerPos.z, this.game.autoAimRange)
       : zombies;
     if (nearby.length === 0) return;
 
-    // Partial sort: find N nearest where N = projectileCount (O(n*k) vs O(n log n))
     const count = Math.min(stats.projectileCount, nearby.length);
     const targets = [];
     const used = new Set();
@@ -1626,29 +1624,70 @@ export class AutoWeaponSystem {
       direction.subVectors(target.mesh.position, playerPos);
       direction.y = 0;
       direction.normalize();
+      // Slight spread for machinegun feel
+      direction.x += (Math.random() - 0.5) * 0.08;
+      direction.z += (Math.random() - 0.5) * 0.08;
+      direction.normalize();
 
-      this.createProjectile({
+      // Tracer round: bright tip + visible trail
+      const group = new THREE.Group();
+
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 4, 4),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      );
+      tip.position.z = 0.5;
+      group.add(tip);
+
+      const coreTrail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.05, 1.0),
+        new THREE.MeshBasicMaterial({ color: 0xffdd44 }),
+      );
+      group.add(coreTrail);
+
+      const glowTrail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.08, 1.6),
+        new THREE.MeshBasicMaterial({
+          color: 0xff8800,
+          transparent: true,
+          opacity: 0.25,
+          depthWrite: false,
+        }),
+      );
+      glowTrail.position.z = -0.25;
+      group.add(glowTrail);
+
+      group.position.copy(playerPos);
+      group.position.y = 1;
+      group.rotation.y = Math.atan2(direction.x, direction.z);
+      this.game.scene.add(group);
+
+      this.projectiles.push({
         type: "magicWand",
-        position: playerPos.clone().add(new THREE.Vector3(0, 1, 0)),
+        mesh: group,
         direction: direction,
         speed: stats.projectileSpeed,
         damage: stats.damage,
         pierce: stats.pierce,
         duration: stats.duration,
         area: stats.area,
-        color: 0xddaa44,
-        scale: scale,
+        elapsed: 0,
+        hitEnemies: new Set(),
       });
     }
 
-    this.game.audioManager.playSound("shoot");
+    // Throttled machinegun sound
+    const now = performance.now();
+    if (!this._mgWandSoundTime || now - this._mgWandSoundTime > 120) {
+      this._mgWandSoundTime = now;
+      this.game.audioManager.playSound("machinegun");
+    }
   }
 
-  // Whip - FIREWALL style attack that leaves burning trail
+  // Whip - wide firewall slash
   fireWhip(stats, playerPos, playerDir, scale = 1) {
     const attackPositions = [playerPos.clone()];
 
-    // Level 3+ attacks behind too
     if (stats.projectileCount >= 2) {
       attackPositions.push(playerPos.clone());
     }
@@ -1657,50 +1696,72 @@ export class AutoWeaponSystem {
       const pos = attackPositions[i];
       const dir = i === 0 ? playerDir.clone() : playerDir.clone().negate();
 
-      const width = 3 * stats.area * scale;
+      const width = 5 * stats.area * scale;
       const group = new THREE.Group();
 
-      const slashMat = new THREE.MeshBasicMaterial({
-        color: 0xffddcc,
-        transparent: true,
-        opacity: 0.6,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      });
+      // Bright slash core
       const slash = new THREE.Mesh(
-        new THREE.PlaneGeometry(width, 1.0),
-        slashMat,
+        new THREE.PlaneGeometry(width, 1.4),
+        new THREE.MeshBasicMaterial({
+          color: 0xffaa55,
+          transparent: true,
+          opacity: 0.75,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
       );
       slash.position.set(width / 2, 1.0, 0);
       slash.rotation.y = Math.PI;
       group.add(slash);
 
-      const glowMat = new THREE.MeshBasicMaterial({
-        color: 0xcc4400,
-        transparent: true,
-        opacity: 0.25,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      });
+      // Wide heat glow
       const glow = new THREE.Mesh(
-        new THREE.PlaneGeometry(width * 1.05, 1.6),
-        glowMat,
+        new THREE.PlaneGeometry(width * 1.1, 2.2),
+        new THREE.MeshBasicMaterial({
+          color: 0xff4400,
+          transparent: true,
+          opacity: 0.3,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
       );
       glow.position.set(width / 2, 1.0, 0);
       group.add(glow);
 
-      const groundGeometry = new THREE.PlaneGeometry(width, 1.0);
-      const groundMaterial = new THREE.MeshBasicMaterial({
-        color: 0xcc8800,
-        transparent: true,
-        opacity: 0.2,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      });
-      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      // Ground scorch
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(width * 1.1, 2.0),
+        new THREE.MeshBasicMaterial({
+          color: 0xff6600,
+          transparent: true,
+          opacity: 0.2,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+      );
       ground.rotation.x = -Math.PI / 2;
       ground.position.set(width / 2, 0.05, 0);
       group.add(ground);
+
+      // Ember sparks along the slash
+      for (let s = 0; s < 6; s++) {
+        const ember = new THREE.Mesh(
+          new THREE.SphereGeometry(0.08, 4, 4),
+          new THREE.MeshBasicMaterial({
+            color: 0xffcc44,
+            transparent: true,
+            opacity: 0.8,
+          }),
+        );
+        ember.position.set(
+          Math.random() * width,
+          0.6 + Math.random() * 1.0,
+          (Math.random() - 0.5) * 0.6,
+        );
+        group.add(ember);
+      }
 
       group.position.copy(pos);
       group.position.y = 0.1;
@@ -1708,18 +1769,17 @@ export class AutoWeaponSystem {
 
       this.game.scene.add(group);
 
-      // Store as firewall effect - longer duration for burning
       this.effects.push({
         type: "firewall",
         mesh: group,
         position: pos.clone(),
         direction: dir,
-        damage: stats.damage * 0.5, // Damage per tick
+        damage: stats.damage * 0.5,
         area: width,
         knockback: stats.knockback || 0,
-        duration: stats.duration * 3, // Lasts 3x longer
+        duration: stats.duration * 3,
         elapsed: 0,
-        tickRate: 0.3, // Damage every 0.3 seconds
+        tickRate: 0.25,
         lastTick: 0,
         hitEnemies: new Set(),
       });
@@ -2195,6 +2255,8 @@ export class AutoWeaponSystem {
           proj.mesh.position.z += proj.direction.z * s;
           if (proj.type === "knife") {
             proj.mesh.rotation.y += delta * 10;
+          } else {
+            proj.mesh.rotation.y = Math.atan2(proj.direction.x, proj.direction.z);
           }
           break;
         }
@@ -3401,21 +3463,16 @@ export class AutoWeaponSystem {
   fireMagicMissile(stats, playerPos, zombies, scale = 1) {
     for (let i = 0; i < stats.projectileCount; i++) {
       if (!this.canAddProjectile()) break;
-      // Random initial direction
       const angle =
         (i / stats.projectileCount) * Math.PI * 2 + Math.random() * 0.5;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
-      // Create glowing missile
       const group = new THREE.Group();
-
-      // Core
       const core = new THREE.Mesh(
         new THREE.SphereGeometry(0.2 * scale, 8, 8),
         new THREE.MeshBasicMaterial({ color: 0xcc8844 }),
       );
       group.add(core);
-
       const trail = new THREE.Mesh(
         new THREE.ConeGeometry(0.15 * scale, 0.6 * scale, 8),
         new THREE.MeshBasicMaterial({
@@ -3427,7 +3484,6 @@ export class AutoWeaponSystem {
       trail.rotation.x = Math.PI / 2;
       trail.position.z = -0.3 * scale;
       group.add(trail);
-
       const glow = new THREE.Mesh(
         new THREE.SphereGeometry(0.35 * scale, 8, 8),
         new THREE.MeshBasicMaterial({
@@ -3693,75 +3749,71 @@ export class AutoWeaponSystem {
   fireClockLancet(stats, playerPos, zombies, scale = 1) {
     const group = new THREE.Group();
 
-    // Outer ring
-    const ringGeo = new THREE.RingGeometry(stats.area * 0.92, stats.area, 48);
-    const ring = new THREE.Mesh(
-      ringGeo,
-      new THREE.MeshBasicMaterial({
-        color: 0xaaddff,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide,
-      }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.02;
-    group.add(ring);
-
-    // Clock face (translucent fill)
+    // Subtle frost fill (no thick border)
     const face = new THREE.Mesh(
-      new THREE.CircleGeometry(stats.area * 0.92, 48),
+      new THREE.CircleGeometry(stats.area, 48),
       new THREE.MeshBasicMaterial({
-        color: 0xccaa77,
+        color: 0x88ccff,
         transparent: true,
-        opacity: 0.12,
+        opacity: 0.08,
         side: THREE.DoubleSide,
+        depthWrite: false,
       }),
     );
     face.rotation.x = -Math.PI / 2;
     group.add(face);
 
-    // Clock hands - geometry offset so pivot is at one end
-    const handMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    // Thin edge ring (barely visible)
+    const edgeRing = new THREE.Mesh(
+      new THREE.RingGeometry(stats.area * 0.97, stats.area, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0xaaddff,
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    edgeRing.rotation.x = -Math.PI / 2;
+    edgeRing.position.y = 0.01;
+    group.add(edgeRing);
 
-    const hourLen = stats.area * 0.45;
-    const hourGeo = new THREE.BoxGeometry(0.12, 0.03, hourLen);
+    // Clock hands
+    const handMat = new THREE.MeshBasicMaterial({
+      color: 0xddeeff,
+      transparent: true,
+      opacity: 0.5,
+    });
+
+    const hourLen = stats.area * 0.4;
+    const hourGeo = new THREE.BoxGeometry(0.08, 0.02, hourLen);
     hourGeo.translate(0, 0, hourLen / 2);
     const hourHand = new THREE.Mesh(hourGeo, handMat);
     hourHand.position.y = 0.03;
-    hourHand.rotation.y = -Math.PI / 6; // ~2 o'clock direction
+    hourHand.rotation.y = -Math.PI / 6;
     group.add(hourHand);
 
-    const minLen = stats.area * 0.65;
-    const minGeo = new THREE.BoxGeometry(0.08, 0.03, minLen);
+    const minLen = stats.area * 0.6;
+    const minGeo = new THREE.BoxGeometry(0.05, 0.02, minLen);
     minGeo.translate(0, 0, minLen / 2);
     const minuteHand = new THREE.Mesh(minGeo, handMat);
     minuteHand.position.y = 0.04;
-    minuteHand.rotation.y = Math.PI / 2.5; // ~10 o'clock direction
+    minuteHand.rotation.y = Math.PI / 2.5;
     group.add(minuteHand);
 
-    // Center dot
+    // Small center dot
     const centerDot = new THREE.Mesh(
-      new THREE.CircleGeometry(0.15, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+      new THREE.CircleGeometry(0.1, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0xddeeff,
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+      }),
     );
     centerDot.rotation.x = -Math.PI / 2;
     centerDot.position.y = 0.05;
     group.add(centerDot);
-
-    // Hour marks (12 ticks around the edge)
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2;
-      const isMajor = i % 3 === 0;
-      const markLen = isMajor ? 0.35 : 0.2;
-      const markW = isMajor ? 0.12 : 0.06;
-      const markGeo = new THREE.BoxGeometry(markW, 0.02, markLen);
-      markGeo.translate(0, 0, stats.area * 0.82);
-      const mark = new THREE.Mesh(markGeo, handMat);
-      mark.position.y = 0.02;
-      mark.rotation.y = angle;
-      group.add(mark);
-    }
 
     group.position.copy(playerPos);
     group.position.y = 0.1;

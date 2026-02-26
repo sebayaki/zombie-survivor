@@ -1,17 +1,139 @@
-const SOUND_DEFS = {
-  // Gunshot: punchy noise burst (not a laser)
+// Sound file mappings: each key maps to an array of file paths (variants for randomization)
+const SOUND_FILES = {
+  shoot:        ["/sounds/shoot_0.ogg", "/sounds/shoot_1.ogg", "/sounds/shoot_2.ogg"],
+  machinegun:   ["/sounds/machinegun_0.ogg", "/sounds/machinegun_1.ogg", "/sounds/machinegun_2.ogg", "/sounds/machinegun_3.ogg", "/sounds/machinegun_4.ogg"],
+  shotgun:      ["/sounds/shotgun_0.ogg", "/sounds/shotgun_1.ogg", "/sounds/shotgun_2.ogg"],
+  rocket:       ["/sounds/rocket_0.ogg", "/sounds/rocket_1.ogg"],
+  railgun:      ["/sounds/railgun_0.ogg", "/sounds/railgun_1.ogg"],
+  bfg:          ["/sounds/bfg_0.ogg", "/sounds/bfg_1.ogg"],
+  explosion:    ["/sounds/explosion_0.ogg", "/sounds/explosion_1.ogg", "/sounds/explosion_2.ogg"],
+  zombieDeath:  ["/sounds/zombieDeath_0.wav", "/sounds/zombieDeath_1.wav", "/sounds/zombieDeath_2.wav", "/sounds/zombieDeath_3.wav"],
+  zombieAttack: ["/sounds/zombieAttack_0.wav", "/sounds/zombieAttack_1.wav", "/sounds/zombieAttack_2.wav"],
+  bossRoar:     ["/sounds/bossRoar_0.wav", "/sounds/bossRoar_1.wav"],
+  bossSlam:     ["/sounds/bossSlam_0.ogg", "/sounds/bossSlam_1.ogg"],
+  bossCharge:   ["/sounds/bossCharge_0.ogg"],
+  playerHit:    ["/sounds/playerHit_0.ogg", "/sounds/playerHit_1.ogg", "/sounds/playerHit_2.ogg"],
+  pickup:       ["/sounds/pickup_0.ogg", "/sounds/pickup_1.ogg"],
+  xpPickup:     ["/sounds/xpPickup_0.ogg", "/sounds/xpPickup_1.ogg"],
+  upgrade:      ["/sounds/upgrade_0.ogg", "/sounds/upgrade_1.ogg"],
+  levelUp:      ["/sounds/levelUp_0.ogg", "/sounds/levelUp_1.ogg"],
+  knife:        ["/sounds/knife_0.ogg", "/sounds/knife_1.ogg"],
+  axe:          ["/sounds/axe_0.ogg", "/sounds/axe_1.ogg"],
+  cross:        ["/sounds/cross_0.ogg", "/sounds/cross_1.ogg"],
+  whip:         ["/sounds/whip_0.ogg", "/sounds/whip_1.ogg"],
+  fireball:     ["/sounds/fireball_0.ogg"],
+  lightning:    ["/sounds/lightning_0.ogg"],
+  splash:       ["/sounds/splash_0.ogg"],
+  throw:        ["/sounds/throw_0.ogg", "/sounds/throw_1.ogg"],
+  runetracer:   ["/sounds/runetracer_0.ogg"],
+  magicMissile: ["/sounds/magicMissile_0.ogg"],
+  weaponSwitch: ["/sounds/weaponSwitch_0.ogg"],
+  chestSpawn:   ["/sounds/chestSpawn_0.ogg"],
+  chestOpen:    ["/sounds/chestOpen_0.ogg", "/sounds/chestOpen_1.ogg"],
+  evolution:    ["/sounds/evolution_0.ogg", "/sounds/evolution_1.ogg"],
+  gameOver:     ["/sounds/gameOver_0.ogg"],
+  pentagram:    ["/sounds/pentagram_0.ogg"],
+};
+
+// Volume overrides per sound (base volume before master gain)
+const SOUND_VOLUMES = {
+  shoot: 0.5,
+  machinegun: 0.25,
+  shotgun: 0.6,
+  rocket: 0.5,
+  railgun: 0.5,
+  bfg: 0.55,
+  explosion: 0.6,
+  zombieDeath: 0.35,
+  zombieAttack: 0.3,
+  bossRoar: 0.55,
+  bossSlam: 0.6,
+  bossCharge: 0.4,
+  playerHit: 0.5,
+  pickup: 0.3,
+  xpPickup: 0.12,
+  upgrade: 0.35,
+  levelUp: 0.45,
+  knife: 0.35,
+  axe: 0.4,
+  cross: 0.3,
+  whip: 0.4,
+  fireball: 0.35,
+  lightning: 0.4,
+  splash: 0.35,
+  throw: 0.25,
+  runetracer: 0.25,
+  magicMissile: 0.3,
+  weaponSwitch: 0.2,
+  chestSpawn: 0.3,
+  chestOpen: 0.35,
+  evolution: 0.45,
+  gameOver: 0.5,
+  pentagram: 0.45,
+};
+
+// Playback rate ranges for variety [min, max]
+const SOUND_PITCH = {
+  shoot:        [0.9, 1.15],
+  machinegun:   [0.9, 1.4],
+  shotgun:      [0.85, 1.05],
+  zombieDeath:  [0.7, 1.1],
+  zombieAttack: [0.75, 1.15],
+  playerHit:    [0.85, 1.15],
+  knife:        [0.9, 1.15],
+  axe:          [0.85, 1.1],
+  cross:        [0.9, 1.1],
+  whip:         [0.9, 1.15],
+  throw:        [0.85, 1.2],
+  explosion:    [0.8, 1.1],
+  xpPickup:     [0.8, 1.3],
+};
+
+// Procedural fallbacks (used when audio files haven't loaded yet)
+const PROCEDURAL_DEFS = {
   shoot: { type: "noise", duration: 0.08, volume: 0.35, decay: 25, filter: "lowpass", filterFreq: 2000 },
   machinegun: { type: "noise", duration: 0.04, volume: 0.25, decay: 30, filter: "lowpass", filterFreq: 2500 },
   shotgun: { type: "noise", duration: 0.12, volume: 0.5, decay: 8, filter: "lowpass", filterFreq: 1200 },
   rocket: { type: "noise", duration: 0.25, volume: 0.4, decay: 5, filter: "lowpass", filterFreq: 400, modulate: 20 },
   railgun: { type: "noise", duration: 0.15, volume: 0.35, decay: 12, filter: "bandpass", filterFreq: 800 },
-
-  // Zombie sounds: guttural, wet, organic
+  playerHit: { type: "noise", duration: 0.12, volume: 0.35, decay: 15, filter: "lowpass", filterFreq: 800, modulate: 40 },
+  pickup: { type: "sweep", wave: "triangle", startFreq: 300, endFreq: 500, duration: 0.1, volume: 0.18 },
+  xpPickup: { type: "sweep", wave: "triangle", startFreq: 400, endFreq: 600, duration: 0.06, volume: 0.08 },
+  upgrade: { type: "sweep", wave: "triangle", startFreq: 250, endFreq: 450, duration: 0.15, volume: 0.2 },
+  knife: { type: "noise", duration: 0.04, volume: 0.18, decay: 35, filter: "highpass", filterFreq: 2000 },
+  axe: { type: "noise", duration: 0.1, volume: 0.28, decay: 12, filter: "lowpass", filterFreq: 800 },
+  cross: { type: "noise", duration: 0.06, volume: 0.2, decay: 20, filter: "bandpass", filterFreq: 1200 },
+  whip: { type: "noise", duration: 0.08, volume: 0.35, decay: 25, filter: "highpass", filterFreq: 1500, envelopeFn: "whip" },
+  fireball: { type: "noise", duration: 0.18, volume: 0.25, decay: 8, filter: "lowpass", filterFreq: 500, modulate: 30 },
+  runetracer: { type: "noise", duration: 0.08, volume: 0.15, decay: 18, filter: "bandpass", filterFreq: 1000 },
+  throw: { type: "noise", duration: 0.06, volume: 0.15, decay: 22, filter: "highpass", filterFreq: 1200 },
+  lightning: { type: "noise", duration: 0.12, volume: 0.3, decay: 18, filter: "highpass", filterFreq: 3000 },
+  splash: { type: "noise", duration: 0.2, volume: 0.25, decay: 8, filter: "lowpass", filterFreq: 800, modulate: 60 },
+  explosion: { type: "noise", duration: 0.4, volume: 0.6, decay: 4, filter: "lowpass", filterFreq: 400, modulate: 25 },
+  weaponSwitch: { type: "noise", duration: 0.06, volume: 0.12, decay: 25, filter: "bandpass", filterFreq: 1500 },
+  bfg: { type: "noise", duration: 0.4, volume: 0.5, decay: 4, filter: "lowpass", filterFreq: 300, modulate: 15 },
+  bossSlam: { type: "noise", duration: 0.5, volume: 0.7, decay: 3, filter: "lowpass", filterFreq: 180, modulate: 20 },
+  levelUp: {
+    type: "multi",
+    notes: [
+      { freq: 220, delay: 0, duration: 0.15, wave: "triangle", volume: 0.2 },
+      { freq: 330, delay: 60, duration: 0.15, wave: "triangle", volume: 0.2 },
+      { freq: 440, delay: 120, duration: 0.2, wave: "triangle", volume: 0.22 },
+    ],
+  },
+  chestSpawn: {
+    type: "multi",
+    notes: [
+      { freq: 200, delay: 0, duration: 0.2, wave: "triangle", volume: 0.12 },
+      { freq: 300, delay: 80, duration: 0.2, wave: "triangle", volume: 0.12 },
+      { freq: 400, delay: 160, duration: 0.25, wave: "triangle", volume: 0.14 },
+    ],
+  },
+  chestOpen: { type: "chord", frequencies: [220, 330], wave: "triangle", duration: 0.3, volume: 0.18 },
   zombieDeath: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      // Guttural groan
       const osc = ctx.createOscillator();
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(90, now);
@@ -28,26 +150,8 @@ const SOUND_DEFS = {
       gain.connect(masterGain);
       osc.start(now);
       osc.stop(now + 0.3);
-      // Wet splat
-      const len = Math.floor(ctx.sampleRate * 0.15);
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-(i / len) * 12);
-      const ns = ctx.createBufferSource();
-      ns.buffer = buf;
-      const nf = ctx.createBiquadFilter();
-      nf.type = "lowpass";
-      nf.frequency.value = 600;
-      const ng = ctx.createGain();
-      ng.gain.setValueAtTime(0.15, now + 0.05);
-      ng.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-      ns.connect(nf);
-      nf.connect(ng);
-      ng.connect(masterGain);
-      ns.start(now + 0.05);
     },
   },
-
   zombieAttack: {
     type: "custom",
     play: (ctx, masterGain) => {
@@ -70,31 +174,10 @@ const SOUND_DEFS = {
       osc.stop(now + 0.15);
     },
   },
-
-  playerHit: { type: "noise", duration: 0.12, volume: 0.35, decay: 15, filter: "lowpass", filterFreq: 800, modulate: 40 },
-  pickup: { type: "sweep", wave: "triangle", startFreq: 300, endFreq: 500, duration: 0.1, volume: 0.18 },
-  xpPickup: { type: "sweep", wave: "triangle", startFreq: 400, endFreq: 600, duration: 0.06, volume: 0.08 },
-  upgrade: { type: "sweep", wave: "triangle", startFreq: 250, endFreq: 450, duration: 0.15, volume: 0.2 },
-
-  // Melee weapons: sharp, physical impacts
-  knife: { type: "noise", duration: 0.04, volume: 0.18, decay: 35, filter: "highpass", filterFreq: 2000 },
-  axe: { type: "noise", duration: 0.1, volume: 0.28, decay: 12, filter: "lowpass", filterFreq: 800 },
-  cross: { type: "noise", duration: 0.06, volume: 0.2, decay: 20, filter: "bandpass", filterFreq: 1200 },
-  whip: { type: "noise", duration: 0.08, volume: 0.35, decay: 25, filter: "highpass", filterFreq: 1500, envelopeFn: "whip" },
-  fireball: { type: "noise", duration: 0.18, volume: 0.25, decay: 8, filter: "lowpass", filterFreq: 500, modulate: 30 },
-  runetracer: { type: "noise", duration: 0.08, volume: 0.15, decay: 18, filter: "bandpass", filterFreq: 1000 },
-  throw: { type: "noise", duration: 0.06, volume: 0.15, decay: 22, filter: "highpass", filterFreq: 1200 },
-  lightning: { type: "noise", duration: 0.12, volume: 0.3, decay: 18, filter: "highpass", filterFreq: 3000 },
-  splash: { type: "noise", duration: 0.2, volume: 0.25, decay: 8, filter: "lowpass", filterFreq: 800, modulate: 60 },
-  explosion: { type: "noise", duration: 0.4, volume: 0.6, decay: 4, filter: "lowpass", filterFreq: 400, modulate: 25 },
-
-  weaponSwitch: { type: "noise", duration: 0.06, volume: 0.12, decay: 25, filter: "bandpass", filterFreq: 1500 },
-
   gameOver: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      // Low ominous tone
       const osc = ctx.createOscillator();
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(120, now);
@@ -113,32 +196,10 @@ const SOUND_DEFS = {
       osc.stop(now + 1.5);
     },
   },
-
-  levelUp: {
-    type: "multi",
-    notes: [
-      { freq: 220, delay: 0,   duration: 0.15, wave: "triangle", volume: 0.2 },
-      { freq: 330, delay: 60,  duration: 0.15, wave: "triangle", volume: 0.2 },
-      { freq: 440, delay: 120, duration: 0.2,  wave: "triangle", volume: 0.22 },
-    ],
-  },
-
-  chestSpawn: {
-    type: "multi",
-    notes: [
-      { freq: 200, delay: 0,   duration: 0.2, wave: "triangle", volume: 0.12 },
-      { freq: 300, delay: 80,  duration: 0.2, wave: "triangle", volume: 0.12 },
-      { freq: 400, delay: 160, duration: 0.25, wave: "triangle", volume: 0.14 },
-    ],
-  },
-
-  chestOpen: { type: "chord", frequencies: [220, 330], wave: "triangle", duration: 0.3, volume: 0.18 },
-
   bossRoar: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      // Deep guttural roar with distortion
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -164,28 +225,8 @@ const SOUND_DEFS = {
       osc1.stop(now + 1.2);
       osc2.start(now);
       osc2.stop(now + 1.2);
-      // Throaty noise layer
-      const len = Math.floor(ctx.sampleRate * 1.0);
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const nd = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) nd[i] = (Math.random() * 2 - 1) * Math.exp(-(i / len) * 3);
-      const ns = ctx.createBufferSource();
-      ns.buffer = buf;
-      const nf = ctx.createBiquadFilter();
-      nf.type = "lowpass";
-      nf.frequency.value = 250;
-      const ng = ctx.createGain();
-      ng.gain.setValueAtTime(0.35, now);
-      ng.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
-      ns.connect(nf);
-      nf.connect(ng);
-      ng.connect(masterGain);
-      ns.start(now);
     },
   },
-
-  bossSlam: { type: "noise", duration: 0.5, volume: 0.7, decay: 3, filter: "lowpass", filterFreq: 180, modulate: 20 },
-
   bossCharge: {
     type: "custom",
     play: (ctx, masterGain) => {
@@ -209,15 +250,10 @@ const SOUND_DEFS = {
       osc.stop(now + 0.7);
     },
   },
-
-  // Cannon (was BFG): heavy boom
-  bfg: { type: "noise", duration: 0.4, volume: 0.5, decay: 4, filter: "lowpass", filterFreq: 300, modulate: 15 },
-
   pentagram: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      // Deep ominous chord
       const freqs = [55, 82.5, 110, 165];
       for (let i = 0; i < freqs.length; i++) {
         const osc = ctx.createOscillator();
@@ -239,12 +275,10 @@ const SOUND_DEFS = {
       }
     },
   },
-
   magicMissile: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      // Whoosh + low thump
       const len = Math.floor(ctx.sampleRate * 0.1);
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
       const d = buf.getChannelData(0);
@@ -261,12 +295,10 @@ const SOUND_DEFS = {
       ns.start(now);
     },
   },
-
   evolution: {
     type: "custom",
     play: (ctx, masterGain) => {
       const now = ctx.currentTime;
-      // Dark ascending tones
       const notes = [110, 165, 220, 330];
       for (let i = 0; i < notes.length; i++) {
         const osc = ctx.createOscillator();
@@ -294,6 +326,8 @@ export class AudioManager {
     this.initialized = false;
     this.soundEnabled = true;
     this.musicEnabled = true;
+    this._buffers = {};       // { soundName: AudioBuffer[] }
+    this._loadingStarted = false;
   }
 
   init() {
@@ -309,8 +343,40 @@ export class AudioManager {
       this._musicWasPlaying = false;
       this._setupVisibilityHandler();
       this.initialized = true;
+      this._preloadSounds();
     } catch (e) {
       console.warn("Web Audio not supported:", e);
+    }
+  }
+
+  async _preloadSounds() {
+    if (this._loadingStarted) return;
+    this._loadingStarted = true;
+
+    const entries = Object.entries(SOUND_FILES);
+    const batchSize = 6;
+
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const batch = entries.slice(i, i + batchSize);
+      await Promise.all(batch.map(([name, paths]) => this._loadSoundGroup(name, paths)));
+    }
+  }
+
+  async _loadSoundGroup(name, paths) {
+    const buffers = [];
+    for (const path of paths) {
+      try {
+        const resp = await fetch(path);
+        if (!resp.ok) continue;
+        const arrayBuf = await resp.arrayBuffer();
+        const audioBuf = await this.context.decodeAudioData(arrayBuf);
+        buffers.push(audioBuf);
+      } catch (_) {
+        // File missing or decode failed — skip this variant
+      }
+    }
+    if (buffers.length > 0) {
+      this._buffers[name] = buffers;
     }
   }
 
@@ -336,9 +402,15 @@ export class AudioManager {
     if (!this.context) return;
     if (this.context.state === "suspended") this.context.resume();
 
-    const def = SOUND_DEFS[name];
-    if (!def) return;
+    const buffers = this._buffers[name];
+    if (buffers && buffers.length > 0) {
+      this._playBuffer(name, buffers);
+      return;
+    }
 
+    // Procedural fallback
+    const def = PROCEDURAL_DEFS[name];
+    if (!def) return;
     switch (def.type) {
       case "sweep":  this._playSweep(def); break;
       case "noise":  this._playNoise(def); break;
@@ -346,6 +418,26 @@ export class AudioManager {
       case "chord":  this._playChord(def); break;
       case "custom": def.play(this.context, this.masterGain); break;
     }
+  }
+
+  _playBuffer(name, buffers) {
+    const ctx = this.context;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    // Apply pitch variation
+    const pitchRange = SOUND_PITCH[name];
+    if (pitchRange) {
+      source.playbackRate.value = pitchRange[0] + Math.random() * (pitchRange[1] - pitchRange[0]);
+    }
+
+    const gain = ctx.createGain();
+    gain.gain.value = SOUND_VOLUMES[name] ?? 0.4;
+
+    source.connect(gain);
+    gain.connect(this.masterGain);
+    source.start();
   }
 
   _playSweep(def) {
@@ -462,10 +554,8 @@ export class AudioManager {
   _createAmbientMusic() {
     const ctx = this.context;
 
-    // Deep sub-bass drone (ominous rumble)
     this._addMusicLayer("sine", 36, 0.18);
 
-    // Dissonant minor second drone (unsettling)
     const droneOsc = ctx.createOscillator();
     droneOsc.type = "sawtooth";
     droneOsc.frequency.value = 55;
@@ -480,15 +570,14 @@ export class AudioManager {
     droneOsc.start();
     this.musicOscillators.push({ osc: droneOsc, gain: droneGain });
 
-    // Slow LFO pad (breathing, pulsing dread)
     const padOsc = ctx.createOscillator();
     padOsc.type = "triangle";
-    padOsc.frequency.value = 58.3; // Slightly detuned from 55Hz — creates beating
+    padOsc.frequency.value = 58.3;
     const padGain = ctx.createGain();
     padGain.gain.value = 0.05;
     const lfo = ctx.createOscillator();
     lfo.type = "sine";
-    lfo.frequency.value = 0.05; // Very slow pulse
+    lfo.frequency.value = 0.05;
     const lfoGain = ctx.createGain();
     lfoGain.gain.value = 3;
     lfo.connect(lfoGain);
@@ -499,15 +588,14 @@ export class AudioManager {
     padOsc.start();
     this.musicOscillators.push({ osc: padOsc, gain: padGain }, { osc: lfo, gain: lfoGain });
 
-    // High dissonant tone (tension) — tritone interval
     const highOsc = ctx.createOscillator();
     highOsc.type = "sine";
-    highOsc.frequency.value = 311; // Eb — tritone from A
+    highOsc.frequency.value = 311;
     const highGain = ctx.createGain();
     highGain.gain.value = 0.015;
     const tremolo = ctx.createOscillator();
     tremolo.type = "sine";
-    tremolo.frequency.value = 0.3; // Slow tremolo
+    tremolo.frequency.value = 0.3;
     const tremoloGain = ctx.createGain();
     tremoloGain.gain.value = 0.012;
     tremolo.connect(tremoloGain);
