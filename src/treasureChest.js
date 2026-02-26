@@ -77,11 +77,17 @@ export class TreasureChestSystem {
       // Bobbing animation
       chest.mesh.position.y = 0.3 + Math.sin(time * 2 + chest.bobOffset) * 0.1;
 
-      // Glow pulsing
+      // Glow pulsing (light + subtle halo)
+      const pulse = Math.sin(time * 3) * 0.5 + 0.5;
       if (chest.glow) {
-        const pulse = 0.3 + Math.sin(time * 3) * 0.2;
-        chest.glow.material.opacity = pulse;
+        chest.glow.material.opacity = 0.04 + pulse * 0.08;
       }
+      if (chest.chestLight) {
+        chest.chestLight.intensity = 3 + pulse * 4;
+      }
+
+      // Slow rotation
+      chest.mesh.rotation.y += delta * 0.4;
 
       // Check if player is close enough to collect (with cooldown)
       const dist = playerPos.distanceTo(chest.mesh.position);
@@ -101,7 +107,9 @@ export class TreasureChestSystem {
     // Body
     const bodyMaterial = new THREE.MeshStandardMaterial({
       color: 0x8b4513,
-      roughness: 0.8,
+      roughness: 0.7,
+      emissive: 0x331a00,
+      emissiveIntensity: 0.15,
     });
     const body = new THREE.Mesh(this.chestGeometry, bodyMaterial);
     mesh.add(body);
@@ -109,7 +117,9 @@ export class TreasureChestSystem {
     // Lid
     const lidMaterial = new THREE.MeshStandardMaterial({
       color: 0x8b4513,
-      roughness: 0.8,
+      roughness: 0.7,
+      emissive: 0x331a00,
+      emissiveIntensity: 0.15,
     });
     const lid = new THREE.Mesh(this.lidGeometry, lidMaterial);
     lid.position.y = 0.3;
@@ -118,8 +128,10 @@ export class TreasureChestSystem {
     // Gold trim
     const trimMaterial = new THREE.MeshStandardMaterial({
       color: 0xffd700,
-      metalness: 0.8,
-      roughness: 0.2,
+      metalness: 0.9,
+      roughness: 0.1,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.6,
     });
 
     const trimGeometry = new THREE.BoxGeometry(0.1, 0.5, 0.52);
@@ -137,15 +149,22 @@ export class TreasureChestSystem {
     lock.position.set(0, 0.15, 0.25);
     mesh.add(lock);
 
-    // Glow effect
-    const glowGeometry = new THREE.SphereGeometry(1.2, 16, 16);
+    // Subtle halo around the chest (additive blending so it doesn't occlude)
+    const glowGeometry = new THREE.SphereGeometry(1.0, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: 0xffd700,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.07,
+      depthWrite: false,
+      side: THREE.BackSide,
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     mesh.add(glow);
+
+    // Point light for real-time illumination on surroundings
+    const chestLight = new THREE.PointLight(0xffd700, 5, 8);
+    chestLight.position.y = 0.4;
+    mesh.add(chestLight);
 
     // Position
     mesh.position.copy(position);
@@ -157,6 +176,7 @@ export class TreasureChestSystem {
     this.chests.push({
       mesh,
       glow,
+      chestLight,
       position: position.clone(),
       bobOffset: Math.random() * Math.PI * 2,
       rarity: this.determineRarity(),

@@ -12,9 +12,9 @@ const PARTICLE_PRESETS = {
     gravity: -3, lifetime: 1.0, spread: 2.5, upward: true, ring: true,
   },
   enemyDeath: {
-    count: 5, colors: [0xcc2200, 0x880000, 0x661100],
-    size: { min: 0.05, max: 0.12 }, speed: { min: 2, max: 5 },
-    gravity: 18, lifetime: 0.4, spread: 1.0, upward: false,
+    count: 8, colors: [0xcc0000, 0x880000, 0x660000, 0x440000],
+    size: { min: 0.06, max: 0.16 }, speed: { min: 3, max: 8 },
+    gravity: 16, lifetime: 0.5, spread: 1.5, upward: false,
   },
   bossDeath: {
     count: 25, colors: [0xcc0000, 0x880000, 0x440000, 0x220000],
@@ -37,19 +37,24 @@ const PARTICLE_PRESETS = {
     gravity: -3, lifetime: 0.6, spread: 0.6, upward: true,
   },
   blood: {
-    count: 4, colors: [0xff0000, 0xaa0000, 0x880000],
-    size: { min: 0.04, max: 0.1 }, speed: { min: 2, max: 5 },
-    gravity: 20, lifetime: 0.3, spread: 0.8, upward: false,
+    count: 6, colors: [0xdd0000, 0xaa0000, 0x880000, 0x660000],
+    size: { min: 0.05, max: 0.12 }, speed: { min: 3, max: 7 },
+    gravity: 22, lifetime: 0.4, spread: 1.0, upward: false,
+  },
+  bloodBurst: {
+    count: 10, colors: [0xdd0000, 0xaa0000, 0x770000, 0x550000],
+    size: { min: 0.08, max: 0.2 }, speed: { min: 4, max: 10 },
+    gravity: 14, lifetime: 0.6, spread: 2.0, upward: false,
   },
   hitSpark: {
-    count: 2, colors: [0xffffff, 0xffcc00],
-    size: { min: 0.03, max: 0.07 }, speed: { min: 4, max: 8 },
-    gravity: 8, lifetime: 0.15, spread: 1.0, upward: false, streak: true,
+    count: 3, colors: [0xcc0000, 0x880000, 0x660000],
+    size: { min: 0.03, max: 0.08 }, speed: { min: 3, max: 7 },
+    gravity: 14, lifetime: 0.25, spread: 0.8, upward: false,
   },
   critSpark: {
-    count: 5, colors: [0xffffff, 0xffaa00, 0xff4400],
-    size: { min: 0.05, max: 0.15 }, speed: { min: 8, max: 14 },
-    gravity: 8, lifetime: 0.25, spread: 1.5, upward: false, streak: true,
+    count: 6, colors: [0xff0000, 0xcc0000, 0x880000, 0xff2200],
+    size: { min: 0.05, max: 0.15 }, speed: { min: 5, max: 12 },
+    gravity: 12, lifetime: 0.35, spread: 1.2, upward: false,
   },
   evolution: {
     count: 25, colors: [0xffdd00, 0xffffff, 0xff4400, 0xcc8800],
@@ -95,6 +100,12 @@ export class ParticleSystem {
     this._flashGeo = new THREE.SphereGeometry(1, 6, 6);
     this._flashPool = [];
     this._activeFlashes = [];
+
+    // Blood puddle pool
+    this._bloodPuddleGeo = new THREE.CircleGeometry(1, 12);
+    this._bloodPuddleGeo.rotateX(-Math.PI / 2);
+    this._bloodPuddlePool = [];
+    this._activeBloodPuddles = [];
   }
 
   _acquireMesh(isStreak) {
@@ -355,6 +366,28 @@ export class ParticleSystem {
 
       fl.f.mesh.scale.setScalar(fl.scale);
     }
+
+    // Animate blood puddles
+    for (let i = this._activeBloodPuddles.length - 1; i >= 0; i--) {
+      const bp = this._activeBloodPuddles[i];
+      bp.elapsed += delta;
+      const progress = bp.elapsed / bp.duration;
+
+      if (progress >= 1) {
+        bp.bp.mesh.visible = false;
+        this._bloodPuddlePool.push(bp.bp);
+        this._activeBloodPuddles.splice(i, 1);
+        continue;
+      }
+
+      const growPhase = Math.min(progress / 0.15, 1);
+      const scale = bp.targetScale * growPhase;
+      bp.bp.mesh.scale.setScalar(scale);
+
+      if (progress > 0.5) {
+        bp.bp.material.opacity = 0.5 * (1 - (progress - 0.5) / 0.5);
+      }
+    }
   }
 
   _acquireShockwave() {
@@ -410,12 +443,12 @@ export class ParticleSystem {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.font = isCrit
-      ? "bold 72px 'Impact', Arial"
-      : "bold 56px 'Impact', Arial";
+      ? "bold 96px 'Impact', Arial"
+      : "bold 72px 'Impact', Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.strokeStyle = "#000000";
-    ctx.lineWidth = isCrit ? 8 : 5;
+    ctx.lineWidth = isCrit ? 10 : 6;
     ctx.strokeText(text, 128, 64);
     ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
     ctx.fillText(text, 128, 64);
@@ -425,8 +458,8 @@ export class ParticleSystem {
     sprite.position.y += 1;
     material.opacity = 1;
 
-    const baseSize = size * (isCrit ? 3 : 2);
-    sprite.scale.set(baseSize * 0.5, baseSize * 0.25, 1);
+    const baseSize = size * (isCrit ? 3.5 : 2.5);
+    sprite.scale.set(baseSize * 0.6, baseSize * 0.3, 1);
 
     this._activeTexts.push({
       entry,
@@ -451,6 +484,39 @@ export class ParticleSystem {
     const mesh = new THREE.Mesh(this._flashGeo, material);
     this.game.scene.add(mesh);
     return { mesh, material };
+  }
+
+  _acquireBloodPuddle() {
+    if (this._bloodPuddlePool.length > 0) {
+      const bp = this._bloodPuddlePool.pop();
+      bp.mesh.visible = true;
+      return bp;
+    }
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x880000, transparent: true, opacity: 0.6, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(this._bloodPuddleGeo, material);
+    this.game.scene.add(mesh);
+    return { mesh, material };
+  }
+
+  createBloodPuddle(position, size = 1) {
+    if (this._activeBloodPuddles.length >= 15) return;
+    const bp = this._acquireBloodPuddle();
+    const colors = [0x880000, 0x660000, 0x550000, 0x770000];
+    bp.material.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
+    bp.material.opacity = 0.5;
+    bp.mesh.position.set(
+      position.x + (Math.random() - 0.5) * 0.5,
+      0.05,
+      position.z + (Math.random() - 0.5) * 0.5,
+    );
+    const startScale = size * 0.2;
+    bp.mesh.scale.setScalar(startScale);
+    bp.mesh.rotation.y = Math.random() * Math.PI * 2;
+    this._activeBloodPuddles.push({
+      bp, elapsed: 0, duration: 2.5, targetScale: size * (0.6 + Math.random() * 0.4),
+    });
   }
 
   createImpactFlash(position, color = 0xffffff, size = 1) {
@@ -486,5 +552,11 @@ export class ParticleSystem {
       this._flashPool.push(fl.f);
     }
     this._activeFlashes = [];
+
+    for (const bp of this._activeBloodPuddles) {
+      bp.bp.mesh.visible = false;
+      this._bloodPuddlePool.push(bp.bp);
+    }
+    this._activeBloodPuddles = [];
   }
 }

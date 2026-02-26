@@ -217,7 +217,7 @@ export class ArcanaSystem {
       .arcana-overlay {
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.92);
+        background: linear-gradient(135deg, rgba(15, 8, 6, 0.96) 0%, rgba(20, 8, 5, 0.96) 100%);
         display: flex;
         justify-content: center;
         align-items: center;

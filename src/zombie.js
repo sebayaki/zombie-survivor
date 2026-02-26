@@ -373,7 +373,8 @@ export class ZombieManager {
         zombie._flashTimer -= delta;
         if (zombie._flashTimer <= 0) {
           const flashBody = zombie.mesh.userData.body;
-          if (flashBody && flashBody.material) flashBody.material.emissive.setHex(0x000000);
+          if (flashBody && flashBody.material)
+            flashBody.material.emissive.setHex(0x000000);
         }
       }
 
@@ -406,7 +407,13 @@ export class ZombieManager {
         glow.material.opacity = 0.12 + Math.sin(this.game.gameTime * 4) * 0.08;
       }
 
-      updateZombieBehavior(zombie, playerPos, delta, this.game, this.enemyProjectiles);
+      updateZombieBehavior(
+        zombie,
+        playerPos,
+        delta,
+        this.game,
+        this.enemyProjectiles,
+      );
     }
 
     // Reset frozen aura slow each frame (it gets re-applied by nearby zombies)
@@ -511,8 +518,8 @@ export class ZombieManager {
         zombie.mesh.position.z + (Math.random() - 0.5) * 1.5,
       );
 
-      const color = isCrit ? 0xffcc00 : 0xffffff;
-      const size = isCrit ? 0.8 : 0.5;
+      const color = isCrit ? 0xff0000 : 0x770000;
+      const size = isCrit ? 1.1 : 0.7;
 
       this.game.particleSystem.createFloatingText(
         _tmpTextPos,
@@ -564,7 +571,11 @@ export class ZombieManager {
     this.zombies.splice(index, 1);
 
     // Elite affix: Splitter — spawn 2 smaller copies on death
-    if (zombie.isElite && zombie.affixes.includes("splitter") && !zombie._splitChild) {
+    if (
+      zombie.isElite &&
+      zombie.affixes.includes("splitter") &&
+      !zombie._splitChild
+    ) {
       for (let i = 0; i < 2; i++) {
         _tmpOffset.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
         const splitPos = _tmpDropPos.copy(zombie.mesh.position).add(_tmpOffset);
@@ -702,7 +713,11 @@ export class ZombieManager {
 
       if (zombie.isBoss) {
         for (let i = 0; i < 5; i++) {
-          _tmpOffset.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
+          _tmpOffset.set(
+            (Math.random() - 0.5) * 3,
+            0,
+            (Math.random() - 0.5) * 3,
+          );
           _tmpDropPos.copy(zombie.mesh.position).add(_tmpOffset);
           this.game.dropXPGem(_tmpDropPos, baseXP);
         }
@@ -768,22 +783,35 @@ export class ZombieManager {
 
     if (!ZombieManager._sharedExpMat) {
       ZombieManager._sharedExpMat = new THREE.MeshBasicMaterial({
-        color: 0xff5500, transparent: true, opacity: 0.85,
-        blending: THREE.AdditiveBlending, depthWrite: false,
+        color: 0xff5500,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
       ZombieManager._sharedRingMat = new THREE.MeshBasicMaterial({
-        color: 0xffaa00, transparent: true, opacity: 0.5,
-        blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
       });
     }
 
-    const fireball = new THREE.Mesh(ZombieManager._sharedExpGeo, ZombieManager._sharedExpMat.clone());
+    const fireball = new THREE.Mesh(
+      ZombieManager._sharedExpGeo,
+      ZombieManager._sharedExpMat.clone(),
+    );
     fireball.position.copy(position);
     fireball.position.y = 1;
     fireball.scale.setScalar(0.1);
     this.game.scene.add(fireball);
 
-    const ring = new THREE.Mesh(ZombieManager._sharedRingGeo, ZombieManager._sharedRingMat.clone());
+    const ring = new THREE.Mesh(
+      ZombieManager._sharedRingGeo,
+      ZombieManager._sharedRingMat.clone(),
+    );
     ring.position.copy(position);
     ring.position.y = 0.2;
     ring.rotation.x = -Math.PI / 2;
@@ -791,7 +819,11 @@ export class ZombieManager {
     this.game.scene.add(ring);
 
     this._explosionAnims.push({
-      fireball, ring, scale: 0.1, opacity: 1, targetScale: radius,
+      fireball,
+      ring,
+      scale: 0.1,
+      opacity: 1,
+      targetScale: radius,
     });
 
     this.game.audioManager.playSound("explosion");
@@ -799,7 +831,11 @@ export class ZombieManager {
 
   createBossDeathEffect(position) {
     if (this.game.particleSystem) {
-      this.game.particleSystem.spawn(position, "bossDeath");
+      const ps = this.game.particleSystem;
+      ps.spawn(position, "bossDeath");
+      ps.spawn(position, "bloodBurst", { count: 15 });
+      ps.createBloodPuddle(position, 2.0);
+      ps.createBloodPuddle(position, 1.5);
       for (let i = 0; i < 3; i++) {
         setTimeout(() => {
           if (this.game.particleSystem) {
@@ -807,7 +843,7 @@ export class ZombieManager {
             this.game.particleSystem.createShockwave(
               position,
               6 + i * 3,
-              i === 0 ? 0xcc2200 : i === 1 ? 0x881100 : 0xffaa44,
+              i === 0 ? 0xcc0000 : i === 1 ? 0x880000 : 0x660000,
               0.8 + i * 0.3,
             );
           }
@@ -818,8 +854,11 @@ export class ZombieManager {
 
   createDeathEffect(position, type = "normal") {
     if (this.game.particleSystem) {
-      const count = type === "tank" ? 25 : 15;
-      this.game.particleSystem.spawn(position, "enemyDeath", { count });
+      const ps = this.game.particleSystem;
+      const isBig = type === "tank" || type === "exploder";
+      ps.spawn(position, "bloodBurst", { count: isBig ? 12 : 8 });
+      ps.spawn(position, "enemyDeath", { count: isBig ? 10 : 6 });
+      ps.createBloodPuddle(position, isBig ? 1.4 : 0.9);
     }
   }
 

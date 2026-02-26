@@ -50,7 +50,7 @@ export class ChestUI {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0);
+        background: linear-gradient(135deg, rgba(15, 8, 6, 0.96) 0%, rgba(20, 8, 5, 0.96) 100%);
         display: flex;
         justify-content: center;
         align-items: flex-start;
@@ -60,18 +60,18 @@ export class ChestUI {
         -webkit-overflow-scrolling: touch;
         pointer-events: none;
         opacity: 0;
-        transition: background 0.5s ease, opacity 0.1s ease;
+        transition: opacity 0.4s ease;
+        isolation: isolate;
+        will-change: opacity;
       }
       .chest-overlay.active {
         pointer-events: auto;
         opacity: 1;
-        background: rgba(0, 0, 0, 0.85);
       }
       .chest-overlay.closing {
         pointer-events: none;
         opacity: 0;
-        background: rgba(0, 0, 0, 0);
-        transition: background 0.35s ease, opacity 0.35s ease;
+        transition: opacity 0.35s ease;
       }
 
       .chest-flash {
@@ -197,20 +197,21 @@ export class ChestUI {
         border: 1px solid rgba(180, 50, 50, 0.5);
         border-radius: 4px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s, background 0.2s;
         box-shadow: 0 4px 16px rgba(100,0,0,0.4);
         opacity: 0;
         transform: translateY(15px);
+        will-change: transform, box-shadow;
       }
       .chest-done-btn.btn-visible {
         opacity: 1;
         transform: translateY(0);
-        transition: all 0.3s ease-out;
+        transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, opacity 0.3s ease-out, background 0.2s;
       }
       .chest-done-btn:hover {
-        background: #00aaff;
+        background: linear-gradient(180deg, #cc2200 0%, #991100 100%);
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,170,255,0.6);
+        box-shadow: 0 8px 20px rgba(180,30,0,0.6);
       }
       .chest-done-btn:active {
         transform: translateY(2px);

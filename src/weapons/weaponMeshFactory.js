@@ -114,25 +114,33 @@ export class WeaponMeshFactory {
 
     const group = new THREE.Group();
 
+    // Blade — self-lit so it's always visible
     const blade = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.14, 1.2, 4),
-      new THREE.MeshStandardMaterial({
-        color: 0xaaaaaa,
-        roughness: 0.3,
-        metalness: 0.8,
-      }),
+      new THREE.CylinderGeometry(0.04, 0.18, 1.4, 4),
+      new THREE.MeshBasicMaterial({ color: 0xcccccc }),
     );
     blade.rotation.x = Math.PI / 2;
-    blade.position.z = 0.4;
+    blade.position.z = 0.45;
     group.add(blade);
 
-    const handle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.05, 0.3, 6),
-      new THREE.MeshStandardMaterial({
-        color: 0x553322,
-        roughness: 0.9,
-        metalness: 0.1,
+    // Blade glow — outer trail effect
+    const bladeGlow = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.28, 1.6, 4),
+      new THREE.MeshBasicMaterial({
+        color: 0x8899bb,
+        transparent: true,
+        opacity: 0.3,
+        depthWrite: false,
       }),
+    );
+    bladeGlow.rotation.x = Math.PI / 2;
+    bladeGlow.position.z = 0.45;
+    group.add(bladeGlow);
+
+    // Handle
+    const handle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.06, 0.35, 6),
+      new THREE.MeshBasicMaterial({ color: 0x664433 }),
     );
     handle.rotation.x = Math.PI / 2;
     handle.position.z = -0.25;
@@ -147,30 +155,43 @@ export class WeaponMeshFactory {
 
     const group = new THREE.Group();
 
+    // Core blade — bright, self-lit
     const blade = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.2, 1.5, 4),
-      new THREE.MeshStandardMaterial({
-        color: 0xcccccc,
-        roughness: 0.2,
-        metalness: 0.9,
-      }),
+      new THREE.CylinderGeometry(0.05, 0.24, 1.6, 4),
+      new THREE.MeshBasicMaterial({ color: 0xdddddd }),
     );
     blade.rotation.x = Math.PI / 2;
-    blade.position.z = 0.45;
+    blade.position.z = 0.5;
     group.add(blade);
 
+    // Blood edge glow
     const bloodEdge = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.22, 1.6, 4),
+      new THREE.CylinderGeometry(0.1, 0.32, 1.8, 4),
       new THREE.MeshBasicMaterial({
-        color: 0x880000,
+        color: 0xaa0000,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.35,
         depthWrite: false,
       }),
     );
     bloodEdge.rotation.x = Math.PI / 2;
     bloodEdge.position.z = 0.5;
     group.add(bloodEdge);
+
+    // Outer crimson aura
+    const aura = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.16, 0.4, 2.0, 4),
+      new THREE.MeshBasicMaterial({
+        color: 0x660000,
+        transparent: true,
+        opacity: 0.15,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    aura.rotation.x = Math.PI / 2;
+    aura.position.z = 0.5;
+    group.add(aura);
 
     this._evolvedKnifeMeshCache = this.markShared(group);
     return group.clone();

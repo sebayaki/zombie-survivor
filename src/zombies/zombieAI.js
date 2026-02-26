@@ -468,47 +468,87 @@ export function updateZombieBehavior(
     zombie.mesh.position.z += moveDir.z * (zombie._effectiveSpeed || zombie.speed) * delta;
   }
 
-  // Animation — zombie-style: limping, staggering, asymmetric
+  // Animation — organic creature movement
   const time = Date.now() * 0.01;
   const speedAnim = zombie.speed * 0.5;
   const ud = zombie.mesh.userData;
   const limpL = ud.limpOffsetL || 0;
   const limpR = ud.limpOffsetR || 0;
   const phase = ud.animPhase || 0;
+  const isFast = zombie.type === "fast";
+  const isTank = zombie.type === "tank";
+  const isExploder = zombie.type === "exploder";
 
   if (zombie.state === "chase" || zombie.state === "ranged") {
     const legPhase = time * speedAnim;
+    const legFreq = isFast ? 1.4 : isTank ? 0.6 : 1.0;
 
-    // Limping legs: one leg drags, uneven stride
-    if (ud.leftLeg)
-      ud.leftLeg.rotation.x = Math.sin(legPhase + limpL) * (0.35 + limpL * 0.3);
-    if (ud.rightLeg)
-      ud.rightLeg.rotation.x = -Math.sin(legPhase + 0.6 + limpR) * (0.3 + limpR * 0.4);
+    // Legs: asymmetric stride with secondary motion
+    if (ud.leftLeg) {
+      const mainSwing = Math.sin(legPhase * legFreq + limpL) * (0.4 + limpL * 0.3);
+      const drag = Math.sin(legPhase * legFreq * 0.5 + limpL) * 0.08;
+      ud.leftLeg.rotation.x = mainSwing + drag;
+      ud.leftLeg.rotation.z = Math.sin(legPhase * 0.3 + phase) * 0.04;
+    }
+    if (ud.rightLeg) {
+      const mainSwing = -Math.sin(legPhase * legFreq + 0.6 + limpR) * (0.35 + limpR * 0.4);
+      const drag = -Math.sin(legPhase * legFreq * 0.5 + limpR + 0.3) * 0.06;
+      ud.rightLeg.rotation.x = mainSwing + drag;
+      ud.rightLeg.rotation.z = -Math.sin(legPhase * 0.3 + phase + 0.5) * 0.04;
+    }
 
-    // Arms: asymmetric swing — one reaches forward, one hangs
-    if (ud.leftArm)
-      ud.leftArm.rotation.x = -Math.PI / 2.2 + Math.sin(legPhase + 0.3) * 0.2;
-    if (ud.rightArm)
-      ud.rightArm.rotation.x = -Math.PI / 2.0 - Math.sin(legPhase * 0.7 + limpR) * 0.12;
+    // Arms: creature-like — reaching, grasping, swaying
+    if (ud.leftArm) {
+      const reach = isFast ? -Math.PI / 2.0 : -Math.PI / 2.2;
+      const swing = Math.sin(legPhase * legFreq + 0.3) * (isFast ? 0.35 : 0.22);
+      const twitch = Math.sin(time * 2.5 + phase) * 0.05;
+      ud.leftArm.rotation.x = reach + swing + twitch;
+      ud.leftArm.rotation.z = 0.1 + Math.sin(legPhase * 0.4 + phase) * 0.06;
+    }
+    if (ud.rightArm) {
+      const reach = isFast ? -Math.PI / 2.1 : -Math.PI / 2.0;
+      const swing = -Math.sin(legPhase * legFreq * 0.8 + limpR) * (isFast ? 0.3 : 0.15);
+      const twitch = Math.sin(time * 1.8 + limpR) * 0.04;
+      ud.rightArm.rotation.x = reach + swing + twitch;
+      ud.rightArm.rotation.z = -0.15 + Math.sin(legPhase * 0.35 + limpR) * 0.05;
+    }
 
-    // Head bob (if head exists as first child)
-    if (ud.body)
-      ud.body.rotation.z = Math.sin(legPhase * 0.8 + phase) * 0.04;
+    // Body breathing/heaving — organic micro-motion
+    if (ud.body) {
+      ud.body.rotation.z = Math.sin(legPhase * 0.8 + phase) * 0.05;
+      const breathe = 1.0 + Math.sin(time * 0.8 + phase) * (isExploder ? 0.03 : 0.015);
+      ud.body.scale.y = breathe;
+    }
   } else if (zombie.state === "attack") {
-    // Frenzied clawing — desynchronized arms
-    if (ud.leftArm)
-      ud.leftArm.rotation.x = -Math.PI / 2 - Math.sin(time * 4 + phase) * 0.7;
-    if (ud.rightArm)
-      ud.rightArm.rotation.x = -Math.PI / 2 - Math.cos(time * 3.2 + limpR) * 0.65;
+    // Frenzied, erratic clawing
+    const attackFreq = isFast ? 5.5 : 4.0;
+    if (ud.leftArm) {
+      ud.leftArm.rotation.x = -Math.PI / 2 - Math.sin(time * attackFreq + phase) * 0.8;
+      ud.leftArm.rotation.z = Math.sin(time * 3 + phase) * 0.15;
+    }
+    if (ud.rightArm) {
+      ud.rightArm.rotation.x = -Math.PI / 2 - Math.cos(time * (attackFreq - 0.8) + limpR) * 0.75;
+      ud.rightArm.rotation.z = -Math.sin(time * 2.5 + limpR) * 0.12;
+    }
+    // Lunge forward during attack
+    if (ud.body)
+      ud.body.rotation.x = Math.sin(time * attackFreq * 0.5) * 0.08;
   }
 
-  // Body sway — lurching, drunken movement
-  const wobbleAmount = zombie.isBoss ? 0.03 : 0.15;
+  // Body sway — lurching, organic, creature-like
+  const wobbleBase = isTank ? 0.06 : isExploder ? 0.08 : isFast ? 0.1 : 0.15;
+  const wobbleAmount = zombie.isBoss ? 0.04 : wobbleBase;
   zombie.mesh.rotation.z =
     Math.sin(time * speedAnim * 0.35 + phase) * wobbleAmount +
-    Math.sin(time * speedAnim * 0.15 + limpL) * (wobbleAmount * 0.4);
-  // Forward lean
+    Math.sin(time * speedAnim * 0.15 + limpL) * (wobbleAmount * 0.5) +
+    Math.sin(time * 0.7 + phase * 2) * (wobbleAmount * 0.2);
+  // Forward lean with secondary heave
+  const leanBase = isFast ? 0.1 : isTank ? 0.03 : 0.06;
   zombie.mesh.rotation.x =
-    0.05 +
-    Math.cos(time * speedAnim * 0.25 + limpR) * (wobbleAmount * 0.3);
+    leanBase +
+    Math.cos(time * speedAnim * 0.25 + limpR) * (wobbleAmount * 0.35) +
+    Math.sin(time * 0.5 + phase) * 0.02;
+  // Vertical bob — shuffling gait
+  zombie.mesh.position.y =
+    Math.abs(Math.sin(time * speedAnim * 0.7 + phase)) * (isTank ? 0.03 : isExploder ? 0.02 : 0.05);
 }

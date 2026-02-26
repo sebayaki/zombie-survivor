@@ -523,8 +523,10 @@ export class Game {
   gameLoop() {
     let delta = this.clock.getDelta();
 
-    // Adaptive quality — monitor FPS and adjust renderer settings
-    this._updateAdaptiveQuality(delta);
+    // Adaptive quality — only measure when actually running game logic
+    if (this.isPlaying && !this.isPaused) {
+      this._updateAdaptiveQuality(delta);
+    }
 
     // Apply time scale from post-processing (for slow-mo effects)
     if (this.postProcessing) {

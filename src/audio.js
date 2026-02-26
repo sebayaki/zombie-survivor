@@ -54,7 +54,7 @@ const SOUND_VOLUMES = {
   xpPickup: 0.12,
   upgrade: 0.35,
   levelUp: 0.45,
-  knife: 0.35,
+  knife: 0.18,
   axe: 0.4,
   cross: 0.3,
   whip: 0.4,
@@ -70,6 +70,18 @@ const SOUND_VOLUMES = {
   evolution: 0.45,
   gameOver: 0.5,
   pentagram: 0.45,
+};
+
+// Minimum interval (seconds) between repeat plays of the same sound
+const SOUND_THROTTLE = {
+  knife: 0.3,
+  axe: 0.25,
+  cross: 0.25,
+  whip: 0.2,
+  throw: 0.2,
+  xpPickup: 0.05,
+  zombieDeath: 0.06,
+  zombieAttack: 0.15,
 };
 
 // Playback rate ranges for variety [min, max]
@@ -327,6 +339,7 @@ export class AudioManager {
     this.soundEnabled = true;
     this.musicEnabled = true;
     this._buffers = {};       // { soundName: AudioBuffer[] }
+    this._lastPlayTime = {};  // { soundName: contextTime }
     this._loadingStarted = false;
   }
 
@@ -401,6 +414,14 @@ export class AudioManager {
     this.init();
     if (!this.context) return;
     if (this.context.state === "suspended") this.context.resume();
+
+    const throttle = SOUND_THROTTLE[name];
+    if (throttle) {
+      const now = this.context.currentTime;
+      const last = this._lastPlayTime[name] || 0;
+      if (now - last < throttle) return;
+      this._lastPlayTime[name] = now;
+    }
 
     const buffers = this._buffers[name];
     if (buffers && buffers.length > 0) {

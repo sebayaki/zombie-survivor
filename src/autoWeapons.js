@@ -288,7 +288,7 @@ export class AutoWeaponSystem {
         this.fireWhip(stats, playerPos, playerDir, scale);
         break;
       case "knife":
-        this.fireKnife(stats, playerPos, playerDir, scale);
+        this.fireKnife(stats, playerPos, playerDir, Math.max(scale, 0.8));
         break;
       case "axe":
         this.fireAxe(stats, playerPos, scale);
@@ -1633,24 +1633,36 @@ export class AutoWeaponSystem {
       const group = new THREE.Group();
 
       const tip = new THREE.Mesh(
-        new THREE.SphereGeometry(0.06, 4, 4),
+        new THREE.SphereGeometry(0.06, 6, 6),
         new THREE.MeshBasicMaterial({ color: 0xffffff }),
       );
       tip.position.z = 0.5;
       group.add(tip);
 
+      const tipGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.14, 6, 6),
+        new THREE.MeshBasicMaterial({
+          color: 0xffeedd,
+          transparent: true,
+          opacity: 0.5,
+          depthWrite: false,
+        }),
+      );
+      tipGlow.position.z = 0.5;
+      group.add(tipGlow);
+
       const coreTrail = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05, 0.05, 1.0),
-        new THREE.MeshBasicMaterial({ color: 0xffdd44 }),
+        new THREE.BoxGeometry(0.06, 0.06, 1.2),
+        new THREE.MeshBasicMaterial({ color: 0xfff8dd }),
       );
       group.add(coreTrail);
 
       const glowTrail = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.08, 1.6),
+        new THREE.BoxGeometry(0.22, 0.12, 1.8),
         new THREE.MeshBasicMaterial({
-          color: 0xff8800,
+          color: 0xdd7700,
           transparent: true,
-          opacity: 0.25,
+          opacity: 0.3,
           depthWrite: false,
         }),
       );
