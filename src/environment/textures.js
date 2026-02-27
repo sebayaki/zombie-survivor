@@ -15,15 +15,15 @@ export function createAsphaltTexture() {
   const d = imageData.data;
   for (let i = 0; i < d.length; i += 4) {
     const n = (Math.random() - 0.5) * 22;
-    d[i] = 38 + n;
-    d[i + 1] = 38 + n;
-    d[i + 2] = 42 + n;
+    d[i] = 72 + n;
+    d[i + 1] = 72 + n;
+    d[i + 2] = 76 + n;
     d[i + 3] = 255;
   }
   ctx.putImageData(imageData, 0, 0);
 
   for (let i = 0; i < 6000; i++) {
-    const b = 65 + Math.random() * 25;
+    const b = 95 + Math.random() * 30;
     ctx.fillStyle = `rgba(${b},${b},${b + 3},0.35)`;
     ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
   }
@@ -65,7 +65,7 @@ export function createAsphaltTexture() {
       0,
       Math.PI * 2,
     );
-    ctx.fillStyle = `rgba(22,22,26,${0.2 + Math.random() * 0.2})`;
+    ctx.fillStyle = `rgba(45,45,50,${0.15 + Math.random() * 0.15})`;
     ctx.fill();
   }
 
@@ -74,15 +74,15 @@ export function createAsphaltTexture() {
     const cy = Math.random() * size;
     const r = 12 + Math.random() * 20;
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, "rgba(18,12,28,0.25)");
-    g.addColorStop(1, "rgba(20,20,25,0)");
+    g.addColorStop(0, "rgba(40,38,48,0.2)");
+    g.addColorStop(1, "rgba(50,50,55,0)");
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  ctx.fillStyle = "rgba(50,50,52,0.06)";
+  ctx.fillStyle = "rgba(80,80,84,0.06)";
   ctx.fillRect(size * 0.2, 0, size * 0.12, size);
   ctx.fillRect(size * 0.68, 0, size * 0.12, size);
 

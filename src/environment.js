@@ -95,7 +95,7 @@ export function createEnhancedArena(game) {
     map: asphaltMap,
     bumpMap: bumpMap,
     bumpScale: 0.3,
-    color: 0x444448,
+    color: 0x707478,
     roughness: 0.92,
     metalness: 0.05,
   });
