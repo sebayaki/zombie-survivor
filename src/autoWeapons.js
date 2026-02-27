@@ -3,23 +3,13 @@ import { swapRemove } from "./utils.js";
 import { EVOLUTION_RECIPES } from "./evolutionSystem.js";
 import { AUTO_WEAPONS } from "./weapons/weaponDefinitions.js";
 import { WeaponMeshFactory } from "./weapons/weaponMeshFactory.js";
-import {
-  homingBehavior,
-  orbitBehavior,
-  wallBounceBehavior,
-  areaDamage,
-  knockback,
-  fadeTraverse,
-  wingFlap,
-} from "./weapons/weaponBehaviors.js";
+import { clampKnockback } from "./weapons/weaponBehaviors.js";
 
 export { AUTO_WEAPONS };
 
 // Reusable temp vectors for hot loops (avoids GC pressure)
 const _tv1 = new THREE.Vector3();
 const _tv2 = new THREE.Vector3();
-
-
 
 export class AutoWeaponSystem {
   constructor(game) {
@@ -43,7 +33,6 @@ export class AutoWeaponSystem {
 
     this.meshFactory = new WeaponMeshFactory();
   }
-
 
   reset() {
     // Clear weapons
@@ -108,16 +97,20 @@ export class AutoWeaponSystem {
     const playerStats = this.game.playerStats || {};
     if (playerStats.might) stats.damage *= 1 + playerStats.might * 0.1;
     if (playerStats.area) stats.area *= 1 + playerStats.area * 0.1;
-    if (playerStats.speed && stats.projectileSpeed) stats.projectileSpeed *= 1 + playerStats.speed * 0.1;
-    if (playerStats.duration && stats.duration) stats.duration *= 1 + playerStats.duration * 0.1;
+    if (playerStats.speed && stats.projectileSpeed)
+      stats.projectileSpeed *= 1 + playerStats.speed * 0.1;
+    if (playerStats.duration && stats.duration)
+      stats.duration *= 1 + playerStats.duration * 0.1;
     if (playerStats.cooldown) stats.cooldown *= 1 - playerStats.cooldown * 0.05;
-    if (playerStats.amount && stats.projectileCount) stats.projectileCount += playerStats.amount;
+    if (playerStats.amount && stats.projectileCount)
+      stats.projectileCount += playerStats.amount;
 
     // Apply arcana effects
     if (this.game.arcanaSystem) {
       const arcana = this.game.arcanaSystem.getActiveEffects();
       if (arcana.damageMult) stats.damage *= arcana.damageMult;
-      if (arcana.bonusAmount && stats.projectileCount) stats.projectileCount += arcana.bonusAmount;
+      if (arcana.bonusAmount && stats.projectileCount)
+        stats.projectileCount += arcana.bonusAmount;
       if (arcana.cooldownMult) stats.cooldown *= arcana.cooldownMult;
 
       // Berserker's Rage: damage scales inversely with HP ratio
@@ -256,6 +249,7 @@ export class AutoWeaponSystem {
     // Update each equipped weapon
     for (const weapon of this.equippedWeapons) {
       const stats = this.getWeaponStats(weapon.id, weapon.level);
+      if (!stats) continue;
       const lastFire = this.cooldowns[weapon.id] || 0;
 
       if (now - lastFire >= stats.cooldown) {
@@ -654,12 +648,13 @@ export class AutoWeaponSystem {
         this.game.zombieManager.damageZombie(zombie, stats.damage);
         totalHealed += stats.lifesteal;
 
-        // Knockback
         if (stats.knockback) {
           const dir = new THREE.Vector3();
           dir.subVectors(zombie.mesh.position, playerPos);
           dir.normalize();
-          zombie.mesh.position.add(dir.multiplyScalar(stats.knockback));
+          zombie.mesh.position.add(
+            dir.multiplyScalar(clampKnockback(stats.knockback)),
+          );
         }
       }
     }
@@ -966,11 +961,7 @@ export class AutoWeaponSystem {
       group.add(poolAura);
 
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(
-          stats.area * 0.5,
-          stats.area * 0.6,
-          16,
-        ),
+        new THREE.RingGeometry(stats.area * 0.5, stats.area * 0.6, 16),
         new THREE.MeshBasicMaterial({
           color: 0xaa3300,
           transparent: true,
@@ -1107,7 +1098,8 @@ export class AutoWeaponSystem {
   fireGuidedMeteor(stats, playerPos, zombies) {
     for (let i = 0; i < stats.projectileCount; i++) {
       if (!this.canAddProjectile()) break;
-      const angle = (i / stats.projectileCount) * Math.PI * 2 + Math.random() * 0.5;
+      const angle =
+        (i / stats.projectileCount) * Math.PI * 2 + Math.random() * 0.5;
       const direction = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
 
       const group = new THREE.Group();
@@ -1186,7 +1178,9 @@ export class AutoWeaponSystem {
 
   // Vandalier - merged orbiting bird (peachone + ebonyWings)
   fireVandalier(stats, playerPos) {
-    const existingBirds = this.projectiles.filter((p) => p.type === "vandalier");
+    const existingBirds = this.projectiles.filter(
+      (p) => p.type === "vandalier",
+    );
     if (existingBirds.length >= stats.projectileCount) return;
 
     const needed = stats.projectileCount - existingBirds.length;
@@ -1626,9 +1620,15 @@ export class AutoWeaponSystem {
         const dx = z.mesh.position.x - playerPos.x;
         const dz = z.mesh.position.z - playerPos.z;
         const d = dx * dx + dz * dz;
-        if (d < bestDist) { bestDist = d; best = z; }
+        if (d < bestDist) {
+          bestDist = d;
+          best = z;
+        }
       }
-      if (best) { targets.push(best); used.add(best); }
+      if (best) {
+        targets.push(best);
+        used.add(best);
+      }
     }
 
     for (let i = 0; i < stats.projectileCount; i++) {
@@ -1929,12 +1929,13 @@ export class AutoWeaponSystem {
       if (dist < stats.area) {
         this.game.zombieManager.damageZombie(zombie, stats.damage);
 
-        // Knockback
         if (stats.knockback) {
           const dir = new THREE.Vector3();
           dir.subVectors(zombie.mesh.position, playerPos);
           dir.normalize();
-          zombie.mesh.position.add(dir.multiplyScalar(stats.knockback));
+          zombie.mesh.position.add(
+            dir.multiplyScalar(clampKnockback(stats.knockback)),
+          );
         }
       }
     }
@@ -2061,17 +2062,29 @@ export class AutoWeaponSystem {
         const arcPoints = [startPt];
         for (let s = 1; s <= arcSegments; s++) {
           const t = s / arcSegments;
-          arcPoints.push(new THREE.Vector3(
-            startPt.x + (endPos.x - startPt.x) * t + (Math.random() - 0.5) * arcRadius * 0.4,
-            0.3 + Math.random() * 0.3,
-            startPt.z + (endPos.z - startPt.z) * t + (Math.random() - 0.5) * arcRadius * 0.4,
-          ));
+          arcPoints.push(
+            new THREE.Vector3(
+              startPt.x +
+                (endPos.x - startPt.x) * t +
+                (Math.random() - 0.5) * arcRadius * 0.4,
+              0.3 + Math.random() * 0.3,
+              startPt.z +
+                (endPos.z - startPt.z) * t +
+                (Math.random() - 0.5) * arcRadius * 0.4,
+            ),
+          );
         }
         arcPoints[arcPoints.length - 1].set(endPos.x, 0.3, endPos.z);
 
         const arcCurve = new THREE.CatmullRomCurve3(arcPoints);
         const coreArc = new THREE.Mesh(
-          new THREE.TubeGeometry(arcCurve, arcSegments * 3, 0.1 * scale, 5, false),
+          new THREE.TubeGeometry(
+            arcCurve,
+            arcSegments * 3,
+            0.1 * scale,
+            5,
+            false,
+          ),
           new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
@@ -2083,7 +2096,13 @@ export class AutoWeaponSystem {
         boltGroup.add(coreArc);
 
         const glowArc = new THREE.Mesh(
-          new THREE.TubeGeometry(arcCurve, arcSegments * 3, 0.25 * scale, 5, false),
+          new THREE.TubeGeometry(
+            arcCurve,
+            arcSegments * 3,
+            0.25 * scale,
+            5,
+            false,
+          ),
           new THREE.MeshBasicMaterial({
             color: 0xccaa44,
             transparent: true,
@@ -2102,7 +2121,7 @@ export class AutoWeaponSystem {
       // Bright impact flash visible from top-down
       const impactGroup = new THREE.Group();
 
-      const flashSize = (1.2 + scale * 0.8);
+      const flashSize = 1.2 + scale * 0.8;
       const flash = new THREE.Mesh(
         new THREE.CircleGeometry(flashSize, 16),
         new THREE.MeshBasicMaterial({
@@ -2240,7 +2259,8 @@ export class AutoWeaponSystem {
     if (!this.canAddProjectile()) return;
 
     const mesh = this.meshFactory.createMagicOrbMesh(config.color);
-    const visualScale = (config.scale || 1) * Math.min(1.5, Math.sqrt(config.area || 1));
+    const visualScale =
+      (config.scale || 1) * Math.min(1.5, Math.sqrt(config.area || 1));
     mesh.scale.setScalar(visualScale);
     mesh.position.copy(config.position);
 
@@ -2267,7 +2287,8 @@ export class AutoWeaponSystem {
 
       // Check duration
       if (proj.elapsed >= proj.duration) {
-        const explodeOnExpire = proj.type === "fireWand" || proj.type === "guidedMeteor";
+        const explodeOnExpire =
+          proj.type === "fireWand" || proj.type === "guidedMeteor";
         this.removeProjectile(i, explodeOnExpire);
         continue;
       }
@@ -2283,7 +2304,10 @@ export class AutoWeaponSystem {
           if (proj.type === "knife") {
             proj.mesh.rotation.y += delta * 10;
           } else {
-            proj.mesh.rotation.y = Math.atan2(proj.direction.x, proj.direction.z);
+            proj.mesh.rotation.y = Math.atan2(
+              proj.direction.x,
+              proj.direction.z,
+            );
           }
           break;
         }
@@ -2306,7 +2330,10 @@ export class AutoWeaponSystem {
 
             const cdx = proj.mesh.position.x - proj.startPos.x;
             const cdz = proj.mesh.position.z - proj.startPos.z;
-            if (cdx * cdx + cdz * cdz > 64 || proj.elapsed > proj.duration * 0.4) {
+            if (
+              cdx * cdx + cdz * cdz > 64 ||
+              proj.elapsed > proj.duration * 0.4
+            ) {
               proj.returning = true;
             }
           } else {
@@ -2314,7 +2341,10 @@ export class AutoWeaponSystem {
             let tpx = pp.x - proj.mesh.position.x;
             let tpz = pp.z - proj.mesh.position.z;
             const tpl = Math.sqrt(tpx * tpx + tpz * tpz);
-            if (tpl > 0.0001) { tpx /= tpl; tpz /= tpl; }
+            if (tpl > 0.0001) {
+              tpx /= tpl;
+              tpz /= tpl;
+            }
             const rs = proj.speed * 1.2 * delta;
             proj.mesh.position.x += tpx * rs;
             proj.mesh.position.z += tpz * rs;
@@ -2405,7 +2435,10 @@ export class AutoWeaponSystem {
                 const dx = z.mesh.position.x - proj.mesh.position.x;
                 const dz = z.mesh.position.z - proj.mesh.position.z;
                 const dsq = dx * dx + dz * dz;
-                if (dsq < nearestDistSq) { nearestDistSq = dsq; nearest = z; }
+                if (dsq < nearestDistSq) {
+                  nearestDistSq = dsq;
+                  nearest = z;
+                }
               }
               if (nearest) {
                 _tv1.x = nearest.mesh.position.x - proj.mesh.position.x;
@@ -2458,7 +2491,11 @@ export class AutoWeaponSystem {
               Math.sign(proj.mesh.position.x) * (arenaSize - 1);
             if (proj.explosionOnBounce) {
               _tv2.copy(proj.mesh.position);
-              this.createExplosion(_tv2, proj.explosionRadius, proj.damage * 0.5);
+              this.createExplosion(
+                _tv2,
+                proj.explosionRadius,
+                proj.damage * 0.5,
+              );
             }
           }
           if (Math.abs(proj.mesh.position.z) > arenaSize - 1) {
@@ -2467,7 +2504,11 @@ export class AutoWeaponSystem {
               Math.sign(proj.mesh.position.z) * (arenaSize - 1);
             if (proj.explosionOnBounce) {
               _tv2.copy(proj.mesh.position);
-              this.createExplosion(_tv2, proj.explosionRadius, proj.damage * 0.5);
+              this.createExplosion(
+                _tv2,
+                proj.explosionRadius,
+                proj.damage * 0.5,
+              );
             }
           }
           break;
@@ -2500,10 +2541,16 @@ export class AutoWeaponSystem {
                   const ndx = z.mesh.position.x - proj.mesh.position.x;
                   const ndz = z.mesh.position.z - proj.mesh.position.z;
                   const ndsq = ndx * ndx + ndz * ndz;
-                  if (ndsq < nearestDistSq) { nearestDistSq = ndsq; nearestEnemy = z; }
+                  if (ndsq < nearestDistSq) {
+                    nearestDistSq = ndsq;
+                    nearestEnemy = z;
+                  }
                 }
                 if (nearestEnemy) {
-                  proj.direction.subVectors(nearestEnemy.mesh.position, proj.mesh.position);
+                  proj.direction.subVectors(
+                    nearestEnemy.mesh.position,
+                    proj.mesh.position,
+                  );
                   proj.direction.y = 0;
                   proj.direction.normalize();
                 }
@@ -2523,7 +2570,10 @@ export class AutoWeaponSystem {
               const mdx = z.mesh.position.x - proj.mesh.position.x;
               const mdz = z.mesh.position.z - proj.mesh.position.z;
               const mdsq = mdx * mdx + mdz * mdz;
-              if (mdsq < nearestDSq) { nearestDSq = mdsq; nearestZ = z; }
+              if (mdsq < nearestDSq) {
+                nearestDSq = mdsq;
+                nearestZ = z;
+              }
             }
             if (nearestZ) {
               _tv1.x = nearestZ.mesh.position.x - proj.mesh.position.x;
@@ -2564,10 +2614,18 @@ export class AutoWeaponSystem {
             proj.rightWing.rotation.z = 0.3 - Math.sin(proj.wingAngle) * 0.4;
           }
 
-          // Check damage cooldowns
-          const birdZombies = this.game.zombieManager.getZombies();
+          // Check damage cooldowns (spatial grid for O(1)-ish lookup)
+          const birdGrid = this.game.zombieGrid;
+          const birdZombies = birdGrid
+            ? birdGrid.query(
+                proj.mesh.position.x,
+                proj.mesh.position.z,
+                proj.area + 1,
+              )
+            : this.game.zombieManager.getZombies();
           const birdAreaSq = proj.area * proj.area;
-          for (const zombie of birdZombies) {
+          for (let bi = 0; bi < birdZombies.length; bi++) {
+            const zombie = birdZombies[bi];
             const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
             if (proj.elapsed - lastHit < 0.5) continue;
 
@@ -2581,7 +2639,14 @@ export class AutoWeaponSystem {
           break;
 
         case "skullOManiac": {
-          const skullZombies = this.game.zombieManager.getZombies();
+          const skullGrid = this.game.zombieGrid;
+          const skullZombies = skullGrid
+            ? skullGrid.query(
+                proj.mesh.position.x,
+                proj.mesh.position.z,
+                Math.max(proj.area + 2, 12),
+              )
+            : this.game.zombieManager.getZombies();
           if (proj.homing && skullZombies.length > 0) {
             let nearestZ = null;
             let nearestDSq = Infinity;
@@ -2590,7 +2655,10 @@ export class AutoWeaponSystem {
               const sdx = z.mesh.position.x - proj.mesh.position.x;
               const sdz = z.mesh.position.z - proj.mesh.position.z;
               const sdsq = sdx * sdx + sdz * sdz;
-              if (sdsq < nearestDSq) { nearestDSq = sdsq; nearestZ = z; }
+              if (sdsq < nearestDSq) {
+                nearestDSq = sdsq;
+                nearestZ = z;
+              }
             }
             if (nearestZ) {
               _tv1.x = nearestZ.mesh.position.x - proj.mesh.position.x;
@@ -2637,7 +2705,10 @@ export class AutoWeaponSystem {
               const gdx = z.mesh.position.x - proj.mesh.position.x;
               const gdz = z.mesh.position.z - proj.mesh.position.z;
               const gdsq = gdx * gdx + gdz * gdz;
-              if (gdsq < nearestDSq) { nearestDSq = gdsq; nearestZ = z; }
+              if (gdsq < nearestDSq) {
+                nearestDSq = gdsq;
+                nearestZ = z;
+              }
             }
             if (nearestZ) {
               _tv1.x = nearestZ.mesh.position.x - proj.mesh.position.x;
@@ -2677,9 +2748,17 @@ export class AutoWeaponSystem {
             proj.rightWing.rotation.z = 0.3 - Math.sin(proj.wingAngle) * 0.5;
           }
 
-          const vanZombies = this.game.zombieManager.getZombies();
+          const vanGrid = this.game.zombieGrid;
+          const vanZombies = vanGrid
+            ? vanGrid.query(
+                proj.mesh.position.x,
+                proj.mesh.position.z,
+                proj.area + 1,
+              )
+            : this.game.zombieManager.getZombies();
           const vanAreaSq = proj.area * proj.area;
-          for (const zombie of vanZombies) {
+          for (let vi = 0; vi < vanZombies.length; vi++) {
+            const zombie = vanZombies[vi];
             const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
             if (proj.elapsed - lastHit < 0.3) continue;
 
@@ -2720,13 +2799,23 @@ export class AutoWeaponSystem {
   }
 
   checkProjectileCollisions(proj, index) {
-    const zombies = this.game.zombieManager.getZombies();
     const px = proj.mesh.position.x;
     const pz = proj.mesh.position.z;
     const hitRadius = (proj.area || 1) * 0.8 + 0.8;
     const hitRadiusSq = hitRadius * hitRadius;
 
-    for (const zombie of zombies) {
+    // Use spatial grid for O(1)-ish neighbor lookup instead of scanning all zombies.
+    // Snapshot into local array since damageZombie can trigger nested grid queries.
+    const grid = this.game.zombieGrid;
+    const raw = grid
+      ? grid.query(px, pz, hitRadius + 1)
+      : this.game.zombieManager.getZombies();
+    const candidates = this._collisionBuf || (this._collisionBuf = []);
+    candidates.length = raw.length;
+    for (let k = 0; k < raw.length; k++) candidates[k] = raw[k];
+
+    for (let j = 0; j < candidates.length; j++) {
+      const zombie = candidates[j];
       if (proj.hitEnemies && proj.hitEnemies.has(zombie)) {
         if (proj.type === "runetracer") {
           const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
@@ -2741,10 +2830,8 @@ export class AutoWeaponSystem {
       const distSq = dx * dx + dz * dz;
 
       if (distSq < hitRadiusSq) {
-        // Hit!
         this.game.zombieManager.damageZombie(zombie, proj.damage);
 
-        // Track hit
         if (proj.hitEnemies) {
           proj.hitEnemies.add(zombie);
           if (proj.hitCooldowns) {
@@ -2752,8 +2839,8 @@ export class AutoWeaponSystem {
           }
         }
 
-        // Check pierce
-        const shouldExplode = proj.type === "fireWand" || proj.type === "guidedMeteor";
+        const shouldExplode =
+          proj.type === "fireWand" || proj.type === "guidedMeteor";
         if (proj.pierce !== undefined && proj.pierce !== Infinity) {
           proj.pierce--;
           if (proj.pierce < 0) {
@@ -2848,10 +2935,18 @@ export class AutoWeaponSystem {
 
       // Update based on type
       switch (effect.type) {
-        case "whip":
-          // Check damage in whip area (use 2D distance)
-          const zombies = this.game.zombieManager.getZombies();
-          for (const zombie of zombies) {
+        case "whip": {
+          // Check damage in whip area (use spatial grid)
+          const whipGrid = this.game.zombieGrid;
+          const zombies = whipGrid
+            ? whipGrid.query(
+                effect.position.x,
+                effect.position.z,
+                effect.area + 1,
+              )
+            : this.game.zombieManager.getZombies();
+          for (let wi = 0; wi < zombies.length; wi++) {
+            const zombie = zombies[wi];
             if (effect.hitEnemies.has(zombie)) continue;
 
             const zPos = zombie.mesh.position;
@@ -2870,9 +2965,13 @@ export class AutoWeaponSystem {
                 let kx = zPos.x - pp.x;
                 let kz = zPos.z - pp.z;
                 const kl = Math.sqrt(kx * kx + kz * kz);
-                if (kl > 0.0001) { kx /= kl; kz /= kl; }
-                zPos.x += kx * effect.knockback;
-                zPos.z += kz * effect.knockback;
+                if (kl > 0.0001) {
+                  kx /= kl;
+                  kz /= kl;
+                }
+                const kb = clampKnockback(effect.knockback);
+                zPos.x += kx * kb;
+                zPos.z += kz * kb;
               }
             }
           }
@@ -2890,6 +2989,7 @@ export class AutoWeaponSystem {
             }
           });
           break;
+        }
 
         case "garlic":
         case "lightning":
@@ -2907,7 +3007,10 @@ export class AutoWeaponSystem {
                 child.material.opacity = fadeAmount;
               }
             });
-          } else if (effect.mesh.material && !Array.isArray(effect.mesh.material)) {
+          } else if (
+            effect.mesh.material &&
+            !Array.isArray(effect.mesh.material)
+          ) {
             effect.mesh.material.opacity = fadeAmount;
           }
           break;
@@ -2951,7 +3054,10 @@ export class AutoWeaponSystem {
                   child.userData.baseOpacity * pulse * waterFade;
               }
             });
-          } else if (effect.mesh.material && !Array.isArray(effect.mesh.material)) {
+          } else if (
+            effect.mesh.material &&
+            !Array.isArray(effect.mesh.material)
+          ) {
             effect.mesh.material.opacity = pulse * waterFade;
           }
           break;
@@ -3043,9 +3149,13 @@ export class AutoWeaponSystem {
                 let kx = zPos.x - pp.x;
                 let kz = zPos.z - pp.z;
                 const kl = Math.sqrt(kx * kx + kz * kz);
-                if (kl > 0.0001) { kx /= kl; kz /= kl; }
-                zPos.x += kx * effect.knockback;
-                zPos.z += kz * effect.knockback;
+                if (kl > 0.0001) {
+                  kx /= kl;
+                  kz /= kl;
+                }
+                const kb = clampKnockback(effect.knockback);
+                zPos.x += kx * kb;
+                zPos.z += kz * kb;
               }
             }
           }
@@ -3173,10 +3283,8 @@ export class AutoWeaponSystem {
 
         case "infiniteCorridor":
           // Spinning clock hands
-          if (effect.hourHand)
-            effect.hourHand.rotation.y += delta * 0.5;
-          if (effect.minuteHand)
-            effect.minuteHand.rotation.y -= delta * 2.0;
+          if (effect.hourHand) effect.hourHand.rotation.y += delta * 0.5;
+          if (effect.minuteHand) effect.minuteHand.rotation.y -= delta * 2.0;
 
           // Tick damage to enemies in zone
           if (effect.elapsed - effect.lastTick >= effect.tickRate) {
@@ -3197,8 +3305,15 @@ export class AutoWeaponSystem {
           {
             const corridorFade = 1 - effect.elapsed / effect.duration;
             effect.mesh.traverse((child) => {
-              if (child.isMesh && child.material && child.material.transparent) {
-                child.material.opacity = Math.max(0, child.material.opacity * corridorFade + 0.01);
+              if (
+                child.isMesh &&
+                child.material &&
+                child.material.transparent
+              ) {
+                child.material.opacity = Math.max(
+                  0,
+                  child.material.opacity * corridorFade + 0.01,
+                );
               }
             });
             effect.mesh.rotation.y += delta * 0.2;
@@ -3215,7 +3330,11 @@ export class AutoWeaponSystem {
             // Pulsing shield visual
             const shroudPulse = 0.8 + Math.sin(effect.elapsed * 6) * 0.2;
             effect.mesh.traverse((child) => {
-              if (child.isMesh && child.material && child.material.transparent) {
+              if (
+                child.isMesh &&
+                child.material &&
+                child.material.transparent
+              ) {
                 child.material.opacity *= shroudPulse;
               }
             });
@@ -3230,7 +3349,10 @@ export class AutoWeaponSystem {
                 const rdx = zombie.mesh.position.x - shroudPlayerPos.x;
                 const rdz = zombie.mesh.position.z - shroudPlayerPos.z;
                 if (rdx * rdx + rdz * rdz < rrSq) {
-                  this.game.zombieManager.damageZombie(zombie, effect.reflectDamage);
+                  this.game.zombieManager.damageZombie(
+                    zombie,
+                    effect.reflectDamage,
+                  );
                 }
               }
             }
@@ -3298,27 +3420,38 @@ export class AutoWeaponSystem {
     if (!entry) {
       const group = new THREE.Group();
       const coreMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff, transparent: true, opacity: 1,
-        blending: THREE.AdditiveBlending, depthWrite: false,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 1,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
       const core = new THREE.Mesh(this._sharedExpGeo, coreMat);
       group.add(core);
 
       const fireMat = new THREE.MeshBasicMaterial({
-        color: 0xff6600, transparent: true, opacity: 0.8,
-        blending: THREE.AdditiveBlending, depthWrite: false,
+        color: 0xff6600,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
       const fire = new THREE.Mesh(this._sharedExpGeo, fireMat);
       group.add(fire);
 
       const redMat = new THREE.MeshBasicMaterial({
-        color: 0xff2200, transparent: true, opacity: 0.6, depthWrite: false,
+        color: 0xff2200,
+        transparent: true,
+        opacity: 0.6,
+        depthWrite: false,
       });
       const red = new THREE.Mesh(this._sharedExpGeo, redMat);
       group.add(red);
 
       const smokeMat = new THREE.MeshBasicMaterial({
-        color: 0x222222, transparent: true, opacity: 0.5,
+        color: 0x222222,
+        transparent: true,
+        opacity: 0.5,
       });
       const smoke = new THREE.Mesh(this._sharedRingGeo, smokeMat);
       smoke.rotation.x = Math.PI / 2;

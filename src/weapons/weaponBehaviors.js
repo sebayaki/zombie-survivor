@@ -52,13 +52,20 @@ export function areaDamage(zombieManager, center, radiusSq, damage) {
   }
 }
 
+const KNOCKBACK_SOFT_CAP = 1.5;
+
+export function clampKnockback(force) {
+  return KNOCKBACK_SOFT_CAP * (1 - Math.exp(-force / KNOCKBACK_SOFT_CAP));
+}
+
 const _knockbackVec = new THREE.Vector3();
 export function knockback(zombie, sourcePos, force) {
   _knockbackVec.subVectors(zombie.mesh.position, sourcePos);
   _knockbackVec.y = 0;
   const len = _knockbackVec.length();
   if (len > 0.0001) {
-    _knockbackVec.multiplyScalar(force / len);
+    const effective = clampKnockback(force);
+    _knockbackVec.multiplyScalar(effective / len);
     zombie.mesh.position.x += _knockbackVec.x;
     zombie.mesh.position.z += _knockbackVec.z;
   }

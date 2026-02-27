@@ -36,8 +36,8 @@ export const EVOLUTION_RECIPES = {
       projectileCount: 2,
       area: 2.0,
       duration: 0.5,
-      knockback: 4,
-      lifesteal: 3, // HP healed per hit
+      knockback: 1.5,
+      lifesteal: 3,
     },
   },
 
@@ -93,7 +93,7 @@ export const EVOLUTION_RECIPES = {
       damage: 15,
       cooldown: 0.3,
       area: 5.0,
-      knockback: 3,
+      knockback: 1.0,
       duration: 0.4,
       lifesteal: 1,
     },
@@ -347,7 +347,7 @@ export const SUPER_EVOLUTION_RECIPES = {
       projectileCount: 4,
       area: 4.0,
       duration: 0.6,
-      knockback: 6,
+      knockback: 2.0,
       lifesteal: 8,
     },
   },

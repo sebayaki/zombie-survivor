@@ -5,6 +5,7 @@ import {
   updateZombieBehavior,
   updateEnemyProjectiles,
   updateTelegraphs,
+  setFrameTime,
 } from "./zombies/zombieAI.js";
 
 const _tmpKnock = new THREE.Vector3();
@@ -374,6 +375,9 @@ export class ZombieManager {
 
   update(delta) {
     const playerPos = this.game.player.getPosition();
+
+    // Cache time once for all zombie animations this frame
+    setFrameTime(Date.now());
 
     // Reset per-frame VFX budgets
     this._frameDmgTextBudget = 12;

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { swapRemove } from "../utils.js";
 
 const _tmpDir = new THREE.Vector3();
 const _tmpAvoid = new THREE.Vector3();
@@ -154,11 +155,12 @@ export function updateEnemyProjectiles(delta, game, enemyProjectiles) {
     proj.mesh.rotation.y += delta * 5;
 
     const playerPos = game.player.getPosition();
-    const dist = proj.mesh.position.distanceTo(playerPos);
-    if (dist < 1) {
+    const epDx = proj.mesh.position.x - playerPos.x;
+    const epDz = proj.mesh.position.z - playerPos.z;
+    if (epDx * epDx + epDz * epDz < 1) {
       game.player.takeDamage(proj.damage);
       game.scene.remove(proj.mesh);
-      enemyProjectiles.splice(i, 1);
+      swapRemove(enemyProjectiles, i);
       continue;
     }
 
@@ -168,18 +170,23 @@ export function updateEnemyProjectiles(delta, game, enemyProjectiles) {
       Math.abs(proj.mesh.position.z) > game.arenaSize
     ) {
       game.scene.remove(proj.mesh);
-      enemyProjectiles.splice(i, 1);
+      swapRemove(enemyProjectiles, i);
     }
   }
 }
 
+// Cached per-frame time (set once in updateZombieBehavior for all zombies)
+let _frameTime = 0;
+let _frameTimeSec = 0;
+
+export function setFrameTime(t) {
+  _frameTime = t;
+  _frameTimeSec = t * 0.01;
+}
+
 /**
  * Updates a single zombie's AI: movement, attack decisions, and animation.
- * @param {object} zombie
- * @param {THREE.Vector3} playerPos
- * @param {number} delta
- * @param {object} game
- * @param {Array} enemyProjectiles - mutable array of active projectiles
+ * Returns the squared distance to the player for tier-based decisions by caller.
  */
 export function updateZombieBehavior(
   zombie,
@@ -196,15 +203,26 @@ export function updateZombieBehavior(
   direction.x = playerPos.x - zombie.mesh.position.x;
   direction.y = 0;
   direction.z = playerPos.z - zombie.mesh.position.z;
-  const distance = Math.sqrt(
-    direction.x * direction.x + direction.z * direction.z,
-  );
+  const distanceSq = direction.x * direction.x + direction.z * direction.z;
+  const distance = Math.sqrt(distanceSq);
   if (distance > 0.0001) {
     direction.x /= distance;
     direction.z /= distance;
   }
 
+  // FAR tier (> 30 units): minimal update — just move toward player, no animation
+  if (distanceSq > 900 && !zombie.isBoss) {
+    const speed = (zombie._effectiveSpeed || zombie.speed) * delta;
+    zombie.mesh.position.x += direction.x * speed;
+    zombie.mesh.position.z += direction.z * speed;
+    zombie.mesh.rotation.y = Math.atan2(direction.x, direction.z);
+    return;
+  }
+
   zombie.mesh.rotation.y = Math.atan2(direction.x, direction.z);
+
+  // MID tier (15–30 units): movement with obstacle avoidance, simplified animation
+  const isMidTier = distanceSq > 225 && !zombie.isBoss;
 
   if (zombie.isBoss) {
     if (zombie.mesh.userData.healthBar) {
@@ -216,7 +234,7 @@ export function updateZombieBehavior(
       if (game.ui) game.ui.updateBossHealthBar(healthPercent);
 
       if (zombie.mesh.userData.aura) {
-        const pulse = 1 + Math.sin(Date.now() * 0.003) * 0.2;
+        const pulse = 1 + Math.sin(_frameTime * 0.03) * 0.2;
         zombie.mesh.userData.aura.scale.setScalar(pulse);
       }
 
@@ -243,7 +261,7 @@ export function updateZombieBehavior(
       if (enraged && zombie.mesh.userData.aura) {
         zombie.mesh.userData.aura.material.color.setHex(0xff0000);
         zombie.mesh.userData.aura.material.opacity =
-          0.25 + Math.sin(Date.now() * 0.01) * 0.1;
+          0.25 + Math.sin(_frameTime * 0.1) * 0.1;
       }
     }
 
@@ -321,8 +339,8 @@ export function updateZombieBehavior(
         zombie.bossTimer = 0;
       }
     } else if (zombie.bossState === "charge_windup") {
-      zombie.mesh.rotation.z += Math.sin(Date.now() * 0.05) * 0.12;
-      zombie.mesh.rotation.x += Math.sin(Date.now() * 0.06) * 0.12;
+      zombie.mesh.rotation.z += Math.sin(_frameTime * 0.5) * 0.12;
+      zombie.mesh.rotation.x += Math.sin(_frameTime * 0.6) * 0.12;
       const windupDuration = zombie.enraged ? 0.7 : 1.2;
       if (zombie.bossTimer > windupDuration) {
         zombie.bossState = "charge";
@@ -418,7 +436,7 @@ export function updateZombieBehavior(
     }
 
     // Boss-specific animation
-    const time = Date.now() * 0.01;
+    const time = _frameTimeSec;
     const bossLeg = time * zombie.speed * 0.3;
     if (zombie.mesh.userData.leftLeg)
       zombie.mesh.userData.leftLeg.rotation.x = Math.sin(bossLeg) * 0.3;
@@ -435,7 +453,7 @@ export function updateZombieBehavior(
     }
 
     zombie.mesh.rotation.z =
-      Math.sin(time * 0.3 + zombie.mesh.userData.animPhase) * 0.04;
+      Math.sin(_frameTimeSec * 0.3 + zombie.mesh.userData.animPhase) * 0.04;
     return;
   }
 
@@ -446,30 +464,44 @@ export function updateZombieBehavior(
       zombie.attackCooldown = zombie.attackRate * 2;
     }
     if (distance > zombie.attackRange * 0.6) {
-      const moveDir = avoidObstacles(
-        zombie.mesh.position,
-        direction,
-        game.obstacles,
-      );
-      zombie.mesh.position.x += moveDir.x * (zombie._effectiveSpeed || zombie.speed) * delta;
-      zombie.mesh.position.z += moveDir.z * (zombie._effectiveSpeed || zombie.speed) * delta;
+      const speed = (zombie._effectiveSpeed || zombie.speed) * delta;
+      if (isMidTier) {
+        zombie.mesh.position.x += direction.x * speed;
+        zombie.mesh.position.z += direction.z * speed;
+      } else {
+        const moveDir = avoidObstacles(zombie.mesh.position, direction, game.obstacles);
+        zombie.mesh.position.x += moveDir.x * speed;
+        zombie.mesh.position.z += moveDir.z * speed;
+      }
     }
   } else if (distance < 1.5 * (zombie.typeDef?.scale || 1)) {
     zombie.state = "attack";
     attackPlayer(zombie, game);
   } else {
     zombie.state = "chase";
-    const moveDir = avoidObstacles(
-      zombie.mesh.position,
-      direction,
-      game.obstacles,
-    );
-    zombie.mesh.position.x += moveDir.x * (zombie._effectiveSpeed || zombie.speed) * delta;
-    zombie.mesh.position.z += moveDir.z * (zombie._effectiveSpeed || zombie.speed) * delta;
+    const speed = (zombie._effectiveSpeed || zombie.speed) * delta;
+    if (isMidTier) {
+      zombie.mesh.position.x += direction.x * speed;
+      zombie.mesh.position.z += direction.z * speed;
+    } else {
+      const moveDir = avoidObstacles(zombie.mesh.position, direction, game.obstacles);
+      zombie.mesh.position.x += moveDir.x * speed;
+      zombie.mesh.position.z += moveDir.z * speed;
+    }
   }
 
-  // Animation — organic creature movement
-  const time = Date.now() * 0.01;
+  // Mid-tier: simplified animation (just body sway, no limb detail)
+  if (isMidTier) {
+    const time = _frameTimeSec;
+    const phase = zombie.mesh.userData.animPhase || 0;
+    const speedAnim = zombie.speed * 0.5;
+    zombie.mesh.rotation.z = Math.sin(time * speedAnim * 0.35 + phase) * 0.12;
+    zombie.mesh.position.y = Math.abs(Math.sin(time * speedAnim * 0.7 + phase)) * 0.04;
+    return;
+  }
+
+  // NEAR tier: full animation
+  const time = _frameTimeSec;
   const speedAnim = zombie.speed * 0.5;
   const ud = zombie.mesh.userData;
   const limpL = ud.limpOffsetL || 0;
@@ -483,7 +515,6 @@ export function updateZombieBehavior(
     const legPhase = time * speedAnim;
     const legFreq = isFast ? 1.4 : isTank ? 0.6 : 1.0;
 
-    // Legs: asymmetric stride with secondary motion
     if (ud.leftLeg) {
       const mainSwing = Math.sin(legPhase * legFreq + limpL) * (0.4 + limpL * 0.3);
       const drag = Math.sin(legPhase * legFreq * 0.5 + limpL) * 0.08;
@@ -497,7 +528,6 @@ export function updateZombieBehavior(
       ud.rightLeg.rotation.z = -Math.sin(legPhase * 0.3 + phase + 0.5) * 0.04;
     }
 
-    // Arms: creature-like — reaching, grasping, swaying
     if (ud.leftArm) {
       const reach = isFast ? -Math.PI / 2.0 : -Math.PI / 2.2;
       const swing = Math.sin(legPhase * legFreq + 0.3) * (isFast ? 0.35 : 0.22);
@@ -513,14 +543,12 @@ export function updateZombieBehavior(
       ud.rightArm.rotation.z = -0.15 + Math.sin(legPhase * 0.35 + limpR) * 0.05;
     }
 
-    // Body breathing/heaving — organic micro-motion
     if (ud.body) {
       ud.body.rotation.z = Math.sin(legPhase * 0.8 + phase) * 0.05;
       const breathe = 1.0 + Math.sin(time * 0.8 + phase) * (isExploder ? 0.03 : 0.015);
       ud.body.scale.y = breathe;
     }
   } else if (zombie.state === "attack") {
-    // Frenzied, erratic clawing
     const attackFreq = isFast ? 5.5 : 4.0;
     if (ud.leftArm) {
       ud.leftArm.rotation.x = -Math.PI / 2 - Math.sin(time * attackFreq + phase) * 0.8;
@@ -530,25 +558,21 @@ export function updateZombieBehavior(
       ud.rightArm.rotation.x = -Math.PI / 2 - Math.cos(time * (attackFreq - 0.8) + limpR) * 0.75;
       ud.rightArm.rotation.z = -Math.sin(time * 2.5 + limpR) * 0.12;
     }
-    // Lunge forward during attack
     if (ud.body)
       ud.body.rotation.x = Math.sin(time * attackFreq * 0.5) * 0.08;
   }
 
-  // Body sway — lurching, organic, creature-like
   const wobbleBase = isTank ? 0.06 : isExploder ? 0.08 : isFast ? 0.1 : 0.15;
   const wobbleAmount = zombie.isBoss ? 0.04 : wobbleBase;
   zombie.mesh.rotation.z =
     Math.sin(time * speedAnim * 0.35 + phase) * wobbleAmount +
     Math.sin(time * speedAnim * 0.15 + limpL) * (wobbleAmount * 0.5) +
     Math.sin(time * 0.7 + phase * 2) * (wobbleAmount * 0.2);
-  // Forward lean with secondary heave
   const leanBase = isFast ? 0.1 : isTank ? 0.03 : 0.06;
   zombie.mesh.rotation.x =
     leanBase +
     Math.cos(time * speedAnim * 0.25 + limpR) * (wobbleAmount * 0.35) +
     Math.sin(time * 0.5 + phase) * 0.02;
-  // Vertical bob — shuffling gait
   zombie.mesh.position.y =
     Math.abs(Math.sin(time * speedAnim * 0.7 + phase)) * (isTank ? 0.03 : isExploder ? 0.02 : 0.05);
 }
