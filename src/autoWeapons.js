@@ -3101,9 +3101,7 @@ export class AutoWeaponSystem {
           if (effect.elapsed - effect.lastTick >= effect.tickRate) {
             effect.lastTick = effect.elapsed;
 
-            const poolZombies = this.game.zombieManager
-              .getZombies()
-              .getZombies();
+            const poolZombies = this.game.zombieManager.getZombies();
 
             const lbAreaSq = effect.area * effect.area;
             for (const zombie of poolZombies) {
