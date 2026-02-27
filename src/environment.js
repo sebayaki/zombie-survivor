@@ -42,7 +42,7 @@ export function setupEnhancedLighting(game) {
   game.scene.add(ambient);
 
   const isMobile = game.isMobile;
-  const shadowMapSize = isMobile ? 1024 : 2048;
+  const shadowMapSize = isMobile ? 512 : 1024;
 
   const moonLight = new THREE.DirectionalLight(0x667799, 2.4);
   moonLight.position.set(10, 60, 15);
@@ -51,12 +51,18 @@ export function setupEnhancedLighting(game) {
   moonLight.shadow.mapSize.height = shadowMapSize;
   moonLight.shadow.camera.near = 1;
   moonLight.shadow.camera.far = 120;
-  moonLight.shadow.camera.left = -65;
-  moonLight.shadow.camera.right = 65;
-  moonLight.shadow.camera.top = 65;
-  moonLight.shadow.camera.bottom = -65;
+  // Tight frustum — updated per frame to follow the player
+  const shadowHalf = 28;
+  moonLight.shadow.camera.left = -shadowHalf;
+  moonLight.shadow.camera.right = shadowHalf;
+  moonLight.shadow.camera.top = shadowHalf;
+  moonLight.shadow.camera.bottom = -shadowHalf;
   moonLight.shadow.bias = -0.001;
   game.scene.add(moonLight);
+
+  // Expose for per-frame follow update
+  game._moonLight = moonLight;
+  game._shadowOffset = new THREE.Vector3(10, 60, 15);
 
   const cityGlow = new THREE.DirectionalLight(0x884422, 0.5);
   cityGlow.position.set(-15, 30, -25);
@@ -83,7 +89,7 @@ export function createEnhancedArena(game) {
   const bumpMap = createAsphaltBumpMap();
 
   const groundGeo = new THREE.PlaneGeometry(
-    arenaSize * 2, arenaSize * 2, 64, 64,
+    arenaSize * 2, arenaSize * 2, 16, 16,
   );
   const posAttr = groundGeo.attributes.position;
   for (let i = 0; i < posAttr.count; i++) {
@@ -133,6 +139,25 @@ export function createEnhancedArena(game) {
   game.obstacles = [];
   createEnhancedDecorations(game);
   createMergedBoundaryFence(game);
+
+  // Freeze world matrices of all static objects — they never move,
+  // so this avoids Three.js recomputing matrices every frame.
+  game.scene.traverse((obj) => {
+    if (obj === game.scene) return;
+    obj.updateMatrixWorld(true);
+    obj.matrixAutoUpdate = false;
+    obj.matrixWorldAutoUpdate = false;
+  });
+  // Re-enable for objects that move each frame
+  const dynamic = [game.playerLight, game._moonLight];
+  if (game._moonLight && game._moonLight.target) {
+    dynamic.push(game._moonLight.target);
+  }
+  for (const obj of dynamic) {
+    if (!obj) continue;
+    obj.matrixAutoUpdate = true;
+    obj.matrixWorldAutoUpdate = true;
+  }
 }
 
 // ============================================================

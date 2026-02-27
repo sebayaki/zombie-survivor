@@ -241,6 +241,10 @@ export class ZombieManager {
       }
     }
 
+    // Precompute affix flags for hot-path checks
+    zombie._hasBerserker = zombie.affixes.includes("berserker");
+    zombie._hasFrozenAura = zombie.affixes.includes("frozenAura");
+
     // Scale elite to be slightly larger
     zombie.mesh.scale.multiplyScalar(1.25);
 
@@ -378,33 +382,34 @@ export class ZombieManager {
         }
       }
 
-      // Berserker affix: speed increases as HP drops
-      if (zombie.isElite && zombie.affixes.includes("berserker")) {
-        const hpRatio = zombie.health / zombie.maxHealth;
-        const speedBoost = 1 + (1 - hpRatio) * 1.5; // up to 2.5x speed at low HP
-        zombie._effectiveSpeed = zombie.speed * speedBoost;
-      } else {
-        zombie._effectiveSpeed = zombie.speed;
-      }
+      // Elite-only per-frame work — skip entirely for regular zombies
+      if (zombie.isElite) {
+        if (zombie._hasBerserker) {
+          const hpRatio = zombie.health / zombie.maxHealth;
+          zombie._effectiveSpeed = zombie.speed * (1 + (1 - hpRatio) * 1.5);
+        }
 
-      // Frozen Aura: slow player when nearby
-      if (zombie.isElite && zombie.affixes.includes("frozenAura")) {
-        const affix = ELITE_AFFIXES.frozenAura;
-        const dx = zombie.mesh.position.x - playerPos.x;
-        const dz = zombie.mesh.position.z - playerPos.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < affix.auraRadius) {
-          this.game.player._frozenAuraSlow = Math.max(
-            this.game.player._frozenAuraSlow || 0,
-            affix.slowAmount,
-          );
+        if (zombie._hasFrozenAura) {
+          const dx = zombie.mesh.position.x - playerPos.x;
+          const dz = zombie.mesh.position.z - playerPos.z;
+          const distSq = dx * dx + dz * dz;
+          const r = ELITE_AFFIXES.frozenAura.auraRadius;
+          if (distSq < r * r) {
+            this.game.player._frozenAuraSlow = Math.max(
+              this.game.player._frozenAuraSlow || 0,
+              ELITE_AFFIXES.frozenAura.slowAmount,
+            );
+          }
+        }
+
+        if (zombie.mesh.userData.eliteGlow) {
+          zombie.mesh.userData.eliteGlow.material.opacity =
+            0.12 + Math.sin(this.game.gameTime * 4) * 0.08;
         }
       }
 
-      // Pulse elite glow
-      if (zombie.mesh.userData.eliteGlow) {
-        const glow = zombie.mesh.userData.eliteGlow;
-        glow.material.opacity = 0.12 + Math.sin(this.game.gameTime * 4) * 0.08;
+      if (!zombie._effectiveSpeed) {
+        zombie._effectiveSpeed = zombie.speed;
       }
 
       updateZombieBehavior(

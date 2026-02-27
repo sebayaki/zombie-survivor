@@ -97,14 +97,23 @@ export class PostProcessingManager {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    this.composer = new EffectComposer(renderer);
+    // Render post-processing at reduced resolution — big GPU savings
+    // with negligible visual difference (bloom is inherently blurry).
+    this._ppScale = this._isMobile ? 0.5 : 0.6;
+    const ppW = Math.ceil(width * this._ppScale);
+    const ppH = Math.ceil(height * this._ppScale);
+
+    const rt = new THREE.WebGLRenderTarget(ppW, ppH, {
+      type: THREE.HalfFloatType,
+    });
+    this.composer = new EffectComposer(renderer, rt);
 
     const renderPass = new RenderPass(scene, camera);
     this.composer.addPass(renderPass);
 
     if (!this._isMobile) {
       this.bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(width, height),
+        new THREE.Vector2(ppW, ppH),
         0.25, 0.3, 0.95,
       );
       this.composer.addPass(this.bloomPass);
@@ -152,7 +161,10 @@ export class PostProcessingManager {
 
   setQuality(level) {
     if (this.bloomPass) {
-      this.bloomPass.enabled = level >= 2;
+      this.bloomPass.enabled = level >= 1;
+      if (level === 1) {
+        this.bloomPass.strength = this._baseBloomStrength * 0.5;
+      }
     }
   }
 
@@ -226,8 +238,8 @@ export class PostProcessingManager {
   }
 
   onWindowResize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const width = Math.ceil(window.innerWidth * this._ppScale);
+    const height = Math.ceil(window.innerHeight * this._ppScale);
     this.composer.setSize(width, height);
     if (this.bloomPass) {
       this.bloomPass.resolution.set(width, height);

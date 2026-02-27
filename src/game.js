@@ -121,9 +121,8 @@ export class Game {
         navigator.userAgent,
       );
 
-    // Start at 1.0 pixel ratio — adaptive quality will raise it if FPS is good
-    this.renderer = new THREE.WebGLRenderer({ antialias: false });
-    this.renderer.setPixelRatio(1.0);
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+    this.renderer.setPixelRatio(isMobile ? 0.7 : 0.85);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.isMobile = isMobile;
@@ -131,7 +130,7 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
     // Adaptive quality state
-    this._qualityLevel = 2;          // 0=low, 1=medium, 2=high
+    this._qualityLevel = 1;          // 0=low, 1=medium, 2=high (start medium, promote if FPS is good)
     this._fpsFrames = 0;
     this._fpsAccum = 0;
     this._fpsCheckInterval = 3;      // seconds between FPS checks
@@ -510,10 +509,12 @@ export class Game {
 
   _applyQuality() {
     const q = this._qualityLevel;
-    const pr = q === 0 ? 0.6 : q === 1 ? 0.85 : 1.0;
+    const pr = this.isMobile
+      ? (q === 0 ? 0.5  : q === 1 ? 0.7  : 0.85)
+      : (q === 0 ? 0.6  : q === 1 ? 0.85 : 1.0);
     this.renderer.setPixelRatio(pr);
 
-    this.renderer.shadowMap.enabled = q >= 2 && !this.isMobile;
+    this.renderer.shadowMap.enabled = q >= 1 && !this.isMobile;
 
     if (this.postProcessing) {
       this.postProcessing.setQuality(q);
@@ -600,6 +601,18 @@ export class Game {
       if (Math.floor(this.gameTime * 10) % 5 === 0) {
         this.ui.updateHealth();
       }
+    }
+
+    // Move shadow camera to follow player (tight frustum = better quality + perf)
+    if (this._moonLight && this._moonLight.castShadow) {
+      const pp = this.player.getPosition();
+      this._moonLight.position.set(
+        pp.x + this._shadowOffset.x,
+        this._shadowOffset.y,
+        pp.z + this._shadowOffset.z,
+      );
+      this._moonLight.target.position.set(pp.x, 0, pp.z);
+      this._moonLight.target.updateMatrixWorld();
     }
 
     // Render with post-processing

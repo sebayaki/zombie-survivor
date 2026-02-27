@@ -12,6 +12,7 @@ export class SpatialGrid {
     this.invCellSize = 1 / cellSize;
     this.cells = new Map();
     this._bucketPool = [];
+    this._queryResult = [];
   }
 
   _key(cx, cz) {
@@ -47,9 +48,11 @@ export class SpatialGrid {
   /**
    * Return all entities whose cell is within radius of (x, z).
    * This is a broad-phase query; callers should do a fine distance check.
+   * The returned array is reused between calls — copy if you need to keep it.
    */
   query(x, z, radius) {
-    const results = [];
+    const results = this._queryResult;
+    results.length = 0;
     const minCx = this._cellCoord(x - radius);
     const maxCx = this._cellCoord(x + radius);
     const minCz = this._cellCoord(z - radius);
