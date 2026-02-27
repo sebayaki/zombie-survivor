@@ -8,6 +8,7 @@ export function homingBehavior(proj, zombies, delta) {
   const pz = proj.mesh.position.z;
   for (let i = 0; i < zombies.length; i++) {
     const z = zombies[i];
+    if (!z || !z.mesh) continue;
     const dx = z.mesh.position.x - px;
     const dz = z.mesh.position.z - pz;
     const dsq = dx * dx + dz * dz;
@@ -42,12 +43,14 @@ export function wallBounceBehavior(proj, arenaSize) {
 
 export function areaDamage(zombieManager, center, radiusSq, damage) {
   const zombies = zombieManager.getZombies();
-  for (let i = 0; i < zombies.length; i++) {
-    const zp = zombies[i].mesh.position;
+  for (let i = zombies.length - 1; i >= 0; i--) {
+    const z = zombies[i];
+    if (!z || !z.mesh) continue;
+    const zp = z.mesh.position;
     const dx = zp.x - center.x;
     const dz = zp.z - center.z;
     if (dx * dx + dz * dz < radiusSq) {
-      zombieManager.damageZombie(zombies[i], damage);
+      zombieManager.damageZombie(z, damage);
     }
   }
 }

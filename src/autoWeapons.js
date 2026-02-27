@@ -2816,6 +2816,7 @@ export class AutoWeaponSystem {
 
     for (let j = 0; j < candidates.length; j++) {
       const zombie = candidates[j];
+      if (!zombie || !zombie.mesh) continue;
       if (proj.hitEnemies && proj.hitEnemies.has(zombie)) {
         if (proj.type === "runetracer") {
           const lastHit = proj.hitCooldowns[zombie.mesh.uuid] || 0;
@@ -2938,15 +2939,21 @@ export class AutoWeaponSystem {
         case "whip": {
           // Check damage in whip area (use spatial grid)
           const whipGrid = this.game.zombieGrid;
-          const zombies = whipGrid
+          const whipRaw = whipGrid
             ? whipGrid.query(
                 effect.position.x,
                 effect.position.z,
                 effect.area + 1,
               )
             : this.game.zombieManager.getZombies();
+          // Snapshot: grid.query() shares a mutable buffer
+          const zombies = this._whipBuf || (this._whipBuf = []);
+          zombies.length = whipRaw.length;
+          for (let wk = 0; wk < whipRaw.length; wk++) zombies[wk] = whipRaw[wk];
+
           for (let wi = 0; wi < zombies.length; wi++) {
             const zombie = zombies[wi];
+            if (!zombie || !zombie.mesh) continue;
             if (effect.hitEnemies.has(zombie)) continue;
 
             const zPos = zombie.mesh.position;
@@ -3021,7 +3028,9 @@ export class AutoWeaponSystem {
 
             const poolAreaSq = effect.area * effect.area;
             const allZombies = this.game.zombieManager.getZombies();
-            for (const z of allZombies) {
+            for (let zi = allZombies.length - 1; zi >= 0; zi--) {
+              const z = allZombies[zi];
+              if (!z || !z.mesh) continue;
               const zp = z.mesh.position;
               const ep = effect.position;
               const dx = zp.x - ep.x;
@@ -3073,7 +3082,9 @@ export class AutoWeaponSystem {
             const angle = Math.atan2(firewallDir.x, firewallDir.z);
 
             const zombiesNearFire = this.game.zombieManager.getZombies();
-            for (const zombie of zombiesNearFire) {
+            for (let fi = zombiesNearFire.length - 1; fi >= 0; fi--) {
+              const zombie = zombiesNearFire[fi];
+              if (!zombie || !zombie.mesh) continue;
               const zp = zombie.mesh.position;
 
               // Transform zombie position to firewall local space
@@ -3131,7 +3142,9 @@ export class AutoWeaponSystem {
           const bloodZombies = this.game.zombieManager.getZombies();
           let bloodHealed = 0;
           const btAreaSq = effect.area * effect.area;
-          for (const zombie of bloodZombies) {
+          for (let bi = bloodZombies.length - 1; bi >= 0; bi--) {
+            const zombie = bloodZombies[bi];
+            if (!zombie || !zombie.mesh) continue;
             if (effect.hitEnemies.has(zombie)) continue;
 
             const zPos = zombie.mesh.position;
@@ -3229,7 +3242,9 @@ export class AutoWeaponSystem {
             const poolZombies = this.game.zombieManager.getZombies();
 
             const lbAreaSq = effect.area * effect.area;
-            for (const zombie of poolZombies) {
+            for (let li = poolZombies.length - 1; li >= 0; li--) {
+              const zombie = poolZombies[li];
+              if (!zombie || !zombie.mesh) continue;
               const zp = zombie.mesh.position;
               const ep = effect.position;
               const dx = zp.x - ep.x;
@@ -3292,7 +3307,9 @@ export class AutoWeaponSystem {
 
             const corridorZombies = this.game.zombieManager.getZombies();
             const icAreaSq = effect.area * effect.area;
-            for (const zombie of corridorZombies) {
+            for (let ci = corridorZombies.length - 1; ci >= 0; ci--) {
+              const zombie = corridorZombies[ci];
+              if (!zombie || !zombie.mesh) continue;
               const dx = zombie.mesh.position.x - effect.position.x;
               const dz = zombie.mesh.position.z - effect.position.z;
               if (dx * dx + dz * dz < icAreaSq) {
@@ -3345,7 +3362,9 @@ export class AutoWeaponSystem {
               effect.lastReflectTick = effect.elapsed;
               const reflectZombies = this.game.zombieManager.getZombies();
               const rrSq = effect.reflectRadius * effect.reflectRadius;
-              for (const zombie of reflectZombies) {
+              for (let ri = reflectZombies.length - 1; ri >= 0; ri--) {
+                const zombie = reflectZombies[ri];
+                if (!zombie || !zombie.mesh) continue;
                 const rdx = zombie.mesh.position.x - shroudPlayerPos.x;
                 const rdz = zombie.mesh.position.z - shroudPlayerPos.z;
                 if (rdx * rdx + rdz * rdz < rrSq) {

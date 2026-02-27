@@ -477,6 +477,7 @@ export class ZombieManager {
   }
 
   damageZombie(zombie, rawDamage, hitDirection = null, forceCrit = false) {
+    if (!zombie || !zombie.mesh || zombie.health <= 0) return;
     const isCrit = forceCrit || Math.random() < 0.15;
     let finalDamage = isCrit ? rawDamage * 2 : rawDamage;
 
@@ -570,13 +571,18 @@ export class ZombieManager {
   }
 
   damageInRadius(position, radius, damage) {
-    const candidates = this.game.zombieGrid
+    const raw = this.game.zombieGrid
       ? this.game.zombieGrid.query(position.x, position.z, radius)
       : this.zombies;
+    // Snapshot: grid.query() returns a shared array overwritten by nested calls
+    const buf = this._radiusBuf || (this._radiusBuf = []);
+    buf.length = raw.length;
+    for (let k = 0; k < raw.length; k++) buf[k] = raw[k];
+
     const radiusSq = radius * radius;
-    for (let i = candidates.length - 1; i >= 0; i--) {
-      const zombie = candidates[i];
-      if (zombie.health <= 0) continue;
+    for (let i = buf.length - 1; i >= 0; i--) {
+      const zombie = buf[i];
+      if (!zombie || zombie.health <= 0) continue;
       const dx = zombie.mesh.position.x - position.x;
       const dz = zombie.mesh.position.z - position.z;
       const distSq = dx * dx + dz * dz;
