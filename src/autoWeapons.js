@@ -2946,7 +2946,6 @@ export class AutoWeaponSystem {
                 effect.area + 1,
               )
             : this.game.zombieManager.getZombies();
-          // Snapshot: grid.query() shares a mutable buffer
           const zombies = this._whipBuf || (this._whipBuf = []);
           zombies.length = whipRaw.length;
           for (let wk = 0; wk < whipRaw.length; wk++) zombies[wk] = whipRaw[wk];

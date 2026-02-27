@@ -574,14 +574,18 @@ export class ZombieManager {
     const raw = this.game.zombieGrid
       ? this.game.zombieGrid.query(position.x, position.z, radius)
       : this.zombies;
-    // Snapshot: grid.query() returns a shared array overwritten by nested calls
-    const buf = this._radiusBuf || (this._radiusBuf = []);
-    buf.length = raw.length;
-    for (let k = 0; k < raw.length; k++) buf[k] = raw[k];
+    // Depth-indexed buffers: this method recurses via killZombie→createExplosionEffect
+    // (max depth 3+1 from _explosionDepth cap), so 5 buffers cover all cases.
+    const depth = this._radiusDepth || 0;
+    if (!this._radiusBufs) this._radiusBufs = [[], [], [], [], []];
+    const candidates = this._radiusBufs[Math.min(depth, 4)];
+    candidates.length = raw.length;
+    for (let k = 0; k < raw.length; k++) candidates[k] = raw[k];
+    this._radiusDepth = depth + 1;
 
     const radiusSq = radius * radius;
-    for (let i = buf.length - 1; i >= 0; i--) {
-      const zombie = buf[i];
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const zombie = candidates[i];
       if (!zombie || zombie.health <= 0) continue;
       const dx = zombie.mesh.position.x - position.x;
       const dz = zombie.mesh.position.z - position.z;
@@ -592,6 +596,7 @@ export class ZombieManager {
         this.damageZombie(zombie, damage * falloff);
       }
     }
+    this._radiusDepth = depth;
   }
 
   killZombie(zombie) {

@@ -31,8 +31,7 @@ export class CollisionSystem {
       const raw = this.game.zombieGrid
         ? this.game.zombieGrid.query(px, pz, hitRadius * 2)
         : zombies;
-      // Snapshot: grid.query() shares a mutable buffer
-      const nearby = this._collisionBuf || (this._collisionBuf = []);
+      const nearby = this._buf || (this._buf = []);
       nearby.length = raw.length;
       for (let k = 0; k < raw.length; k++) nearby[k] = raw[k];
 
