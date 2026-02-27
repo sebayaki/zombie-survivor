@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { swapRemove } from "./utils.js";
 import { EVOLUTION_RECIPES } from "./evolutionSystem.js";
 import { AUTO_WEAPONS } from "./weapons/weaponDefinitions.js";
 import { WeaponMeshFactory } from "./weapons/weaponMeshFactory.js";
@@ -63,6 +64,17 @@ export class AutoWeaponSystem {
       }
     });
     this.effects = [];
+
+    // Clear explosion animations
+    if (this._explosionAnims) {
+      for (const e of this._explosionAnims) {
+        this.game.scene.remove(e.entry.group);
+        if (e.light) this.game.scene.remove(e.light);
+      }
+      this._explosionAnims = [];
+    }
+    this._activeExplosions = 0;
+    this._explosionLightCount = 0;
 
     // Reset cooldowns
     this.cooldowns = {};
@@ -265,6 +277,9 @@ export class AutoWeaponSystem {
 
     // Update effects (garlic aura, holy water pools, etc.)
     this.updateEffects(delta);
+
+    // Animate explosions (centralized, replaces per-explosion rAF loops)
+    this.updateExplosionAnims(delta);
   }
 
   getLevelScale(level) {
@@ -2827,7 +2842,7 @@ export class AutoWeaponSystem {
           this.game.scene.remove(effect.mesh);
           this.disposeObject(effect.mesh);
         }
-        this.effects.splice(i, 1);
+        swapRemove(this.effects, i);
         continue;
       }
 
@@ -3265,92 +3280,139 @@ export class AutoWeaponSystem {
 
     this.game.scene.remove(proj.mesh);
     this.disposeObject(proj.mesh);
-    this.projectiles.splice(index, 1);
+    swapRemove(this.projectiles, index);
+  }
+
+  _initExplosionPool() {
+    if (this._sharedExpGeo) return;
+    this._sharedExpGeo = new THREE.SphereGeometry(1, 10, 10);
+    this._sharedExpGeo.userData = { shared: true };
+    this._sharedRingGeo = new THREE.TorusGeometry(1, 0.3, 6, 12);
+    this._sharedRingGeo.userData = { shared: true };
+    this._explosionAnims = [];
+    this._explosionPool = [];
+  }
+
+  _acquireExplosionGroup(radius) {
+    let entry = this._explosionPool.pop();
+    if (!entry) {
+      const group = new THREE.Group();
+      const coreMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 1,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const core = new THREE.Mesh(this._sharedExpGeo, coreMat);
+      group.add(core);
+
+      const fireMat = new THREE.MeshBasicMaterial({
+        color: 0xff6600, transparent: true, opacity: 0.8,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const fire = new THREE.Mesh(this._sharedExpGeo, fireMat);
+      group.add(fire);
+
+      const redMat = new THREE.MeshBasicMaterial({
+        color: 0xff2200, transparent: true, opacity: 0.6, depthWrite: false,
+      });
+      const red = new THREE.Mesh(this._sharedExpGeo, redMat);
+      group.add(red);
+
+      const smokeMat = new THREE.MeshBasicMaterial({
+        color: 0x222222, transparent: true, opacity: 0.5,
+      });
+      const smoke = new THREE.Mesh(this._sharedRingGeo, smokeMat);
+      smoke.rotation.x = Math.PI / 2;
+      group.add(smoke);
+
+      const emberMats = [];
+      const embers = [];
+      for (let i = 0; i < 4; i++) {
+        const mat = new THREE.MeshBasicMaterial({
+          color: i % 2 === 0 ? 0xffaa00 : 0xff4400,
+        });
+        const ember = new THREE.Mesh(this._sharedExpGeo, mat);
+        ember.scale.setScalar(0.15);
+        group.add(ember);
+        embers.push(ember);
+        emberMats.push(mat);
+      }
+
+      entry = { group, coreMat, fireMat, redMat, smokeMat, embers, emberMats };
+    }
+
+    // Reset scales for this radius
+    entry.group.children[0].scale.setScalar(radius * 0.3);
+    entry.group.children[1].scale.setScalar(radius * 0.8);
+    entry.group.children[2].scale.setScalar(radius);
+    entry.group.children[3].scale.setScalar(radius * 0.8);
+    for (const ember of entry.embers) {
+      ember.scale.setScalar(0.15);
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.2 + Math.random() * 0.15;
+      ember.position.set(0, 0, 0);
+      ember.userData.vx = Math.cos(angle) * speed;
+      ember.userData.vy = 0.15 + Math.random() * 0.1;
+      ember.userData.vz = Math.sin(angle) * speed;
+    }
+    return entry;
+  }
+
+  updateExplosionAnims(delta) {
+    if (!this._explosionAnims) return;
+    const dt60 = delta * 60;
+    for (let i = this._explosionAnims.length - 1; i >= 0; i--) {
+      const e = this._explosionAnims[i];
+      e.scale += 0.14 * dt60;
+      e.opacity -= 0.05 * dt60;
+
+      if (e.opacity <= 0) {
+        this.game.scene.remove(e.entry.group);
+        if (e.light) {
+          this.game.scene.remove(e.light);
+          this._explosionLightCount--;
+        }
+        this._explosionPool.push(e.entry);
+        this._activeExplosions--;
+        swapRemove(this._explosionAnims, i);
+      } else {
+        const ent = e.entry;
+        ent.group.scale.setScalar(e.scale);
+        ent.coreMat.opacity = e.opacity;
+        ent.fireMat.opacity = e.opacity * 0.8;
+        ent.redMat.opacity = e.opacity * 0.6;
+        ent.smokeMat.opacity = e.opacity * 0.4;
+
+        for (const ember of ent.embers) {
+          ember.position.x += ember.userData.vx * dt60;
+          ember.position.y += ember.userData.vy * dt60;
+          ember.position.z += ember.userData.vz * dt60;
+          ember.userData.vy -= 0.01 * dt60;
+        }
+
+        if (e.light) e.light.intensity = e.opacity * 80;
+      }
+    }
   }
 
   createExplosion(position, radius, damage) {
-    // Damage enemies in radius (always applies regardless of visual cap)
     this.game.zombieManager.damageInRadius(position, radius, damage);
 
-    // Skip visual effect if too many active
     if (this._activeExplosions >= this._maxActiveExplosions) {
       this.game.audioManager.playSound("explosion");
       return;
     }
     this._activeExplosions++;
+    this._initExplosionPool();
 
-    // Lazy-init shared geometries
-    if (!this._sharedExpGeo) {
-      this._sharedExpGeo = new THREE.SphereGeometry(1, 10, 10);
-      this._sharedExpGeo.userData = { shared: true };
-      this._sharedRingGeo = new THREE.TorusGeometry(1, 0.3, 6, 12);
-      this._sharedRingGeo.userData = { shared: true };
-    }
+    const entry = this._acquireExplosionGroup(radius);
+    entry.group.position.copy(position);
+    entry.group.scale.setScalar(0.1);
+    entry.coreMat.opacity = 1;
+    entry.fireMat.opacity = 0.8;
+    entry.redMat.opacity = 0.6;
+    entry.smokeMat.opacity = 0.5;
+    this.game.scene.add(entry.group);
 
-    const explosionGroup = new THREE.Group();
-    explosionGroup.position.copy(position);
-
-    // Core (white-hot)
-    const coreMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 1,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    });
-    const core = new THREE.Mesh(this._sharedExpGeo, coreMat);
-    core.scale.setScalar(radius * 0.3);
-    explosionGroup.add(core);
-
-    // Orange fireball
-    const fireMat = new THREE.MeshBasicMaterial({
-      color: 0xff6600, transparent: true, opacity: 0.8,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    });
-    const fire = new THREE.Mesh(this._sharedExpGeo, fireMat);
-    fire.scale.setScalar(radius * 0.8);
-    explosionGroup.add(fire);
-
-    // Red outer
-    const redMat = new THREE.MeshBasicMaterial({
-      color: 0xff2200, transparent: true, opacity: 0.6,
-      depthWrite: false,
-    });
-    const red = new THREE.Mesh(this._sharedExpGeo, redMat);
-    red.scale.setScalar(radius);
-    explosionGroup.add(red);
-
-    // Smoke ring
-    const smokeMat = new THREE.MeshBasicMaterial({
-      color: 0x222222, transparent: true, opacity: 0.5,
-    });
-    const smoke = new THREE.Mesh(this._sharedRingGeo, smokeMat);
-    smoke.rotation.x = Math.PI / 2;
-    smoke.scale.setScalar(radius * 0.8);
-    explosionGroup.add(smoke);
-
-    // 4 embers instead of 12
-    const emberGeo = this._sharedExpGeo;
-    const embers = [];
-    for (let i = 0; i < 4; i++) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0xffaa00 : 0xff4400,
-      });
-      const ember = new THREE.Mesh(emberGeo, mat);
-      ember.scale.setScalar(0.15);
-      const angle = (i / 4) * Math.PI * 2;
-      const speed = 0.2 + Math.random() * 0.15;
-      ember.userData = {
-        vx: Math.cos(angle) * speed,
-        vy: 0.15 + Math.random() * 0.1,
-        vz: Math.sin(angle) * speed,
-        mat,
-      };
-      explosionGroup.add(ember);
-      embers.push(ember);
-    }
-
-    explosionGroup.scale.setScalar(0.1);
-    this.game.scene.add(explosionGroup);
-
-    // Only add point light if under cap
     let light = null;
     if (this._explosionLightCount < this._maxExplosionLights) {
       this._explosionLightCount++;
@@ -3359,46 +3421,7 @@ export class AutoWeaponSystem {
       this.game.scene.add(light);
     }
 
-    let scale = 0.1;
-    let opacity = 1;
-
-    const animate = () => {
-      scale += 0.14;
-      opacity -= 0.05;
-
-      if (opacity <= 0) {
-        this.game.scene.remove(explosionGroup);
-        coreMat.dispose();
-        fireMat.dispose();
-        redMat.dispose();
-        smokeMat.dispose();
-        embers.forEach((e) => e.userData.mat.dispose());
-        if (light) {
-          this.game.scene.remove(light);
-          light.dispose();
-          this._explosionLightCount--;
-        }
-        this._activeExplosions--;
-      } else {
-        explosionGroup.scale.setScalar(scale);
-        coreMat.opacity = opacity;
-        fireMat.opacity = opacity * 0.8;
-        redMat.opacity = opacity * 0.6;
-        smokeMat.opacity = opacity * 0.4;
-
-        embers.forEach((ember) => {
-          ember.position.x += ember.userData.vx;
-          ember.position.y += ember.userData.vy;
-          ember.position.z += ember.userData.vz;
-          ember.userData.vy -= 0.01;
-        });
-
-        if (light) light.intensity = opacity * 80;
-        requestAnimationFrame(animate);
-      }
-    };
-
-    requestAnimationFrame(animate);
+    this._explosionAnims.push({ entry, scale: 0.1, opacity: 1, light });
     this.game.audioManager.playSound("explosion");
   }
 

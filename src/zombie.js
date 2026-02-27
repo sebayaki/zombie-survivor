@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { swapRemove } from "./utils.js";
 import { ENEMY_TYPES, createZombieMesh } from "./zombies/zombieMeshFactory.js";
 import {
   updateZombieBehavior,
@@ -89,6 +90,11 @@ export class ZombieManager {
 
     // Managed explosion animations (replaces per-explosion rAF loops)
     this._explosionAnims = [];
+
+    // Per-frame budget for expensive visual effects during mass kills
+    this._frameDmgTextBudget = 0;
+    this._frameParticleBudget = 0;
+    this._frameDeathFxBudget = 0;
   }
 
   reset() {
@@ -369,6 +375,11 @@ export class ZombieManager {
   update(delta) {
     const playerPos = this.game.player.getPosition();
 
+    // Reset per-frame VFX budgets
+    this._frameDmgTextBudget = 12;
+    this._frameParticleBudget = 20;
+    this._frameDeathFxBudget = 8;
+
     for (let i = this.zombies.length - 1; i >= 0; i--) {
       const zombie = this.zombies[i];
 
@@ -441,7 +452,7 @@ export class ZombieManager {
         e.fireball.material.dispose();
         e.ring.material.dispose();
         this._activeExplosions--;
-        this._explosionAnims.splice(i, 1);
+        swapRemove(this._explosionAnims, i);
       } else {
         e.fireball.scale.setScalar(e.scale);
         e.fireball.material.opacity = e.opacity * 0.85;
@@ -517,32 +528,36 @@ export class ZombieManager {
     }
 
     if (this.game.particleSystem) {
-      _tmpTextPos.set(
-        zombie.mesh.position.x + (Math.random() - 0.5) * 1.5,
-        zombie.mesh.position.y + 1.5 + Math.random() * 0.5,
-        zombie.mesh.position.z + (Math.random() - 0.5) * 1.5,
-      );
+      if (this._frameDmgTextBudget > 0) {
+        this._frameDmgTextBudget--;
+        _tmpTextPos.set(
+          zombie.mesh.position.x + (Math.random() - 0.5) * 1.5,
+          zombie.mesh.position.y + 1.5 + Math.random() * 0.5,
+          zombie.mesh.position.z + (Math.random() - 0.5) * 1.5,
+        );
+        const color = isCrit ? 0xff0000 : 0x770000;
+        const size = isCrit ? 1.1 : 0.7;
+        this.game.particleSystem.createFloatingText(
+          _tmpTextPos,
+          Math.floor(finalDamage).toString(),
+          color,
+          size,
+          isCrit,
+        );
+      }
 
-      const color = isCrit ? 0xff0000 : 0x770000;
-      const size = isCrit ? 1.1 : 0.7;
-
-      this.game.particleSystem.createFloatingText(
-        _tmpTextPos,
-        Math.floor(finalDamage).toString(),
-        color,
-        size,
-        isCrit,
-      );
-
-      _tmpHitPos.set(
-        zombie.mesh.position.x,
-        zombie.mesh.position.y + 1,
-        zombie.mesh.position.z,
-      );
-      this.game.particleSystem.spawn(
-        _tmpHitPos,
-        isCrit ? "critSpark" : "hitSpark",
-      );
+      if (this._frameParticleBudget > 0) {
+        this._frameParticleBudget--;
+        _tmpHitPos.set(
+          zombie.mesh.position.x,
+          zombie.mesh.position.y + 1,
+          zombie.mesh.position.z,
+        );
+        this.game.particleSystem.spawn(
+          _tmpHitPos,
+          isCrit ? "critSpark" : "hitSpark",
+        );
+      }
     }
 
     if (zombie.health <= 0) {
@@ -573,7 +588,7 @@ export class ZombieManager {
     const index = this.zombies.indexOf(zombie);
     if (index === -1) return;
 
-    this.zombies.splice(index, 1);
+    swapRemove(this.zombies, index);
 
     // Elite affix: Splitter — spawn 2 smaller copies on death
     if (
@@ -693,7 +708,7 @@ export class ZombieManager {
       if (this.game.postProcessing) {
         this.game.postProcessing.slowTime(0.15, 1.2);
         this.game.postProcessing.shake(1.5, 1.0);
-        this.game.postProcessing.pulseBloom(0.8, 4.0);
+        this.game.postProcessing.pulseBloom(0.8, 1.6);
       }
       if (this.game.treasureChestSystem) {
         this.game.treasureChestSystem.forceSpawn(zombie.mesh.position.clone());
@@ -702,7 +717,8 @@ export class ZombieManager {
       if (zombie.isStageBoss && this.game.stageSystem) {
         this.game.stageSystem.onStageBossDefeated();
       }
-    } else {
+    } else if (this._frameDeathFxBudget > 0) {
+      this._frameDeathFxBudget--;
       this.createDeathEffect(zombie.mesh.position, zombie.type);
     }
 

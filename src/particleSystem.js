@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { swapRemove } from "./utils.js";
 
 const PARTICLE_PRESETS = {
   xpCollect: {
@@ -275,7 +276,7 @@ export class ParticleSystem {
 
       if (p.elapsed >= p.lifetime) {
         this._releaseMesh(p.mesh, p.streak);
-        this.particles.splice(i, 1);
+        swapRemove(this.particles, i);
       }
     }
 
@@ -285,7 +286,7 @@ export class ParticleSystem {
       const trail = this.trailParticles[i];
 
       if (!trail.active) {
-        this.trailParticles.splice(i, 1);
+        swapRemove(this.trailParticles, i);
         continue;
       }
 
@@ -310,7 +311,7 @@ export class ParticleSystem {
       if (progress >= 1) {
         t.entry.sprite.visible = false;
         this._textPool.push(t.entry);
-        this._activeTexts.splice(i, 1);
+        swapRemove(this._activeTexts, i);
         continue;
       }
 
@@ -343,7 +344,7 @@ export class ParticleSystem {
       if (progress >= 1) {
         s.sw.mesh.visible = false;
         this._shockwavePool.push(s.sw);
-        this._activeShockwaves.splice(i, 1);
+        swapRemove(this._activeShockwaves, i);
         continue;
       }
 
@@ -360,7 +361,7 @@ export class ParticleSystem {
       if (fl.f.material.opacity <= 0) {
         fl.f.mesh.visible = false;
         this._flashPool.push(fl.f);
-        this._activeFlashes.splice(i, 1);
+        swapRemove(this._activeFlashes, i);
         continue;
       }
 
@@ -376,7 +377,7 @@ export class ParticleSystem {
       if (progress >= 1) {
         bp.bp.mesh.visible = false;
         this._bloodPuddlePool.push(bp.bp);
-        this._activeBloodPuddles.splice(i, 1);
+        swapRemove(this._activeBloodPuddles, i);
         continue;
       }
 
