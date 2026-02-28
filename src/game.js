@@ -352,7 +352,7 @@ export class Game {
     const zombieDamage =
       (10 + timeMinutes * 3 + timeMinutes * timeMinutes * 0.5) * stage.getEnemyDamageMult();
 
-    const maxZombies = 500;
+    const maxZombies = 300;
     const currentCount = this.zombieManager.getZombies().length;
 
     if (this.spawnTimer >= spawnInterval) {
