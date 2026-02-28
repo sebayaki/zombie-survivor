@@ -113,8 +113,11 @@ function setupEventListeners() {
   document.addEventListener("keydown", (e) => {
     // ESC to pause/resume (only if upgrade UI is not open)
     if (e.code === "Escape") {
-      // Don't pause if upgrade selection is open
-      if (game.upgradeUI && game.upgradeUI.isOpen) {
+      // Don't pause if a modal overlay is open
+      if (
+        (game.upgradeUI && game.upgradeUI.isOpen) ||
+        (game.chestUI && game.chestUI.isOpen)
+      ) {
         return;
       }
 

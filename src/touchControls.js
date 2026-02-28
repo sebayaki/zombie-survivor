@@ -44,6 +44,12 @@ export class TouchControls {
         e.preventDefault();
         e.stopPropagation();
         if (this.game.isPlaying && !this.game.isPaused) {
+          if (
+            (this.game.upgradeUI && this.game.upgradeUI.isOpen) ||
+            (this.game.chestUI && this.game.chestUI.isOpen)
+          ) {
+            return;
+          }
           this.game.pause();
         }
       });

@@ -656,9 +656,13 @@ export class UpgradeUI {
     if (this.game.upgradeQueue && this.game.upgradeQueue.length > 0) {
       setTimeout(() => {
         this.game.triggerNextUpgrade();
-      }, 500); // 500ms delay to make it feel better and allow messages to appear
+      }, 500);
     } else {
-      // Resume game
+      // Only unpause if the pause screen isn't showing (race-condition guard)
+      const pauseScreen = document.getElementById("pause-screen");
+      if (pauseScreen && !pauseScreen.classList.contains("hidden")) {
+        return;
+      }
       this.game.isPaused = false;
     }
   }

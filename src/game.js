@@ -126,7 +126,7 @@ export class Game {
 
     // Graphics quality: 0=low, 1=medium, 2=high
     const saved = localStorage.getItem("zombieSurvivor_graphics");
-    this._qualityLevel = saved === "low" ? 0 : saved === "high" ? 2 : 1;
+    this._qualityLevel = saved === "low" ? 0 : saved === "medium" ? 1 : 2;
     this._userQualityLocked = saved !== null;
 
     const dpr = window.devicePixelRatio || 1;
@@ -285,6 +285,13 @@ export class Game {
   pause() {
     if (!this.isPlaying || this.isPaused) return;
 
+    if (
+      (this.upgradeUI && this.upgradeUI.isOpen) ||
+      (this.chestUI && this.chestUI.isOpen)
+    ) {
+      return;
+    }
+
     console.log("Game paused");
     this.isPaused = true;
 
@@ -296,13 +303,13 @@ export class Game {
   }
 
   resume() {
+    // Always hide pause screen to recover from race conditions
+    document.getElementById("pause-screen").classList.add("hidden");
+
     if (!this.isPaused) return;
 
     console.log("Game resumed");
     this.isPaused = false;
-
-    // Hide pause screen
-    document.getElementById("pause-screen").classList.add("hidden");
 
     // Resume music
     this.audioManager.resumeMusic();
@@ -389,12 +396,17 @@ export class Game {
 
   // Show upgrade selection (called on level up)
   showUpgradeSelection(level = null) {
+    // Dismiss pause screen if it's showing — upgrade takes priority
+    document.getElementById("pause-screen").classList.add("hidden");
+
     this.isPaused = true;
     this.upgradeUI.show(level || this.xpSystem.level);
   }
 
   // Handle bonus upgrades (e.g., from chests) without changing the level
   showBonusUpgradeSelection() {
+    document.getElementById("pause-screen").classList.add("hidden");
+
     this.isPaused = true;
     this.upgradeUI.show(this.xpSystem.level, true); // true = isBonus
   }
