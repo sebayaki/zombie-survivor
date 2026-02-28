@@ -75,6 +75,9 @@ export class TouchControls {
       e.target.closest("#settings-button") ||
       e.target.closest(".upgrade-overlay") ||
       e.target.closest(".upgrade-choice") ||
+      e.target.closest(".arcana-overlay") ||
+      e.target.closest(".chest-overlay") ||
+      e.target.closest(".powerup-shop-overlay") ||
       e.target.closest("button")
     ) {
       return;
