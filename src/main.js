@@ -69,6 +69,17 @@ function setupEventListeners() {
     game.quitToMenu();
   });
 
+  // Graphics quality toggle (cycles Low → Medium → High)
+  const graphicsToggle = document.getElementById("graphics-toggle");
+  const qualityLabels = ["LOW", "MEDIUM", "HIGH"];
+  graphicsToggle.addEventListener("click", () => {
+    const cur = parseInt(graphicsToggle.dataset.level, 10);
+    const next = (cur + 1) % 3;
+    game.setGraphicsQuality(next);
+    graphicsToggle.dataset.level = next;
+    graphicsToggle.textContent = qualityLabels[next];
+  });
+
   // Sound toggle button
   const soundToggle = document.getElementById("sound-toggle");
   soundToggle.addEventListener("click", () => {
@@ -212,6 +223,13 @@ function loadSettings() {
 
   musicToggle.textContent = musicEnabled ? "ON" : "OFF";
   musicToggle.classList.toggle("on", musicEnabled);
+
+  // Graphics quality
+  const graphicsToggle = document.getElementById("graphics-toggle");
+  const qualityLabels = ["LOW", "MEDIUM", "HIGH"];
+  const level = game._qualityLevel;
+  graphicsToggle.dataset.level = level;
+  graphicsToggle.textContent = qualityLabels[level];
 }
 
 // Start initialization when DOM is ready

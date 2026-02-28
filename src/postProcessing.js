@@ -97,9 +97,8 @@ export class PostProcessingManager {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    // Render post-processing at reduced resolution — big GPU savings
-    // with negligible visual difference (bloom is inherently blurry).
-    this._ppScale = this._isMobile ? 0.5 : 0.6;
+    const preset = this.game._qualityPresets[this.game._qualityLevel];
+    this._ppScale = preset ? preset.pp : (this._isMobile ? 0.5 : 0.6);
     const ppW = Math.ceil(width * this._ppScale);
     const ppH = Math.ceil(height * this._ppScale);
 
@@ -159,12 +158,16 @@ export class PostProcessingManager {
     this._activeEffectCount = count;
   }
 
-  setQuality(level) {
+  setQuality(level, ppScale) {
+    if (ppScale !== undefined) {
+      this._ppScale = ppScale;
+      this.onWindowResize();
+    }
     if (this.bloomPass) {
       this.bloomPass.enabled = level >= 1;
-      if (level === 1) {
-        this.bloomPass.strength = this._baseBloomStrength * 0.5;
-      }
+      this.bloomPass.strength = level === 2
+        ? this._baseBloomStrength
+        : this._baseBloomStrength * 0.5;
     }
   }
 

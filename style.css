@@ -1100,6 +1100,22 @@ button.secondary:hover {
     background: linear-gradient(180deg, #335528 0%, #224418 100%);
 }
 
+.quality-btn[data-level="0"] {
+    color: #999;
+}
+
+.quality-btn[data-level="1"] {
+    background: linear-gradient(180deg, #2a3344 0%, #1a2233 100%);
+    border-color: rgba(60, 120, 180, 0.5);
+    color: #66aaee;
+}
+
+.quality-btn[data-level="2"] {
+    background: linear-gradient(180deg, #443a22 0%, #332a16 100%);
+    border-color: rgba(200, 160, 60, 0.5);
+    color: #eebb44;
+}
+
 /* Wave Announcement */
 #wave-announcement {
     position: fixed;

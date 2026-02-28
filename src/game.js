@@ -122,19 +122,30 @@ export class Game {
       );
 
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(isMobile ? 0.7 : 0.85);
+    this.isMobile = isMobile;
+
+    // Graphics quality: 0=low, 1=medium, 2=high
+    const saved = localStorage.getItem("zombieSurvivor_graphics");
+    this._qualityLevel = saved === "low" ? 0 : saved === "high" ? 2 : 1;
+    this._userQualityLocked = saved !== null;
+
+    const dpr = window.devicePixelRatio || 1;
+    this._qualityPresets = isMobile
+      ? [{ pr: 0.7, pp: 0.4 }, { pr: 1.5, pp: 0.55 }, { pr: Math.min(dpr, 2.5), pp: 0.7 }]
+      : [{ pr: 0.7, pp: 0.45 }, { pr: 1.0, pp: 0.6 }, { pr: Math.min(dpr, 2), pp: 0.8 }];
+
+    const preset = this._qualityPresets[this._qualityLevel];
+    this.renderer.setPixelRatio(preset.pr);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    this.isMobile = isMobile;
-    this.renderer.shadowMap.enabled = !isMobile;
+    this.renderer.shadowMap.enabled = this._qualityLevel >= 1 && !isMobile;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    // Adaptive quality state
-    this._qualityLevel = 1;          // 0=low, 1=medium, 2=high (start medium, promote if FPS is good)
+    // Adaptive quality state (only active when user hasn't locked quality)
     this._fpsFrames = 0;
     this._fpsAccum = 0;
-    this._fpsCheckInterval = 3;      // seconds between FPS checks
-    this._qualityCooldown = 0;       // cooldown between quality changes
+    this._fpsCheckInterval = 3;
+    this._qualityCooldown = 0;
 
     const container = document.getElementById("game-container");
     container.appendChild(this.renderer.domElement);
@@ -484,6 +495,8 @@ export class Game {
   }
 
   _updateAdaptiveQuality(delta) {
+    if (this._userQualityLocked) return;
+
     this._fpsFrames++;
     this._fpsAccum += delta;
     if (this._qualityCooldown > 0) this._qualityCooldown -= delta;
@@ -508,17 +521,24 @@ export class Game {
   }
 
   _applyQuality() {
-    const q = this._qualityLevel;
-    const pr = this.isMobile
-      ? (q === 0 ? 0.5  : q === 1 ? 0.7  : 0.85)
-      : (q === 0 ? 0.6  : q === 1 ? 0.85 : 1.0);
-    this.renderer.setPixelRatio(pr);
+    const preset = this._qualityPresets[this._qualityLevel];
+    this.renderer.setPixelRatio(preset.pr);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    this.renderer.shadowMap.enabled = q >= 1 && !this.isMobile;
+    this.renderer.shadowMap.enabled = this._qualityLevel >= 1 && !this.isMobile;
 
     if (this.postProcessing) {
-      this.postProcessing.setQuality(q);
+      this.postProcessing.setQuality(this._qualityLevel, preset.pp);
     }
+  }
+
+  setGraphicsQuality(level) {
+    this._qualityLevel = level;
+    this._userQualityLocked = true;
+    const labels = ["low", "medium", "high"];
+    localStorage.setItem("zombieSurvivor_graphics", labels[level]);
+    this._applyQuality();
+    return level;
   }
 
   gameLoop() {
