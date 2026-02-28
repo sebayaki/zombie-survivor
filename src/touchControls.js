@@ -92,36 +92,45 @@ export class TouchControls {
     // Don't prevent default on UI elements
     e.preventDefault();
 
+    const newTouch = e.changedTouches[0];
+
     // If joystick thinks it's active, verify the tracked touch still exists
     if (this.joystickActive) {
-      let staleTouch = true;
-      for (const t of e.touches) {
-        if (t.identifier === this.joystickTouchId) {
-          staleTouch = false;
-          break;
+      if (newTouch.identifier === this.joystickTouchId) {
+        // Browser recycled the touch ID — old touch is definitely gone
+        this._resetJoystick();
+      } else {
+        // Different ID: check if the original touch is genuinely still held
+        let oldTouchAlive = false;
+        for (const t of e.touches) {
+          if (
+            t.identifier === this.joystickTouchId &&
+            t.identifier !== newTouch.identifier
+          ) {
+            oldTouchAlive = true;
+            break;
+          }
         }
+        if (oldTouchAlive) return;
+        this._resetJoystick();
       }
-      if (!staleTouch) return;
-      this._resetJoystick();
     }
 
-    const touch = e.changedTouches[0];
-    this.joystickTouchId = touch.identifier;
+    this.joystickTouchId = newTouch.identifier;
     this.joystickActive = true;
 
     // Position joystick at touch location
     this.joystickCenter = {
-      x: touch.clientX,
-      y: touch.clientY,
+      x: newTouch.clientX,
+      y: newTouch.clientY,
     };
 
     // Show and position the joystick container
     if (this.joystickContainer) {
       this.joystickContainer.classList.add("active");
-      // Center the joystick base on the touch point
-      const baseSize = 120; // Match CSS
-      this.joystickContainer.style.left = `${touch.clientX - baseSize / 2}px`;
-      this.joystickContainer.style.top = `${touch.clientY - baseSize / 2}px`;
+      const baseSize = 120;
+      this.joystickContainer.style.left = `${newTouch.clientX - baseSize / 2}px`;
+      this.joystickContainer.style.top = `${newTouch.clientY - baseSize / 2}px`;
     }
 
     // Reset handle position
@@ -157,8 +166,15 @@ export class TouchControls {
   onTouchCancel(e) {
     if (!this.joystickActive) return;
 
-    // touchcancel can fire with mismatched identifiers, so always reset
-    // if our tracked touch is no longer in the active touches list
+    // Check if our tracked touch was explicitly cancelled
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === this.joystickTouchId) {
+        this._resetJoystick();
+        return;
+      }
+    }
+
+    // Fallback: if our touch is no longer in active touches, reset
     let found = false;
     for (const t of e.touches) {
       if (t.identifier === this.joystickTouchId) {
