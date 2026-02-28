@@ -208,13 +208,15 @@ export class StageSystem {
     this.cursedZoneTimer = 0;
   }
 
+  getKillsForBoss() {
+    return 500;
+  }
+
   // Called every frame during gameplay
   update(delta) {
     if (this.stageCompleted) return;
 
-    // Check if we should spawn the stage boss (wave 8 = gameTime >= 420s)
-    const wave = Math.floor(this.game.gameTime / 60) + 1;
-    if (wave >= 8 && !this.stageBossSpawned) {
+    if (this.game.kills >= this.getKillsForBoss() && !this.stageBossSpawned) {
       this.spawnStageBoss();
     }
 

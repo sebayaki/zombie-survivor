@@ -508,11 +508,9 @@ export class UI {
       el.innerHTML = `<i class="fa-solid fa-skull-crossbones"></i> DEFEAT THE BOSS`;
     } else {
       el.className = "";
-      const bossTime = 7 * 60; // boss spawns at 420s (wave 8)
-      const remaining = Math.max(0, bossTime - this.game.gameTime);
-      const mins = Math.floor(remaining / 60);
-      const secs = Math.floor(remaining % 60);
-      el.innerHTML = `<i class="fa-solid fa-skull-crossbones"></i> BOSS IN <span id="boss-countdown">${mins}:${secs.toString().padStart(2, "0")}</span>`;
+      const killsRequired = stage.getKillsForBoss();
+      const remaining = Math.max(0, killsRequired - this.game.kills);
+      el.innerHTML = `<i class="fa-solid fa-skull-crossbones"></i> BOSS IN <span id="boss-countdown">${remaining} KILLS</span>`;
     }
   }
 

@@ -439,6 +439,7 @@ export class Game {
   addKill() {
     this.kills++;
     this.ui.updateKills();
+    this.ui.updateBossStatus();
   }
 
   // Drop XP gem when zombie dies
