@@ -88,9 +88,9 @@ export class Game {
 
     // Continuous spawning settings
     this.spawnTimer = 0;
-    this.baseSpawnInterval = 0.54; // 2x faster spawns
-    this.minSpawnInterval = 0.12; // 2x faster cap
-    this.zombiesPerSpawn = 1; // Start with 1 zombie per spawn
+    this.baseSpawnInterval = 0.35;
+    this.minSpawnInterval = 0.1;
+    this.zombiesPerSpawn = 2;
   }
 
   async init() {
@@ -335,7 +335,7 @@ export class Game {
     );
     const spawnInterval = baseInterval / stage.getSpawnRateMult();
 
-    this.zombiesPerSpawn = Math.floor(1 + timeMinutes * 0.5);
+    this.zombiesPerSpawn = Math.floor(2 + timeMinutes * 0.5);
 
     const baseHealth =
       99 + timeMinutes * 80 + timeMinutes * timeMinutes * 12 + Math.pow(timeMinutes, 3) * 0.8;

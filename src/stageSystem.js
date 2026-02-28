@@ -209,7 +209,8 @@ export class StageSystem {
   }
 
   getKillsForBoss() {
-    return 500;
+    const stage = this.data.currentStage;
+    return 500 + (stage - 1) * 150;
   }
 
   // Called every frame during gameplay
